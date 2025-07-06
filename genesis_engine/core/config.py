@@ -7,7 +7,7 @@ Configuraciones globales, constantes y utilidades del sistema.
 import os
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from dataclasses import dataclass
 import logging
 

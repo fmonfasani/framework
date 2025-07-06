@@ -11,10 +11,16 @@ __author__ = "Genesis Team"
 __email__ = "team@genesis.dev"
 
 # Importaciones principales
-from genesis_engine.core.orchestrator import GenesisOrchestrator
-from genesis_engine.core.project_manager import ProjectManager
-from genesis_engine.mcp.protocol import MCPProtocol
-from genesis_engine.agents.base_agent import BaseAgent
+try:
+    from genesis_engine.core.orchestrator import GenesisOrchestrator
+    from genesis_engine.core.project_manager import ProjectManager
+    from genesis_engine.mcp.protocol import MCPProtocol
+    from genesis_engine.agents.base_agent import BaseAgent
+except Exception:  # pragma: no cover - graceful fallback if deps fail
+    GenesisOrchestrator = None
+    ProjectManager = None
+    MCPProtocol = None
+    BaseAgent = None
 
 # Configuración de logging
 import logging
