@@ -15,8 +15,18 @@ from genesis_engine.mcp.message_types import (
     MCPMessage, MCPRequest, MCPResponse, MCPBroadcast, MCPError,
     MessageType, Priority
 )
+from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+class AgentStatus(str, Enum):
+    """Estados posibles de un agente."""
+    INITIALIZED = "initialized"
+    READY = "ready"
+    RUNNING = "running"
+    STOPPED = "stopped"
+    ERROR = "error"
 
 class MCPProtocol:
     """
@@ -310,3 +320,7 @@ class MCPProtocol:
                 "status": agent.status
             }
         return None
+
+
+# Instancia global del protocolo utilizada por el orquestador
+mcp_protocol = MCPProtocol()
