@@ -1,0 +1,44 @@
+from pathlib import Path
+import sys
+import types
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+if 'genesis_engine' not in sys.modules:
+    pkg = types.ModuleType('genesis_engine')
+    pkg.__path__ = [str(ROOT)]
+    sys.modules['genesis_engine'] = pkg
+
+from templates.engine import TemplateEngine
+
+
+def test_generate_project(tmp_path: Path):
+    # Create temporary templates structure
+    templates_dir = tmp_path / "templates"
+    template_root = templates_dir / "sample"
+    sub_dir = template_root / "sub"
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create template files
+    (template_root / "file.txt.j2").write_text("Hello {{ name }}!")
+    (sub_dir / "inner.txt.j2").write_text("Inner {{ name }}")
+    # Non-template file should be copied directly
+    (template_root / "static.txt").write_text("STATIC")
+
+    engine = TemplateEngine(templates_dir)
+
+    out_dir = tmp_path / "output"
+    generated = engine.generate_project("sample", out_dir, {"name": "World"})
+
+    expected_files = {
+        out_dir / "file.txt",
+        out_dir / "sub" / "inner.txt",
+        out_dir / "static.txt",
+    }
+    assert set(map(Path, generated)) == expected_files
+
+    assert (out_dir / "file.txt").read_text() == "Hello World!"
+    assert (out_dir / "sub" / "inner.txt").read_text() == "Inner World"
+    assert (out_dir / "static.txt").read_text() == "STATIC"
+
