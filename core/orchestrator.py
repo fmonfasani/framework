@@ -19,11 +19,12 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol, AgentStatus
+from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol
 from genesis_engine.mcp.agent_base import AgentTask, TaskResult
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
-from genesis_engine.agents.frontend import FrontendAgent
+# FrontendAgent is not implemented yet
+# from genesis_engine.agents.devops import DevOpsAgent
 from genesis_engine.core.project_manager import ProjectManager
 from genesis_engine.cli.ui.console import genesis_console
 
@@ -134,8 +135,8 @@ class GenesisOrchestrator:
         """Registrar agentes especializados"""
         agents_to_register = [
             ArchitectAgent(),
-            BackendAgent(), 
-            FrontendAgent(),
+            BackendAgent(),
+            # FrontendAgent(),
             # DevOpsAgent(),
             # DeployAgent(),
             # PerformanceAgent(),
@@ -158,6 +159,41 @@ class GenesisOrchestrator:
         self.mcp.register_handler("task.completed", self._handle_task_completed)
         self.mcp.register_handler("task.failed", self._handle_task_failed)
         self.mcp.register_handler("agent.status_changed", self._handle_agent_status_changed)
+
+    def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Procesar una solicitud simple dirigida a un agente.
+
+        Este método se usa principalmente por la CLI sin necesidad de
+        inicializar por completo el orquestador. Permite enviar
+        acciones directas a un agente y obtener la respuesta de forma
+        síncrona.
+        """
+        agent_key = request.get("agent")
+        action = request.get("type")
+        data = request.get("data", {})
+
+        if not agent_key or not action:
+            return {"success": False, "error": "Invalid request"}
+
+        agent_map = {
+            "architect": ArchitectAgent,
+            "backend": BackendAgent,
+        }
+
+        agent = self.agents.get(agent_key)
+        if not agent:
+            agent_cls = agent_map.get(agent_key)
+            if not agent_cls:
+                return {"success": False, "error": f"Unknown agent '{agent_key}'"}
+            agent = agent_cls()
+            self.agents[agent_key] = agent
+
+        task = AgentTask(id=str(uuid.uuid4()), name=action, params=data)
+        try:
+            result = asyncio.run(agent.execute_task(task))
+            return {"success": True, "result": result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     async def create_project(self, config: Dict[str, Any]) -> ProjectCreationResult:
         """
