@@ -11,6 +11,8 @@ Este módulo es responsable de:
 
 import os
 import json
+import shutil
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
@@ -292,6 +294,42 @@ class TemplateEngine:
         except Exception as e:
             self.logger.error(f"❌ Error analizando variables del template {template_name}: {e}")
             return []
+
+    def generate_project(
+        self,
+        template_name: str,
+        output_dir: Union[str, Path],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Renderizar todas las plantillas dentro de un directorio y crear los archivos"""
+        template_path = self.templates_dir / template_name
+        if not template_path.exists() or not template_path.is_dir():
+            raise FileNotFoundError(f"Directorio de template no encontrado: {template_path}")
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        generated_files: List[str] = []
+        for root, _, files in os.walk(template_path):
+            rel_root = Path(root).relative_to(template_path)
+            for fname in files:
+                src = Path(root) / fname
+                relative_template = Path(template_name) / rel_root / fname
+                dest_rel = rel_root / fname
+
+                if fname.endswith(".j2"):
+                    rendered = asyncio.run(self.render_template(str(relative_template), context or {}))
+                    dest = output_path / dest_rel.with_suffix("")
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(rendered, encoding="utf-8")
+                    generated_files.append(str(dest))
+                else:
+                    dest = output_path / dest_rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(src, dest)
+                    generated_files.append(str(dest))
+
+        return generated_files
     
     def register_helper(self, name: str, func: callable):
         """
