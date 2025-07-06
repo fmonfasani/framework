@@ -12,11 +12,11 @@ __email__ = "team@genesis.dev"
 
 # Importaciones principales
 try:
-    from .core.orchestrator import GenesisOrchestrator
-    from .core.project_manager import ProjectManager
-    from .mcp.protocol import MCPProtocol
-    from .agents.base_agent import BaseAgent
-except Exception:  # pragma: no cover - graceful fallback for partial imports
+    from genesis_engine.core.orchestrator import GenesisOrchestrator
+    from genesis_engine.core.project_manager import ProjectManager
+    from genesis_engine.mcp.protocol import MCPProtocol
+    from genesis_engine.agents.base_agent import BaseAgent
+except Exception:  # pragma: no cover - graceful fallback if deps fail
     GenesisOrchestrator = None
     ProjectManager = None
     MCPProtocol = None
