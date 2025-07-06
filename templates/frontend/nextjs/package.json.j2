@@ -1,0 +1,17 @@
+{
+  "name": "{{ project_name|kebab_case }}",
+  "version": "0.1.0",
+  "private": true,
+  "description": "{{ description }}",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  }
+}
