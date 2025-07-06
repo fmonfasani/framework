@@ -395,6 +395,17 @@ class CustomAgent(GenesisAgent):
 
 ### Tests Automáticos Incluidos
 
+Las carpetas `backend/` y `frontend/` se crean solo después de ejecutar
+`genesis init <nombre-del-proyecto>`. A continuación se muestra un flujo de
+trabajo típico:
+
+```bash
+pip install -e .
+genesis init my-app
+cd my-app/backend && pytest
+cd my-app/frontend && npm test
+```
+
 ```bash
 # Backend tests
 cd backend && pytest
@@ -408,6 +419,9 @@ npm run test:e2e
 # All tests
 genesis test
 ```
+
+Ejecuta `genesis test` siempre desde dentro del proyecto generado para que se
+resuelvan correctamente las rutas y configuraciones.
 
 ### CI/CD Pipeline
 
