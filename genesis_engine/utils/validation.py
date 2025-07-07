@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import logging
+from genesis_engine.core.logging import get_logger
 import re
 
 class ValidationLevel(str, Enum):
@@ -48,14 +48,8 @@ class EnvironmentValidator:
     """
     
     def __init__(self):
-        self.logger = self._setup_logger()
+        self.logger = get_logger("genesis.validation")
         self.results: List[ValidationResult] = []
-    
-    def _setup_logger(self) -> logging.Logger:
-        """Configurar logger"""
-        logger = logging.getLogger("genesis.validation")
-        logger.setLevel(logging.INFO)
-        return logger
     
     def run_diagnostics(self) -> List[ValidationResult]:
         """
@@ -488,7 +482,7 @@ class ConfigValidator:
     """
     
     def __init__(self):
-        self.logger = logging.getLogger("genesis.config_validator")
+        self.logger = get_logger("genesis.config_validator")
     
     def validate_project_config(self, config: Dict[str, Any]) -> List[ValidationResult]:
         """
@@ -638,7 +632,7 @@ class SchemaValidator:
     """
     
     def __init__(self):
-        self.logger = logging.getLogger("genesis.schema_validator")
+        self.logger = get_logger("genesis.schema_validator")
     
     def validate_project_schema(self, schema: Dict[str, Any]) -> List[ValidationResult]:
         """

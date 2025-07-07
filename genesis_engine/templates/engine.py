@@ -16,7 +16,7 @@ import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
-import logging
+from genesis_engine.core.logging import get_logger
 
 from jinja2 import Environment, FileSystemLoader, Template, TemplateError
 from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
@@ -32,7 +32,7 @@ class TemplateEngine:
     def __init__(self, templates_dir: Optional[Path] = None):
         self.templates_dir = templates_dir or self._get_default_templates_dir()
         self.env = self._setup_jinja_environment()
-        self.logger = self._setup_logger()
+        self.logger = get_logger("genesis.template_engine")
         
         # Cache de templates renderizados
         self._template_cache: Dict[str, Template] = {}
@@ -66,20 +66,6 @@ class TemplateEngine:
         
         return env
     
-    def _setup_logger(self) -> logging.Logger:
-        """Configurar logger"""
-        logger = logging.getLogger("genesis.template_engine")
-        logger.setLevel(logging.INFO)
-        
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - TemplateEngine - %(levelname)s - %(message)s'
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
     
     def _setup_default_helpers(self):
         """Configurar funciones helper por defecto"""
