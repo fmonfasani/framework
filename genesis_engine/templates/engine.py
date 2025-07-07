@@ -147,6 +147,7 @@ class TemplateEngine:
             if use_cache and template_name in self._template_cache:
                 template = self._template_cache[template_name]
             else:
+                template_name = template_name.replace("\\", "/")
                 template = self.env.get_template(template_name)
                 if use_cache:
                     self._template_cache[template_name] = template
@@ -324,7 +325,9 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    rendered = asyncio.run(self.render_template(str(relative_template), context or {}))
+                    rendered = asyncio.run(
+                        self.render_template(relative_template.as_posix(), context or {})
+                    )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_text(rendered, encoding="utf-8")

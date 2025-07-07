@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import types
+import asyncio
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -41,4 +42,16 @@ def test_generate_project(tmp_path: Path):
     assert (out_dir / "file.txt").read_text() == "Hello World!"
     assert (out_dir / "sub" / "inner.txt").read_text() == "Inner World"
     assert (out_dir / "static.txt").read_text() == "STATIC"
+
+
+def test_render_template_windows_style(tmp_path: Path):
+    templates_dir = tmp_path / "templates"
+    sub_dir = templates_dir / "dir"
+    sub_dir.mkdir(parents=True, exist_ok=True)
+    (sub_dir / "file.txt.j2").write_text("Hello {{ name }}!")
+
+    engine = TemplateEngine(templates_dir)
+
+    content = asyncio.run(engine.render_template("dir\\file.txt.j2", {"name": "Bob"}))
+    assert content == "Hello Bob!"
 
