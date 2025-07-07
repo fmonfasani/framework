@@ -16,7 +16,7 @@ from genesis_engine.cli.commands.init import init_command
 from genesis_engine.cli.commands.doctor import doctor_command
 from genesis_engine.cli.commands.deploy import deploy_command
 from genesis_engine.cli.commands.generate import generate_command
-from genesis_engine.cli.utils import show_banner, check_dependencies
+from genesis_engine.cli.commands.utils import show_banner, check_dependencies
 from genesis_engine import __version__
 
 # Configurar Rich Console
