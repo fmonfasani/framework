@@ -223,23 +223,33 @@ class GenesisConfig:
     def _setup_logging(self):
         """Configurar sistema de logging"""
         log_level = getattr(logging, self._config.get("log_level", "INFO"))
-        
+
         # Crear directorio de logs
         log_dir = Path(self._config.get("log_dir", LOG_DIR))
         log_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Configurar logger root
-        console_handler = RichHandler()
-        file_handler = logging.FileHandler(log_dir / "genesis.log", encoding="utf-8")
 
-        logging.basicConfig(
-            level=log_level,
-            format=LOG_FORMAT,
-            handlers=[
-                console_handler,
-                file_handler,
-            ]
+        root_logger = logging.getLogger()
+        root_logger.setLevel(log_level)
+
+        formatter = logging.Formatter(LOG_FORMAT)
+
+        has_console = any(isinstance(h, RichHandler) for h in root_logger.handlers)
+        if not has_console:
+            console_handler = RichHandler()
+            console_handler.setLevel(log_level)
+            console_handler.setFormatter(formatter)
+            root_logger.addHandler(console_handler)
+
+        log_path = log_dir / "genesis.log"
+        has_file = any(
+            isinstance(h, logging.FileHandler) and Path(getattr(h, "baseFilename", "")) == log_path
+            for h in root_logger.handlers
         )
+        if not has_file:
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
+            file_handler.setLevel(log_level)
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
     
     @classmethod
     def get_stack_config(cls, stack_name: str) -> Dict[str, Any]:
