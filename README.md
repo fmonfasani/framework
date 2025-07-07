@@ -102,9 +102,7 @@ genesis help
 ```bash
 # Crear aplicación SaaS completa
 genesis init my-saas-app \
-  --template=saas-basic \
-  --stack=golden-path \
-  --ai-ready
+  --template=saas-basic
 
 # Resultado:
 # 🏗️ Analizando requisitos...
@@ -192,14 +190,9 @@ genesis init my-saas \
 
 ### Stack Personalizado
 
-```bash
-genesis init my-app \
-  --stack backend=nestjs \
-  --stack frontend=vue \
-  --stack database=mongodb \
-  --stack styling=tailwind \
-  --stack state=pinia
-```
+El CLI actual no incluye una bandera para definir el stack. Para personalizar los
+componentes del stack utiliza un archivo de configuración tal como se muestra en
+la sección **Configuración Avanzada**.
 
 ### Características Específicas
 
