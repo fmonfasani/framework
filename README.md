@@ -51,6 +51,21 @@ Genesis Engine es una plataforma innovadora que utiliza un equipo de agentes IA 
 - ✅ **Testing**: Tests automatizados y CI/CD
 - ✅ **Documentación**: API docs automática con OpenAPI/Swagger
 
+## ⚠️ Estado Actual y Limitaciones
+
+Genesis Engine aún está en una fase temprana de desarrollo. Algunas
+funcionalidades se encuentran disponibles de forma **experimental** o todavía
+no han sido implementadas por completo:
+
+- `genesis deploy` — el comando de despliegue actualmente solo muestra un
+  mensaje de "Función en desarrollo".
+- `genesis generate` — la generación de componentes individuales está en
+  construcción.
+
+Estas partes pueden cambiar sin previo aviso y es posible que presenten
+comportamientos inesperados. Consulta la sección de [Roadmap](#-roadmap) para
+conocer las características que llegarán próximamente.
+
 ## 🚀 Instalación Rápida
 
 ### Prerrequisitos
