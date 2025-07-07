@@ -57,6 +57,16 @@ def init_command(
         "version": "1.0.0",
         "description": f"Aplicación {template} generada con Genesis Engine"
     }
+
+    if template == "saas-basic" and no_interactive:
+        project_config["backend"] = {
+            "framework": "fastapi",
+            "database": "postgresql"
+        }
+        project_config["frontend"] = {
+            "framework": "nextjs",
+            "styling": "tailwind"
+        }
     
     if not no_interactive:
         console.print("\n[bold]📋 Configuración del Proyecto[/bold]")
@@ -129,11 +139,20 @@ def init_command(
         # Crear directorio del proyecto
         project_dir.mkdir(parents=True, exist_ok=True)
         
+        # Preparar contexto para las plantillas
+        context = {
+            **project_config,
+            "project_name": project_config.get("name"),
+            "backend_framework": project_config.get("backend", {}).get("framework", "fastapi"),
+            "frontend_framework": project_config.get("frontend", {}).get("framework", "nextjs"),
+            "database_type": project_config.get("backend", {}).get("database", "postgresql"),
+        }
+
         # Generar archivos usando template engine
         template_engine.generate_project(
             template_name=template,
             output_dir=project_dir,
-            context=project_config
+            context=context
         )
         
         progress.update(task3, completed=1)

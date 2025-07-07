@@ -46,4 +46,8 @@ where = ["."]
 include = ["genesis_engine*"]
 
 [tool.setuptools.package-data]
-genesis_engine = ["templates/**/*", "templates/**/**/*"]
+genesis_engine = [
+    "templates/**/*",
+    "templates/**/**/*",
+    "templates/saas-basic/**/*"
+]

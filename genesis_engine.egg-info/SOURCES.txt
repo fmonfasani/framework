@@ -42,8 +42,6 @@ genesis_engine/mcp/message_types.py
 genesis_engine/mcp/protocol.py
 genesis_engine/templates/__init__.py
 genesis_engine/templates/engine.py
-genesis_engine/templates/__pycache__/__init__.cpython-311.pyc
-genesis_engine/templates/__pycache__/engine.cpython-311.pyc
 genesis_engine/templates/backend/fastapi/Dockerfile.j2
 genesis_engine/templates/backend/fastapi/database.py.j2
 genesis_engine/templates/backend/fastapi/main.py.j2
@@ -51,6 +49,8 @@ genesis_engine/templates/backend/fastapi/requirements.txt.j2
 genesis_engine/templates/backend/fastapi/models/model.py.j2
 genesis_engine/templates/backend/fastapi/routes/router.py.j2
 genesis_engine/templates/backend/fastapi/schemas/schema.py.j2
+genesis_engine/templates/devops/docker-compose.yml.j2
+genesis_engine/templates/devops/github/ci.yml.j2
 genesis_engine/templates/frontend/nextjs/a.ts
 genesis_engine/templates/frontend/nextjs/next.config.js.j2
 genesis_engine/templates/frontend/nextjs/package.json.j2
@@ -65,5 +65,13 @@ genesis_engine/templates/frontend/nextjs/lib/api/client.ts.j2
 genesis_engine/templates/frontend/nextjs/lib/slices/authSlice.ts.j2
 genesis_engine/utils/__init__.py
 genesis_engine/utils/validation.py
+tests/test_agents_instantiation.py
+tests/test_architect_agent.py
+tests/test_cli.py
+tests/test_cli_help.py
 tests/test_orchestrator.py
 tests/test_template_engine.py
+genesis_engine/templates/saas-basic/README.md.j2
+genesis_engine/templates/saas-basic/backend/README.md.j2
+genesis_engine/templates/saas-basic/frontend/README.md.j2
+genesis_engine/templates/saas-basic/devops/README.md.j2
