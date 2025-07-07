@@ -95,7 +95,10 @@ class DevOpsAgent(GenesisAgent):
         self.logger.info("🐳 Inicializando DevOps Agent")
         
         # Cargar templates de DevOps
-        await self._load_devops_templates()
+        try:
+            await self._load_devops_templates()
+        except NotImplementedError:
+            self.logger.warning("DevOps templates loader not implemented")
         
         self.set_metadata("version", "1.0.0")
         self.set_metadata("specialization", "containerization_and_deployment")
@@ -508,108 +511,108 @@ class DevOpsAgent(GenesisAgent):
     # Métodos auxiliares (implementación completa en producción)
     async def _load_devops_templates(self):
         """Cargar templates de DevOps"""
-        pass
+        raise NotImplementedError("_load_devops_templates not implemented")
     
     async def _generate_python_dockerfile(self, output_path: Path, service_name: str) -> str:
         """Generar Dockerfile para Python/FastAPI"""
-        return ""
+        raise NotImplementedError("_generate_python_dockerfile not implemented")
     
     async def _generate_node_dockerfile(self, output_path: Path, service_name: str) -> str:
         """Generar Dockerfile para Node.js"""
-        return ""
+        raise NotImplementedError("_generate_node_dockerfile not implemented")
     
     async def _generate_nextjs_dockerfile(self, output_path: Path) -> str:
         """Generar Dockerfile para Next.js"""
-        return ""
+        raise NotImplementedError("_generate_nextjs_dockerfile not implemented")
     
     async def _generate_dockerignore_files(self, output_path: Path, stack: Dict[str, str]) -> List[str]:
         """Generar archivos .dockerignore"""
-        return []
+        raise NotImplementedError("_generate_dockerignore_files not implemented")
     
     async def _generate_github_cd_workflow(self, workflows_dir: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar workflow de CD para GitHub Actions"""
-        return ""
+        raise NotImplementedError("_generate_github_cd_workflow not implemented")
     
     async def _generate_github_pr_workflow(self, workflows_dir: Path, schema: Dict[str, Any]) -> str:
         """Generar workflow de PR para GitHub Actions"""
-        return ""
+        raise NotImplementedError("_generate_github_pr_workflow not implemented")
     
     async def _generate_gitlab_ci(self, output_path: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar configuración de GitLab CI"""
-        return ""
+        raise NotImplementedError("_generate_gitlab_ci not implemented")
     
     async def _generate_k8s_namespace(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar namespace de Kubernetes"""
-        return ""
+        raise NotImplementedError("_generate_k8s_namespace not implemented")
     
     async def _generate_k8s_configmaps(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar ConfigMaps de Kubernetes"""
-        return ""
+        raise NotImplementedError("_generate_k8s_configmaps not implemented")
     
     async def _generate_k8s_secrets(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar Secrets de Kubernetes"""
-        return ""
+        raise NotImplementedError("_generate_k8s_secrets not implemented")
     
     async def _generate_k8s_backend_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment del backend"""
-        return ""
+        raise NotImplementedError("_generate_k8s_backend_deployment not implemented")
     
     async def _generate_k8s_frontend_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment del frontend"""
-        return ""
+        raise NotImplementedError("_generate_k8s_frontend_deployment not implemented")
     
     async def _generate_k8s_database_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment de la base de datos"""
-        return ""
+        raise NotImplementedError("_generate_k8s_database_deployment not implemented")
     
     async def _generate_k8s_services(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar Services de Kubernetes"""
-        return ""
+        raise NotImplementedError("_generate_k8s_services not implemented")
     
     async def _generate_k8s_ingress(self, output_path: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar Ingress de Kubernetes"""
-        return ""
+        raise NotImplementedError("_generate_k8s_ingress not implemented")
     
     async def _generate_k8s_hpa(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar HorizontalPodAutoscaler"""
-        return ""
+        raise NotImplementedError("_generate_k8s_hpa not implemented")
     
     async def _generate_deployment_scripts(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar scripts de despliegue"""
-        return []
+        raise NotImplementedError("_generate_deployment_scripts not implemented")
     
     async def _generate_backup_scripts(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar scripts de backup"""
-        return []
+        raise NotImplementedError("_generate_backup_scripts not implemented")
     
     async def _generate_security_config(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar configuración de seguridad"""
-        return []
+        raise NotImplementedError("_generate_security_config not implemented")
     
     async def _generate_prometheus_config(self, output_path: Path) -> str:
         """Generar configuración de Prometheus"""
-        return ""
+        raise NotImplementedError("_generate_prometheus_config not implemented")
     
     async def _generate_grafana_dashboards(self, output_path: Path) -> List[str]:
         """Generar dashboards de Grafana"""
-        return []
+        raise NotImplementedError("_generate_grafana_dashboards not implemented")
     
     async def _generate_alertmanager_config(self, output_path: Path) -> str:
         """Generar configuración de Alertmanager"""
-        return ""
+        raise NotImplementedError("_generate_alertmanager_config not implemented")
     
     async def _generate_monitoring_compose(self, output_path: Path) -> str:
         """Generar docker-compose para monitoreo"""
-        return ""
+        raise NotImplementedError("_generate_monitoring_compose not implemented")
     
     async def _generate_main_nginx_conf(self, nginx_dir: Path, config: DevOpsConfig, schema: Dict[str, Any]) -> str:
         """Generar nginx.conf principal"""
-        return ""
+        raise NotImplementedError("_generate_main_nginx_conf not implemented")
     
     async def _generate_site_nginx_conf(self, nginx_dir: Path, config: DevOpsConfig, schema: Dict[str, Any]) -> str:
         """Generar configuración del sitio"""
-        return ""
+        raise NotImplementedError("_generate_site_nginx_conf not implemented")
     
     async def _generate_ssl_nginx_conf(self, nginx_dir: Path) -> str:
         """Generar configuración SSL"""
-        return ""
+        raise NotImplementedError("_generate_ssl_nginx_conf not implemented")

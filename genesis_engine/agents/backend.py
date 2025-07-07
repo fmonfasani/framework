@@ -101,17 +101,27 @@ class BackendAgent(GenesisAgent):
         self.template_engine = TemplateEngine()
         
         # Configuraciones por framework
-        self.framework_configs = self._load_framework_configs()
+        try:
+            self.framework_configs = self._load_framework_configs()
+        except NotImplementedError:
+            self.logger.warning("Framework config loader not implemented")
+            self.framework_configs = {}
         
     async def initialize(self):
         """Inicialización del agente backend"""
         self.logger.info("⚙️ Inicializando Backend Agent")
         
         # Cargar templates de código
-        await self._load_code_templates()
-        
+        try:
+            await self._load_code_templates()
+        except NotImplementedError:
+            self.logger.warning("Code template loading not implemented")
+
         # Configurar generadores específicos
-        await self._setup_code_generators()
+        try:
+            await self._setup_code_generators()
+        except NotImplementedError:
+            self.logger.warning("Code generators setup not implemented")
         
         self.set_metadata("version", "1.0.0")
         self.set_metadata("supported_frameworks", list(BackendFramework))
@@ -671,68 +681,68 @@ class BackendAgent(GenesisAgent):
     # Métodos auxiliares que se implementarían completamente
     def _load_framework_configs(self) -> Dict[str, Any]:
         """Cargar configuraciones por framework"""
-        return {}
+        raise NotImplementedError("_load_framework_configs not implemented")
     
     async def _load_code_templates(self):
         """Cargar templates de código"""
-        pass
+        raise NotImplementedError("_load_code_templates not implemented")
     
     async def _setup_code_generators(self):
         """Configurar generadores de código"""
-        pass
+        raise NotImplementedError("_setup_code_generators not implemented")
     
     async def _generate_typeorm_entity(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
         """Generar entidad TypeORM"""
-        return ""
+        raise NotImplementedError("_generate_typeorm_entity not implemented")
     
     async def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
         """Generar controlador NestJS"""
-        return ""
+        raise NotImplementedError("_generate_nestjs_controller not implemented")
     
     async def _generate_main_routes(self, entities: List[Dict[str, Any]], output_path: Path, config: BackendConfig) -> str:
         """Generar archivo principal de rutas"""
-        return ""
+        raise NotImplementedError("_generate_main_routes not implemented")
     
     async def _generate_sqlalchemy_config(self, output_path: Path, config: BackendConfig) -> str:
         """Generar configuración SQLAlchemy"""
-        return ""
+        raise NotImplementedError("_generate_sqlalchemy_config not implemented")
     
     async def _setup_alembic_migrations(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> List[str]:
         """Configurar migraciones Alembic"""
-        return []
+        raise NotImplementedError("_setup_alembic_migrations not implemented")
     
     async def _generate_typeorm_config(self, output_path: Path, config: BackendConfig) -> str:
         """Generar configuración TypeORM"""
-        return ""
+        raise NotImplementedError("_generate_typeorm_config not implemented")
     
     async def _generate_fastapi_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para FastAPI"""
-        return []
+        raise NotImplementedError("_generate_fastapi_jwt_auth not implemented")
     
     async def _generate_nestjs_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para NestJS"""
-        return []
+        raise NotImplementedError("_generate_nestjs_jwt_auth not implemented")
     
     async def _generate_python_requirements(self, output_path: Path, config: BackendConfig) -> str:
         """Generar requirements.txt"""
-        return ""
+        raise NotImplementedError("_generate_python_requirements not implemented")
     
     async def _generate_env_template(self, output_path: Path, config: BackendConfig) -> str:
         """Generar template .env"""
-        return ""
+        raise NotImplementedError("_generate_env_template not implemented")
     
     async def _generate_dockerfile_python(self, output_path: Path, config: BackendConfig) -> str:
         """Generar Dockerfile para Python"""
-        return ""
+        raise NotImplementedError("_generate_dockerfile_python not implemented")
     
     async def _generate_package_json(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> str:
         """Generar package.json"""
-        return ""
+        raise NotImplementedError("_generate_package_json not implemented")
     
     async def _generate_dockerfile_node(self, output_path: Path, config: BackendConfig) -> str:
         """Generar Dockerfile para Node.js"""
-        return ""
+        raise NotImplementedError("_generate_dockerfile_node not implemented")
     
     async def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
         """Generar documentación de API"""
-        return []
+        raise NotImplementedError("_generate_api_documentation not implemented")
