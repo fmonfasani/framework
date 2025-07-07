@@ -288,7 +288,7 @@ class TemplateEngine:
             self.logger.error(f"❌ Error analizando variables del template {template_name}: {e}")
             return []
 
-    def generate_project(
+    async def generate_project(
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -302,6 +302,12 @@ class TemplateEngine:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
+        in_event_loop = True
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            in_event_loop = False
+
         generated_files: List[str] = []
         for root, _, files in os.walk(template_path):
             rel_root = Path(root).relative_to(template_path)
@@ -311,9 +317,14 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    rendered = asyncio.run(
-                        self.render_template(relative_template.as_posix(), context or {})
-                    )
+                    if in_event_loop:
+                        rendered = await self.render_template(
+                            relative_template.as_posix(), context or {}
+                        )
+                    else:
+                        rendered = asyncio.run(
+                            self.render_template(relative_template.as_posix(), context or {})
+                        )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_text(rendered, encoding="utf-8")
