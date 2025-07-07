@@ -10,21 +10,24 @@ __version__ = "1.0.0"
 __author__ = "Genesis Team"
 __email__ = "team@genesis.dev"
 
+# Configuración de logging
+import logging
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 # Importaciones principales
 try:
     from genesis_engine.core.orchestrator import GenesisOrchestrator
     from genesis_engine.core.project_manager import ProjectManager
     from genesis_engine.mcp.protocol import MCPProtocol
     from genesis_engine.agents.base_agent import BaseAgent
-except Exception:  # pragma: no cover - graceful fallback if deps fail
+except ImportError:  # pragma: no cover - graceful fallback if deps fail
+    logger.error("Failed to import core dependencies", exc_info=True)
     GenesisOrchestrator = None
     ProjectManager = None
     MCPProtocol = None
     BaseAgent = None
-
-# Configuración de logging
-import logging
-logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 __all__ = [
     "GenesisOrchestrator",
