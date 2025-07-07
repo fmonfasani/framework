@@ -49,6 +49,7 @@ def test_genesis_doctor(monkeypatch):
         return types.SimpleNamespace(returncode=0, stdout='tool version 1')
 
     monkeypatch.setattr(cmd_modules.doctor.subprocess, 'run', dummy_run)
+    monkeypatch.setattr(cmd_modules.utils.subprocess, 'run', dummy_run)
     import requests
     monkeypatch.setattr(requests, 'get', lambda *a, **kw: types.SimpleNamespace(status_code=200))
 
