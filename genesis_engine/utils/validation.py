@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from genesis_engine.core.logging import get_logger
+from genesis_engine.core.config import GenesisConfig
 import re
 
 class ValidationLevel(str, Enum):
@@ -539,23 +540,15 @@ class ConfigValidator:
         """Validar configuración del stack"""
         results = []
         
-        # Stacks válidos
-        valid_stacks = {
-            "backend": ["fastapi", "nestjs", "express", "django", "flask"],
-            "frontend": ["nextjs", "react", "vue", "nuxt", "svelte", "angular"],
-            "database": ["postgresql", "mysql", "mongodb", "sqlite"],
-            "styling": ["tailwind", "styled_components", "sass", "css_modules"],
-            "state_management": ["redux_toolkit", "zustand", "context_api", "pinia", "vuex"]
-        }
-        
         for key, value in stack.items():
-            if key in valid_stacks:
-                if value not in valid_stacks[key]:
+            valid_values = GenesisConfig.get_supported_frameworks(key)
+            if valid_values:
+                if value not in valid_values:
                     results.append(ValidationResult(
                         name=f"Stack: {key}",
                         level=ValidationLevel.ERROR,
                         message=f"Valor inválido para {key}: {value}",
-                        suggestion=f"Valores válidos: {', '.join(valid_stacks[key])}",
+                        suggestion=f"Valores válidos: {', '.join(valid_values)}",
                         passed=False
                     ))
                 else:
