@@ -511,108 +511,470 @@ class DevOpsAgent(GenesisAgent):
     # Métodos auxiliares (implementación completa en producción)
     async def _load_devops_templates(self):
         """Cargar templates de DevOps"""
-        raise NotImplementedError("_load_devops_templates not implemented")
+        # Simply list available templates so they are loaded in the template
+        # engine cache.  This also serves as a sanity check that the
+        # ``devops`` templates directory exists inside ``genesis_engine/templates``.
+        templates = self.template_engine.list_templates("devops/*")
+        self.logger.debug(f"DevOps templates disponibles: {templates}")
+        return templates
     
     async def _generate_python_dockerfile(self, output_path: Path, service_name: str) -> str:
         """Generar Dockerfile para Python/FastAPI"""
-        raise NotImplementedError("_generate_python_dockerfile not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+        template_vars = {"project_name": service_name}
+        content = await self.template_engine.render_template(
+            "backend/fastapi/Dockerfile.j2", template_vars
+        )
+        dockerfile = output_path / "Dockerfile"
+        dockerfile.write_text(content)
+        return str(dockerfile)
     
     async def _generate_node_dockerfile(self, output_path: Path, service_name: str) -> str:
         """Generar Dockerfile para Node.js"""
-        raise NotImplementedError("_generate_node_dockerfile not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+        content = (
+            "FROM node:18-alpine\n"
+            "WORKDIR /app\n"
+            "COPY package*.json ./\n"
+            "RUN npm install --production\n"
+            "COPY . .\n"
+            "EXPOSE 3000\n"
+            "CMD [\"npm\", \"start\"]\n"
+        )
+        dockerfile = output_path / "Dockerfile"
+        dockerfile.write_text(content)
+        return str(dockerfile)
     
     async def _generate_nextjs_dockerfile(self, output_path: Path) -> str:
         """Generar Dockerfile para Next.js"""
-        raise NotImplementedError("_generate_nextjs_dockerfile not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+        content = (
+            "FROM node:18-alpine AS builder\n"
+            "WORKDIR /app\n"
+            "COPY package*.json ./\n"
+            "RUN npm install\n"
+            "COPY . .\n"
+            "RUN npm run build\n"
+            "\n"
+            "FROM node:18-alpine\n"
+            "WORKDIR /app\n"
+            "COPY --from=builder /app .\n"
+            "EXPOSE 3000\n"
+            "CMD [\"npm\", \"start\"]\n"
+        )
+        dockerfile = output_path / "Dockerfile"
+        dockerfile.write_text(content)
+        return str(dockerfile)
     
     async def _generate_dockerignore_files(self, output_path: Path, stack: Dict[str, str]) -> List[str]:
         """Generar archivos .dockerignore"""
-        raise NotImplementedError("_generate_dockerignore_files not implemented")
+        files = []
+
+        if stack.get("backend"):
+            backend_ignore = output_path / "backend" / ".dockerignore"
+            backend_ignore.parent.mkdir(parents=True, exist_ok=True)
+            backend_ignore.write_text("__pycache__\n*.pyc\n.env\n")
+            files.append(str(backend_ignore))
+
+        if stack.get("frontend"):
+            frontend_ignore = output_path / "frontend" / ".dockerignore"
+            frontend_ignore.parent.mkdir(parents=True, exist_ok=True)
+            frontend_ignore.write_text("node_modules\n.next\n.env\n")
+            files.append(str(frontend_ignore))
+
+        return files
     
     async def _generate_github_cd_workflow(self, workflows_dir: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar workflow de CD para GitHub Actions"""
-        raise NotImplementedError("_generate_github_cd_workflow not implemented")
+        content = (
+            "name: Deploy\n"
+            "on:\n  push:\n    branches: [main]\n"
+            "jobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - name: Deploy\n        run: echo 'Deploying application'\n"
+        )
+        workflow = workflows_dir / "deploy.yml"
+        workflow.write_text(content)
+        return str(workflow)
     
     async def _generate_github_pr_workflow(self, workflows_dir: Path, schema: Dict[str, Any]) -> str:
         """Generar workflow de PR para GitHub Actions"""
-        raise NotImplementedError("_generate_github_pr_workflow not implemented")
+        content = (
+            "name: Pull Request Checks\n"
+            "on:\n  pull_request:\n    branches: [main]\n"
+            "jobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - name: Run linter\n        run: echo 'Running lint'\n"
+        )
+        workflow = workflows_dir / "pr.yml"
+        workflow.write_text(content)
+        return str(workflow)
     
     async def _generate_gitlab_ci(self, output_path: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar configuración de GitLab CI"""
-        raise NotImplementedError("_generate_gitlab_ci not implemented")
+        content = (
+            "stages:\n  - build\n  - deploy\n"
+            "build:\n  script:\n    - echo 'Building'\n  stage: build\n"
+            "deploy:\n  script:\n    - echo 'Deploying'\n  stage: deploy\n"
+        )
+        gitlab_ci = output_path / ".gitlab-ci.yml"
+        gitlab_ci.write_text(content)
+        return str(gitlab_ci)
     
     async def _generate_k8s_namespace(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar namespace de Kubernetes"""
-        raise NotImplementedError("_generate_k8s_namespace not implemented")
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {"name": schema.get("project_name", "genesis")}
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "namespace.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_configmaps(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar ConfigMaps de Kubernetes"""
-        raise NotImplementedError("_generate_k8s_configmaps not implemented")
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "ConfigMap",
+            "metadata": {"name": f"{schema.get('project_name', 'app')}-config"},
+            "data": {"EXAMPLE": "value"},
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "configmap.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_secrets(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar Secrets de Kubernetes"""
-        raise NotImplementedError("_generate_k8s_secrets not implemented")
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {"name": f"{schema.get('project_name', 'app')}-secret"},
+            "type": "Opaque",
+            "stringData": {"SECRET_KEY": "changeme"},
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "secret.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_backend_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment del backend"""
-        raise NotImplementedError("_generate_k8s_backend_deployment not implemented")
+        name = f"{schema.get('project_name', 'app')}-backend"
+        manifest = {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {"name": name},
+            "spec": {
+                "replicas": 1,
+                "selector": {"matchLabels": {"app": name}},
+                "template": {
+                    "metadata": {"labels": {"app": name}},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "backend",
+                                "image": f"{name}:latest",
+                                "ports": [{"containerPort": 8000}],
+                            }
+                        ]
+                    },
+                },
+            },
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "backend-deployment.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_frontend_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment del frontend"""
-        raise NotImplementedError("_generate_k8s_frontend_deployment not implemented")
+        name = f"{schema.get('project_name', 'app')}-frontend"
+        manifest = {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {"name": name},
+            "spec": {
+                "replicas": 1,
+                "selector": {"matchLabels": {"app": name}},
+                "template": {
+                    "metadata": {"labels": {"app": name}},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "frontend",
+                                "image": f"{name}:latest",
+                                "ports": [{"containerPort": 3000}],
+                            }
+                        ]
+                    },
+                },
+            },
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "frontend-deployment.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_database_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar deployment de la base de datos"""
-        raise NotImplementedError("_generate_k8s_database_deployment not implemented")
+        name = f"{schema.get('project_name', 'app')}-db"
+        manifest = {
+            "apiVersion": "apps/v1",
+            "kind": "StatefulSet",
+            "metadata": {"name": name},
+            "spec": {
+                "serviceName": name,
+                "replicas": 1,
+                "selector": {"matchLabels": {"app": name}},
+                "template": {
+                    "metadata": {"labels": {"app": name}},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "postgres",
+                                "image": "postgres:15",
+                                "ports": [{"containerPort": 5432}],
+                                "env": [
+                                    {"name": "POSTGRES_PASSWORD", "value": "password"},
+                                    {"name": "POSTGRES_DB", "value": f"{schema.get('project_name','app')}_db"},
+                                ],
+                            }
+                        ]
+                    },
+                },
+            },
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "database-statefulset.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_services(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar Services de Kubernetes"""
-        raise NotImplementedError("_generate_k8s_services not implemented")
+        project = schema.get("project_name", "app")
+        services = [
+            {
+                "apiVersion": "v1",
+                "kind": "Service",
+                "metadata": {"name": f"{project}-backend"},
+                "spec": {
+                    "selector": {"app": f"{project}-backend"},
+                    "ports": [{"port": 8000, "targetPort": 8000}],
+                },
+            },
+            {
+                "apiVersion": "v1",
+                "kind": "Service",
+                "metadata": {"name": f"{project}-frontend"},
+                "spec": {
+                    "selector": {"app": f"{project}-frontend"},
+                    "ports": [{"port": 80, "targetPort": 3000}],
+                },
+            },
+            {
+                "apiVersion": "v1",
+                "kind": "Service",
+                "metadata": {"name": f"{project}-db"},
+                "spec": {
+                    "selector": {"app": f"{project}-db"},
+                    "ports": [{"port": 5432, "targetPort": 5432}],
+                },
+            },
+        ]
+        content = "---\n".join(yaml.dump(s) for s in services)
+        file = output_path / "services.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_ingress(self, output_path: Path, schema: Dict[str, Any], config: DevOpsConfig) -> str:
         """Generar Ingress de Kubernetes"""
-        raise NotImplementedError("_generate_k8s_ingress not implemented")
+        host = f"{schema.get('project_name', 'app')}.local"
+        manifest = {
+            "apiVersion": "networking.k8s.io/v1",
+            "kind": "Ingress",
+            "metadata": {"name": f"{schema.get('project_name', 'app')}-ingress"},
+            "spec": {
+                "rules": [
+                    {
+                        "host": host,
+                        "http": {
+                            "paths": [
+                                {
+                                    "path": "/",
+                                    "pathType": "Prefix",
+                                    "backend": {
+                                        "service": {
+                                            "name": f"{schema.get('project_name', 'app')}-frontend",
+                                            "port": {"number": 80},
+                                        }
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                ]
+            },
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "ingress.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_k8s_hpa(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar HorizontalPodAutoscaler"""
-        raise NotImplementedError("_generate_k8s_hpa not implemented")
+        name = f"{schema.get('project_name', 'app')}-backend"
+        manifest = {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {"name": f"{name}-hpa"},
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": name,
+                },
+                "minReplicas": 1,
+                "maxReplicas": 3,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                    }
+                ],
+            },
+        }
+        content = yaml.dump(manifest)
+        file = output_path / "hpa.yaml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_deployment_scripts(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar scripts de despliegue"""
-        raise NotImplementedError("_generate_deployment_scripts not implemented")
+        scripts_dir = output_path / "scripts"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        files = []
+
+        deploy_sh = scripts_dir / "deploy.sh"
+        if config.orchestrator == ContainerOrchestrator.KUBERNETES:
+            deploy_sh.write_text("kubectl apply -f k8s/\n")
+        else:
+            deploy_sh.write_text("docker-compose up -d --build\n")
+        deploy_sh.chmod(0o755)
+        files.append(str(deploy_sh))
+
+        rollback_sh = scripts_dir / "rollback.sh"
+        if config.orchestrator == ContainerOrchestrator.KUBERNETES:
+            rollback_sh.write_text("kubectl delete -f k8s/\n")
+        else:
+            rollback_sh.write_text("docker-compose down\n")
+        rollback_sh.chmod(0o755)
+        files.append(str(rollback_sh))
+
+        return files
     
     async def _generate_backup_scripts(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar scripts de backup"""
-        raise NotImplementedError("_generate_backup_scripts not implemented")
+        scripts_dir = output_path / "backup"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        backup_sh = scripts_dir / "backup.sh"
+        backup_sh.write_text(
+            "#!/bin/bash\npg_dump -h localhost -U postgres -d ${DB_NAME:-db} > backup.sql\n"
+        )
+        backup_sh.chmod(0o755)
+        return [str(backup_sh)]
     
     async def _generate_security_config(self, output_path: Path, config: DevOpsConfig) -> List[str]:
         """Generar configuración de seguridad"""
-        raise NotImplementedError("_generate_security_config not implemented")
+        security_md = output_path / "SECURITY.md"
+        security_md.write_text(
+            "# Security\n\nRemember to configure firewalls, HTTPS and regular updates.\n"
+        )
+        return [str(security_md)]
     
     async def _generate_prometheus_config(self, output_path: Path) -> str:
         """Generar configuración de Prometheus"""
-        raise NotImplementedError("_generate_prometheus_config not implemented")
+        config = {
+            "global": {"scrape_interval": "15s"},
+            "scrape_configs": [
+                {"job_name": "backend", "static_configs": [{"targets": ["backend:8000"]}]},
+                {"job_name": "frontend", "static_configs": [{"targets": ["frontend:3000"]}]},
+            ],
+        }
+        content = yaml.dump(config)
+        file = output_path / "prometheus.yml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_grafana_dashboards(self, output_path: Path) -> List[str]:
         """Generar dashboards de Grafana"""
-        raise NotImplementedError("_generate_grafana_dashboards not implemented")
+        dashboards_dir = output_path / "grafana"
+        dashboards_dir.mkdir(parents=True, exist_ok=True)
+        dashboard = dashboards_dir / "sample.json"
+        dashboard.write_text("{}\n")
+        return [str(dashboard)]
     
     async def _generate_alertmanager_config(self, output_path: Path) -> str:
         """Generar configuración de Alertmanager"""
-        raise NotImplementedError("_generate_alertmanager_config not implemented")
+        config = {
+            "route": {"receiver": "default"},
+            "receivers": [{"name": "default"}],
+        }
+        content = yaml.dump(config)
+        file = output_path / "alertmanager.yml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_monitoring_compose(self, output_path: Path) -> str:
         """Generar docker-compose para monitoreo"""
-        raise NotImplementedError("_generate_monitoring_compose not implemented")
+        content = (
+            "version: '3'\n"
+            "services:\n"
+            "  prometheus:\n"
+            "    image: prom/prometheus\n"
+            "    volumes:\n"
+            "      - ./prometheus.yml:/etc/prometheus/prometheus.yml\n"
+            "    ports:\n      - '9090:9090'\n"
+            "  grafana:\n"
+            "    image: grafana/grafana\n"
+            "    ports:\n      - '3001:3000'\n"
+        )
+        file = output_path / "docker-compose.yml"
+        file.write_text(content)
+        return str(file)
     
     async def _generate_main_nginx_conf(self, nginx_dir: Path, config: DevOpsConfig, schema: Dict[str, Any]) -> str:
         """Generar nginx.conf principal"""
-        raise NotImplementedError("_generate_main_nginx_conf not implemented")
+        content = (
+            "user nginx;\nworker_processes auto;\n"
+            "events { worker_connections 1024; }\n"
+            "http { include mime.types; default_type application/octet-stream;"
+            " include /etc/nginx/conf.d/*.conf; }\n"
+        )
+        conf = nginx_dir / "nginx.conf"
+        conf.write_text(content)
+        return str(conf)
     
     async def _generate_site_nginx_conf(self, nginx_dir: Path, config: DevOpsConfig, schema: Dict[str, Any]) -> str:
         """Generar configuración del sitio"""
-        raise NotImplementedError("_generate_site_nginx_conf not implemented")
+        project = schema.get("project_name", "app")
+        content = (
+            f"server {{\n    listen 80;\n    server_name {project}.local;\n"
+            "    location /api/ { proxy_pass http://backend:8000/; }\n"
+            "    location / { proxy_pass http://frontend:3000/; }\n}"
+        )
+        conf = nginx_dir / "site.conf"
+        conf.write_text(content)
+        return str(conf)
     
     async def _generate_ssl_nginx_conf(self, nginx_dir: Path) -> str:
         """Generar configuración SSL"""
-        raise NotImplementedError("_generate_ssl_nginx_conf not implemented")
+        content = (
+            "ssl_certificate /etc/ssl/certs/fullchain.pem;\n"
+            "ssl_certificate_key /etc/ssl/private/privkey.pem;\n"
+        )
+        conf = nginx_dir / "ssl.conf"
+        conf.write_text(content)
+        return str(conf)
