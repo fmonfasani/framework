@@ -1,0 +1,13 @@
+from fastapi import APIRouter
+{% for entity in entities %}
+from .{{ entity.name|snake_case }} import router as {{ entity.name|snake_case }}_router
+{% endfor %}
+
+api_router = APIRouter()
+{% for entity in entities %}
+api_router.include_router(
+    {{ entity.name|snake_case }}_router,
+    prefix="/{{ entity.name|snake_case|plural }}",
+    tags=["{{ entity.name|plural }}"]
+)
+{% endfor %}

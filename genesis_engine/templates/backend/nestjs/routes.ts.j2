@@ -1,0 +1,11 @@
+import { Router } from 'express';
+{% for entity in entities %}
+import { {{ entity.name }}Controller } from './{{ entity.name|kebab_case }}.controller';
+{% endfor %}
+
+const router = Router();
+{% for entity in entities %}
+router.use('/{{ entity.name|kebab_case|plural }}', new {{ entity.name }}Controller().router);
+{% endfor %}
+
+export default router;
