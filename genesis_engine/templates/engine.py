@@ -12,7 +12,6 @@ Este módulo es responsable de:
 import os
 import json
 import shutil
-import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
@@ -302,12 +301,6 @@ class TemplateEngine:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        in_event_loop = True
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            in_event_loop = False
-
         generated_files: List[str] = []
         for root, _, files in os.walk(template_path):
             rel_root = Path(root).relative_to(template_path)
@@ -317,14 +310,9 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    if in_event_loop:
-                        rendered = await self.render_template(
-                            relative_template.as_posix(), context or {}
-                        )
-                    else:
-                        rendered = asyncio.run(
-                            self.render_template(relative_template.as_posix(), context or {})
-                        )
+                    rendered = await self.render_template(
+                        relative_template.as_posix(), context or {}
+                    )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_text(rendered, encoding="utf-8")
