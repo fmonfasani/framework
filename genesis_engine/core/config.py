@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, List
 from dataclasses import dataclass
 import logging
+import threading
 from rich.logging import RichHandler
 
 # Versión de Genesis Engine
@@ -68,18 +69,18 @@ class StackDefaults:
     }
 
 class GenesisConfig:
-    """
-    Gestión de configuración global de Genesis Engine
-    """
+    """Singleton that manages the global configuration for Genesis Engine."""
     
     _instance = None
+    _lock = threading.Lock()
     _config: Dict[str, Any] = {}
     _verbose: bool = False
     
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(GenesisConfig, cls).__new__(cls)
-            cls._instance._load_default_config()
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(GenesisConfig, cls).__new__(cls)
+                cls._instance._load_default_config()
         return cls._instance
     
     def _load_default_config(self):
