@@ -1,0 +1,46 @@
+
+# Entornos virtuales Python
+venv/
+.env
+__pycache__/
+*.__pycache__
+*.__pycache__/
+# Ignorar caches de Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+# Metadatos de empaquetado
+*.egg-info/
+
+
+# Archivos de empaquetado Python
+*.egg-info/
+dist/
+build/
+
+# Configuración de IDEs
+.vscode/
+.idea/
+
+# Archivos de entorno y temporales
+*.log
+*.tmp
+*.bak
+
+# Archivos de templates que no deben subirse (si generás sobre ellos)
+genesis_engine/templates/backend/fastapi/.env.j2
+genesis_engine/templates/backend/fastapi/requirements.txt.j2
+
+# Node / Next.js plantillas generadas
+genesis_engine/templates/frontend/nextjs/node_modules/
+genesis_engine/templates/frontend/nextjs/.next/
+genesis_engine/templates/frontend/nextjs/package-lock.json
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Otros específicos que no quieras subir (ajustalo)
+# genesis_engine/genesis_engine.egg-info/
