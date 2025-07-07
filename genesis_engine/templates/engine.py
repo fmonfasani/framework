@@ -106,9 +106,15 @@ class TemplateEngine:
         """Configurar filtros personalizados"""
         self._custom_filters.update({
             'camelcase': self._camel_case,
+            'camel_case': self._camel_case,
             'snakecase': self._snake_case,
+            'snake_case': self._snake_case,
             'kebabcase': self._kebab_case,
+            'kebab_case': self._kebab_case,
             'pascalcase': self._pascal_case,
+            'pascal_case': self._pascal_case,
+            'plural': self._pluralize,
+            'singular': self._singularize,
             'sqltype': self._get_sql_type,
             'tstype': self._get_typescript_type,
             'pytype': self._get_python_type,
