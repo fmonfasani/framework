@@ -90,6 +90,19 @@ genesis --version
 genesis doctor
 ```
 
+### Ensamblar desde Artefactos
+
+Si sólo cuentas con los archivos de artefactos generados por los agentes,
+puedes recrear la estructura del paquete ejecutando:
+
+```bash
+python assemble_genesis.py --artifacts path/to/artifacts
+pip install -e .
+```
+
+El script copiará cada artefacto a su ubicación correspondiente y generará los
+archivos `requirements.txt` y `pyproject.toml` necesarios.
+
 ### Verificación del Entorno
 
 ```bash
