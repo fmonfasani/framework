@@ -357,7 +357,6 @@ class EnvironmentValidator:
                         f"{tool} {version} ✓"
                     )
                     package_manager_found = True
-                    break  # Solo necesitamos uno
             except:
                 continue
         
