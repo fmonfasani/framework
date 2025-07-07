@@ -23,6 +23,15 @@ sys.modules["genesis_engine.mcp"] = types.ModuleType("genesis_engine.mcp")
 sys.modules["genesis_engine.mcp"].__path__ = [str(repo_root / "mcp")]
 sys.modules["genesis_engine.mcp.protocol"] = protocol_mod
 
+sys.modules.setdefault("genesis_engine.cli", types.ModuleType("genesis_engine.cli")).__path__ = [str(repo_root / "cli")]
+sys.modules.setdefault("genesis_engine.cli.ui", types.ModuleType("genesis_engine.cli.ui")).__path__ = [str(repo_root / "genesis_engine" / "cli" / "ui")]
+spec_console = importlib.util.spec_from_file_location(
+    "genesis_engine.cli.ui.console", repo_root / "genesis_engine" / "cli" / "ui" / "console.py"
+)
+console_mod = importlib.util.module_from_spec(spec_console)
+spec_console.loader.exec_module(console_mod)
+sys.modules["genesis_engine.cli.ui.console"] = console_mod
+
 from genesis_engine.core.orchestrator import GenesisOrchestrator
 
 
