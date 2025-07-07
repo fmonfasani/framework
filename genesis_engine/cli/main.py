@@ -18,6 +18,7 @@ from genesis_engine.cli.commands.deploy import deploy_command
 from genesis_engine.cli.commands.generate import generate_command
 from genesis_engine.cli.commands.utils import show_banner, check_dependencies
 from genesis_engine import __version__
+from genesis_engine.core.config import GenesisConfig
 
 # Configurar Rich Console
 
@@ -59,6 +60,7 @@ def main(
     Genesis Engine te permite crear, optimizar y desplegar aplicaciones
     completas usando agentes IA especializados que se comunican via MCP.
     """
+    GenesisConfig.initialize()
     if verbose:
         show_banner()
 

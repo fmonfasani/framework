@@ -292,6 +292,11 @@ class GenesisConfig:
             cache_dir.mkdir(parents=True, exist_ok=True)
             logging.info("Cache limpiado")
 
+    @classmethod
+    def initialize(cls):
+        """Inicializar Genesis Engine"""
+        initialize_genesis()
+
 # Funciones de utilidad
 def get_user_config_file() -> Path:
     """Obtener archivo de configuración del usuario"""
@@ -469,6 +474,3 @@ def validate_project_name(name: str) -> List[str]:
         errors.append(f"'{name}' es una palabra reservada")
     
     return errors
-
-# Inicializar al importar el módulo
-initialize_genesis()
