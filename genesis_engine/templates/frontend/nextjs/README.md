@@ -651,6 +651,17 @@ class ApiClient {
 export const apiClient = new ApiClient();
 ```
 
+## Template: nextjs/lib/utils.ts.j2
+
+```typescript
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
 ## Template: nextjs/components/ui/button.tsx.j2
 
 ```tsx
