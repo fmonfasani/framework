@@ -69,7 +69,7 @@ class DummyOrchestratorForInit:
         return {"success": True, "result": {}}
 
 class DummyTemplateEngine:
-    def generate_project(self, template_name, output_dir, context):
+    async def generate_project(self, template_name, output_dir, context):
         return []
 
 def test_init_command_calls_design_architecture(monkeypatch, tmp_path):
