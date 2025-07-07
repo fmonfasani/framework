@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from dataclasses import dataclass, asdict
 from datetime import datetime
-import logging
+from genesis_engine.core.logging import get_logger
 
 from genesis_engine.core.config import GenesisConfig
 
@@ -83,26 +83,12 @@ class ProjectManager:
         self.current_phase: Optional[str] = None
         
         # Logging
-        self.logger = self._setup_logger()
+        self.logger = get_logger("genesis.project_manager")
         
         # Validaciones
         self.validation_errors: List[str] = []
         self.validation_warnings: List[str] = []
     
-    def _setup_logger(self) -> logging.Logger:
-        """Configurar logger del project manager"""
-        logger = logging.getLogger("genesis.project_manager")
-        logger.setLevel(logging.INFO)
-        
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - ProjectManager - %(levelname)s - %(message)s'
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
     
     async def initialize_project(
         self, 

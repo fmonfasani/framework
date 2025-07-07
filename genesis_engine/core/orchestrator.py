@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import logging
+from genesis_engine.core.logging import get_logger
 
 from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol
 from genesis_engine.mcp.agent_base import AgentTask, TaskResult
@@ -84,7 +84,7 @@ class GenesisOrchestrator:
     def __init__(self):
         self.mcp = mcp_protocol
         self.project_manager = ProjectManager()
-        self.logger = self._setup_logger()
+        self.logger = get_logger("genesis.orchestrator")
         
         # Agentes registrados
         self.agents: Dict[str, Any] = {}
@@ -98,20 +98,6 @@ class GenesisOrchestrator:
         self.running = False
         self.cancelled = False
         
-    def _setup_logger(self) -> logging.Logger:
-        """Configurar logger del orquestador"""
-        logger = logging.getLogger("genesis.orchestrator")
-        logger.setLevel(logging.INFO)
-        
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - Orchestrator - %(levelname)s - %(message)s'
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
     
     async def initialize(self):
         """Inicializar el orquestador"""
