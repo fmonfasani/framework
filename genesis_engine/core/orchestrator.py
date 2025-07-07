@@ -23,8 +23,11 @@ from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol
 from genesis_engine.mcp.agent_base import AgentTask, TaskResult
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
-# FrontendAgent is not implemented yet
-# from genesis_engine.agents.devops import DevOpsAgent
+from genesis_engine.agents.frontend import FrontendAgent
+from genesis_engine.agents.devops import DevOpsAgent
+from genesis_engine.agents.deploy import DeployAgent
+from genesis_engine.agents.performance import PerformanceAgent
+from genesis_engine.agents.ai_ready import AIReadyAgent
 from genesis_engine.core.project_manager import ProjectManager
 from genesis_engine.cli.ui.console import genesis_console
 
@@ -121,11 +124,11 @@ class GenesisOrchestrator:
         agents_to_register = [
             ArchitectAgent(),
             BackendAgent(),
-            # FrontendAgent(),
-            # DevOpsAgent(),
-            # DeployAgent(),
-            # PerformanceAgent(),
-            # AIReadyAgent()
+            FrontendAgent(),
+            DevOpsAgent(),
+            DeployAgent(),
+            PerformanceAgent(),
+            AIReadyAgent(),
         ]
         
         for agent in agents_to_register:
