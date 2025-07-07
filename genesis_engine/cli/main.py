@@ -20,7 +20,14 @@ from genesis_engine.cli.commands.utils import show_banner, check_dependencies
 from genesis_engine import __version__
 
 # Configurar Rich Console
+
 console = Console()
+
+def version_callback(value: bool):
+    """Callback para mostrar la versión y salir"""
+    if value:
+        console.print(f"[bold green]Genesis Engine v{__version__}[/bold green]")
+        raise typer.Exit()
 
 # Crear aplicación Typer principal
 app = typer.Typer(
@@ -30,13 +37,15 @@ app = typer.Typer(
     rich_markup_mode="rich"
 )
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
     version: Optional[bool] = typer.Option(
-        None, 
-        "--version", 
+        None,
+        "--version",
         "-v",
-        help="Mostrar versión de Genesis Engine"
+        help="Mostrar versión de Genesis Engine",
+        callback=version_callback,
+        is_eager=True,
     ),
     verbose: bool = typer.Option(
         False,
@@ -46,14 +55,10 @@ def main(
 ):
     """
     🚀 Genesis Engine - Sistema operativo para desarrollo full-stack moderno
-    
+
     Genesis Engine te permite crear, optimizar y desplegar aplicaciones
     completas usando agentes IA especializados que se comunican via MCP.
     """
-    if version:
-        console.print(f"[bold green]Genesis Engine v{__version__}[/bold green]")
-        raise typer.Exit(0)
-    
     if verbose:
         show_banner()
 
@@ -240,12 +245,6 @@ def agents(
     
     else:
         console.print("[yellow]💡 Usa --list para ver agentes disponibles[/yellow]")
-
-def version_callback(value: bool):
-    """Callback para mostrar versión"""
-    if value:
-        console.print(f"[bold green]Genesis Engine v{__version__}[/bold green]")
-        raise typer.Exit(0)
 
 # Punto de entrada principal
 def main_entry():
