@@ -119,8 +119,7 @@ class GenesisOrchestrator:
         
         # Inicializar protocolo MCP
         if not self.mcp.running:
-            # MCPProtocol.start is synchronous
-            self.mcp.start()
+            await self.mcp.start()
         
         # Registrar agentes especializados
         await self._register_agents()
@@ -492,7 +491,7 @@ class GenesisOrchestrator:
             )
             
             # Enviar solicitud al agente
-            response = self.mcp.send_request(
+            response = await self.mcp.send_request(
                 sender_id="orchestrator",
                 target_id=step.agent_id,
                 action="task.execute",
@@ -687,7 +686,7 @@ Generado con ❤️ por Genesis Engine
         for agent in self.agents.values():
             await agent.stop()
         
-        # Detener protocolo MCP (síncrono)
-        self.mcp.stop()
+        # Detener protocolo MCP
+        await self.mcp.stop()
         
         self.logger.info("🛑 Orchestrator detenido")

@@ -8,8 +8,6 @@ import logging
 from typing import Dict, List, Callable, Optional, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
-import threading
-from queue import Queue, Empty
 
 from genesis_engine.mcp.message_types import (
     MCPMessage, MCPRequest, MCPResponse, MCPBroadcast, MCPError,
@@ -38,11 +36,11 @@ class MCPProtocol:
     
     def __init__(self):
         self.agents: Dict[str, 'BaseAgent'] = {}
-        self.message_queue: Queue = Queue()
+        self.message_queue: asyncio.Queue = asyncio.Queue()
         self.response_handlers: Dict[str, Callable] = {}
         self.broadcast_handlers: Dict[str, List[Callable]] = defaultdict(list)
         self.running = False
-        self.worker_thread: Optional[threading.Thread] = None
+        self.worker_task: Optional[asyncio.Task] = None
         self.stats = {
             "messages_sent": 0,
             "messages_received": 0,
@@ -61,27 +59,30 @@ class MCPProtocol:
             del self.agents[agent_id]
             logger.info(f"Agente desregistrado: {agent_id}")
     
-    def start(self):
+    async def start(self):
         """Iniciar el protocolo MCP"""
         if self.running:
             return
-        
+
         self.running = True
-        self.worker_thread = threading.Thread(target=self._message_worker, daemon=True)
-        self.worker_thread.start()
+        self.worker_task = asyncio.create_task(self._message_worker())
         logger.info("Protocolo MCP iniciado")
-    
-    def stop(self):
+
+    async def stop(self):
         """Detener el protocolo MCP"""
         self.running = False
-        if self.worker_thread:
-            self.worker_thread.join(timeout=5)
+        if self.worker_task:
+            self.worker_task.cancel()
+            try:
+                await self.worker_task
+            except asyncio.CancelledError:
+                pass
         logger.info("Protocolo MCP detenido")
     
-    def send_request(
-        self, 
+    async def send_request(
+        self,
         sender_id: str,
-        target_id: str, 
+        target_id: str,
         action: str,
         data: Dict[str, Any],
         timeout: int = 30,
@@ -110,7 +111,7 @@ class MCPProtocol:
             priority=priority
         )
         
-        return self._send_and_wait_response(request)
+        return await self._send_and_wait_response(request)
     
     def send_response(
         self,
@@ -132,7 +133,7 @@ class MCPProtocol:
             data={}
         )
         
-        self.message_queue.put(response)
+        self.message_queue.put_nowait(response)
         self.stats["messages_sent"] += 1
     
     def broadcast(
@@ -161,7 +162,7 @@ class MCPProtocol:
             priority=priority
         )
         
-        self.message_queue.put(broadcast)
+        self.message_queue.put_nowait(broadcast)
         self.stats["messages_sent"] += 1
     
     def subscribe_to_broadcasts(
@@ -172,28 +173,26 @@ class MCPProtocol:
         """Suscribirse a eventos broadcast"""
         self.broadcast_handlers[event].append(handler)
     
-    def _send_and_wait_response(self, request: MCPRequest) -> MCPResponse:
+    async def _send_and_wait_response(self, request: MCPRequest) -> MCPResponse:
         """Enviar solicitud y esperar respuesta"""
-        response_event = threading.Event()
-        response_data = {}
-        
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+
         def response_handler(response: MCPResponse):
-            response_data['response'] = response
-            response_event.set()
-        
+            if not future.done():
+                future.set_result(response)
+
         # Registrar handler para la respuesta
         self.response_handlers[request.id] = response_handler
-        
+
         try:
             # Enviar solicitud
-            self.message_queue.put(request)
+            self.message_queue.put_nowait(request)
             self.stats["messages_sent"] += 1
-            
-            # Esperar respuesta
-            if response_event.wait(timeout=request.timeout):
-                return response_data['response']
-            else:
-                # Timeout
+
+            try:
+                return await asyncio.wait_for(future, timeout=request.timeout)
+            except asyncio.TimeoutError:
                 self.stats["timeouts"] += 1
                 return MCPResponse(
                     sender_agent="mcp_protocol",
@@ -203,20 +202,18 @@ class MCPProtocol:
                     error_message=f"Timeout después de {request.timeout}s",
                     data={}
                 )
-        
+
         finally:
             # Limpiar handler
             self.response_handlers.pop(request.id, None)
     
-    def _message_worker(self):
-        """Worker thread para procesar mensajes"""
+    async def _message_worker(self):
+        """Tarea asíncrona para procesar mensajes"""
         while self.running:
             try:
-                # Obtener mensaje de la cola
-                message = self.message_queue.get(timeout=1)
+                message = await asyncio.wait_for(self.message_queue.get(), timeout=1)
                 self.stats["messages_received"] += 1
-                
-                # Procesar según tipo de mensaje
+
                 if isinstance(message, MCPRequest):
                     self._handle_request(message)
                 elif isinstance(message, MCPResponse):
@@ -225,8 +222,8 @@ class MCPProtocol:
                     self._handle_broadcast(message)
                 elif isinstance(message, MCPError):
                     self._handle_error(message)
-                
-            except Empty:
+
+            except asyncio.TimeoutError:
                 continue
             except Exception as e:
                 logger.error(f"Error procesando mensaje: {e}")
@@ -245,7 +242,7 @@ class MCPProtocol:
                 error_message=f"Agente {request.target_agent} no encontrado",
                 data={}
             )
-            self.message_queue.put(error_response)
+            self.message_queue.put_nowait(error_response)
             return
         
         try:
@@ -264,7 +261,7 @@ class MCPProtocol:
                 execution_time=execution_time,
                 data={}
             )
-            self.message_queue.put(response)
+            self.message_queue.put_nowait(response)
             
         except Exception as e:
             # Error al ejecutar
@@ -277,7 +274,7 @@ class MCPProtocol:
                 error_message=str(e),
                 data={}
             )
-            self.message_queue.put(error_response)
+            self.message_queue.put_nowait(error_response)
     
     def _handle_response(self, response: MCPResponse):
         """Manejar respuesta entrante"""

@@ -56,7 +56,7 @@ class BaseAgent(ABC):
         """
         pass
     
-    def send_request(
+    async def send_request(
         self,
         target_agent: str,
         action: str,
@@ -66,8 +66,8 @@ class BaseAgent(ABC):
         """Enviar solicitud a otro agente"""
         if not self.mcp_protocol:
             raise RuntimeError("Protocolo MCP no configurado")
-        
-        return self.mcp_protocol.send_request(
+
+        return await self.mcp_protocol.send_request(
             sender_id=self.agent_id,
             target_id=target_agent,
             action=action,
