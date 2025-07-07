@@ -188,26 +188,6 @@ genesis init my-saas \
   --features=authentication,billing,notifications
 ```
 
-### API REST + SPA
-
-API REST con frontend de página única:
-
-```bash
-genesis init my-api \
-  --template=api-rest \
-  --stack backend=fastapi frontend=react
-```
-
-### Marketplace/E-commerce
-
-Plataforma de comercio electrónico:
-
-```bash
-genesis init my-marketplace \
-  --template=ecommerce \
-  --features=payments,inventory,reviews
-```
-
 ## 🛠️ Configuración Personalizada
 
 ### Stack Personalizado
@@ -471,37 +451,6 @@ Características incluidas:
 - Admin dashboard
 - API REST completa
 
-### E-commerce/Marketplace
-
-```bash
-genesis init my-store \
-  --template=ecommerce \
-  --features=payments,inventory,reviews,recommendations
-```
-
-Características incluidas:
-- Catálogo de productos
-- Carrito de compras
-- Procesamiento de pagos
-- Gestión de inventario
-- Sistema de reviews
-- Recomendaciones ML
-
-### API REST + Mobile
-
-```bash
-genesis init my-api \
-  --template=api-first \
-  --features=authentication,real-time,push-notifications
-```
-
-Características incluidas:
-- API REST robusta
-- WebSockets para real-time
-- Push notifications
-- Documentación OpenAPI
-- SDKs autogenerados
-
 ## 🔧 Configuración Avanzada
 
 ### Variables de Entorno
@@ -557,12 +506,10 @@ async def custom_post_processing(context):
 
 ### Ejemplos
 
-Explora ejemplos completos en `/examples`:
+En el directorio `/examples` se incluye un script de demostración que muestra cómo
+utilizar Genesis Engine de forma programática:
 
-- [SaaS Básico](examples/saas-basic/)
-- [E-commerce](examples/ecommerce/)
-- [API REST](examples/api-rest/)
-- [Blog/CMS](examples/blog-cms/)
+- [demo_complete.py](examples/demo_complete.py)
 
 ## 🤝 Contribuir
 

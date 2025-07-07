@@ -69,9 +69,9 @@ def init(
     ),
     template: str = typer.Option(
         "saas-basic",
-        "--template", 
+        "--template",
         "-t",
-        help="Template a usar (saas-basic, api-rest, web-app)"
+        help="Plantilla a usar (disponible: saas-basic)"
     ),
     no_interactive: bool = typer.Option(
         False,
