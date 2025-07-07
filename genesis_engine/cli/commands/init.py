@@ -112,7 +112,7 @@ def init_command(
         
         # Usar ArchitectAgent para generar el esquema
         architect_result = orchestrator.process_request({
-            "type": "generate_architecture",
+            "type": "design_architecture",
             "agent": "architect",
             "data": {
                 "project_name": project_name,
