@@ -3,6 +3,7 @@ Genesis Init Command - Inicializar proyectos
 """
 
 import json
+import asyncio
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
@@ -12,6 +13,10 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from genesis_engine.core.orchestrator import GenesisOrchestrator
 from genesis_engine.templates.engine import TemplateEngine
+import sys
+
+# Export real module reference for tests
+real_module = sys.modules[__name__]
 
 console = Console()
 
@@ -149,10 +154,12 @@ def init_command(
         }
 
         # Generar archivos usando template engine
-        template_engine.generate_project(
-            template_name=template,
-            output_dir=project_dir,
-            context=context
+        asyncio.run(
+            template_engine.generate_project(
+                template_name=template,
+                output_dir=project_dir,
+                context=context,
+            )
         )
         
         progress.update(task3, completed=1)
