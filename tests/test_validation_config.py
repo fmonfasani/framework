@@ -48,6 +48,10 @@ def test_stack_validation_reflects_genesis_config():
     try:
         # Add new framework and validate again
         GenesisConfig.set("supported_frameworks.backend", original + ["laravel"])
+        import sys, importlib
+        sys.modules.pop('genesis_engine.utils.validation', None)
+        from genesis_engine.utils.validation import ConfigValidator as CV
+        validator = CV()
         results = validator.validate_project_config(test_config)
         assert any(r.name == "Stack: backend" and r.level == ValidationLevel.SUCCESS for r in results)
     finally:

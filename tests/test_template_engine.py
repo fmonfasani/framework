@@ -84,3 +84,24 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     assert (out_dir / "sub" / "inner.txt").read_text() == "Inner World"
     assert (out_dir / "static.txt").read_text() == "STATIC"
 
+
+def test_missing_required_vars(tmp_path: Path):
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    (templates_dir / "file.j2").write_text("{{ project_name }}")
+
+    engine = TemplateEngine(templates_dir)
+
+    original = TemplateEngine.REQUIRED_VARIABLES.copy()
+    TemplateEngine.REQUIRED_VARIABLES["file.j2"] = ["project_name"]
+
+    try:
+        with pytest.raises(KeyError):
+            asyncio.run(engine.render_template("file.j2", {}))
+
+        result = asyncio.run(engine.render_template("file.j2", {"project_name": "Demo"}))
+        assert result == "Demo"
+    finally:
+        TemplateEngine.REQUIRED_VARIABLES.clear()
+        TemplateEngine.REQUIRED_VARIABLES.update(original)
+

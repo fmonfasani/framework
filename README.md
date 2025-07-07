@@ -498,6 +498,10 @@ template_engine.register_template(
     name="my_custom_component",
     path="templates/custom/component.j2"
 )
+
+# Al renderizar se validará que todas las variables requeridas para
+# cada plantilla estén presentes. Si falta alguna variable necesaria
+# se lanzará una `KeyError`.
 ```
 
 ### Hooks y Extensiones

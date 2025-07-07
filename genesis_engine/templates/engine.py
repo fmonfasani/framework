@@ -14,6 +14,7 @@ import json
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import fnmatch
 from datetime import datetime
 from genesis_engine.core.logging import get_logger
 
@@ -23,10 +24,38 @@ from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
 class TemplateEngine:
     """
     Motor de plantillas para Genesis Engine
-    
+
     Gestiona la carga, renderizado y validación de templates Jinja2
     para generar código en diferentes tecnologías y frameworks.
     """
+
+    # Variables obligatorias por plantilla integrada
+    REQUIRED_VARIABLES: Dict[str, List[str]] = {
+        "backend/fastapi/*": [
+            "project_name",
+            "description",
+            "version",
+            "entities",
+            "database_type",
+        ],
+        "backend/nestjs/*": [
+            "project_name",
+            "description",
+            "port",
+            "entities",
+        ],
+        "frontend/nextjs/*": [
+            "project_name",
+            "description",
+            "typescript",
+            "styling",
+            "state_management",
+        ],
+        "saas-basic/*": [
+            "project_name",
+            "description",
+        ],
+    }
     
     def __init__(self, templates_dir: Optional[Path] = None):
         self.templates_dir = templates_dir or self._get_default_templates_dir()
@@ -109,10 +138,23 @@ class TemplateEngine:
         
         # Registrar filtros en el entorno
         self.env.filters.update(self._custom_filters)
+
+    def validate_required_variables(self, template_name: str, variables: Dict[str, Any]):
+        """Verificar que se proporcionen las variables requeridas para una plantilla"""
+        missing = set()
+        for pattern, required in self.REQUIRED_VARIABLES.items():
+            if fnmatch.fnmatch(template_name, pattern):
+                for name in required:
+                    if name not in variables:
+                        missing.add(name)
+        if missing:
+            raise KeyError(
+                f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
+            )
     
     async def render_template(
-        self, 
-        template_name: str, 
+        self,
+        template_name: str,
         variables: Dict[str, Any] = None,
         use_cache: bool = True
     ) -> str:
@@ -127,6 +169,10 @@ class TemplateEngine:
         Returns:
             Contenido renderizado
         """
+        render_vars = variables or {}
+        # Validar variables requeridas antes de cargar la plantilla
+        self.validate_required_variables(template_name, render_vars)
+
         try:
             # Obtener template (con cache si está habilitado)
             if use_cache and template_name in self._template_cache:
@@ -136,9 +182,6 @@ class TemplateEngine:
                 template = self.env.get_template(template_name)
                 if use_cache:
                     self._template_cache[template_name] = template
-            
-            # Preparar variables
-            render_vars = variables or {}
             
             # Agregar variables globales útiles
             render_vars.update({
@@ -180,10 +223,12 @@ class TemplateEngine:
         Returns:
             Contenido renderizado
         """
+        render_vars = variables or {}
+        self.validate_required_variables("string_template", render_vars)
+
         try:
             template = self.env.from_string(template_string)
-            render_vars = variables or {}
-            
+
             # Agregar variables globales
             render_vars.update({
                 'generated_at': datetime.utcnow().isoformat(),
