@@ -11,6 +11,8 @@ from rich.table import Table
 from rich.panel import Panel
 from rich import print as rprint
 
+from genesis_engine.cli.commands.utils import check_dependencies
+
 console = Console()
 
 def doctor_command():
@@ -27,8 +29,14 @@ def doctor_command():
     table.add_column("Estado", style="magenta")
     table.add_column("Versión", style="green")
     table.add_column("Notas", style="yellow")
-    
+
     checks = []
+
+    try:
+        check_dependencies()
+    except RuntimeError as exc:
+        rprint(f"[red]{exc}[/red]")
+        return False
     
     # 1. Verificar Python
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
