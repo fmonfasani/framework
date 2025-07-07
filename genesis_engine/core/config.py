@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, List
 from dataclasses import dataclass
 import logging
+from rich.logging import RichHandler
 
 # Versión de Genesis Engine
 __version__ = "1.0.0"
@@ -228,14 +229,15 @@ class GenesisConfig:
         log_dir.mkdir(parents=True, exist_ok=True)
         
         # Configurar logger root
+        console_handler = RichHandler()
+        file_handler = logging.FileHandler(log_dir / "genesis.log", encoding="utf-8")
+
         logging.basicConfig(
             level=log_level,
             format=LOG_FORMAT,
             handlers=[
-                # Console handler
-                logging.StreamHandler(),
-                # File handler
-                logging.FileHandler(log_dir / "genesis.log")
+                console_handler,
+                file_handler,
             ]
         )
     
