@@ -246,6 +246,19 @@ def agents(
     else:
         console.print("[yellow]💡 Usa --list para ver agentes disponibles[/yellow]")
 
+
+@app.command("help")
+def help_cmd():
+    """Mostrar la ayuda completa de la CLI"""
+    try:
+        typer.echo(app.get_help())
+    except AttributeError:
+        from typer.main import get_command
+        import click
+        cmd = get_command(app)
+        ctx = click.Context(cmd)
+        typer.echo(cmd.get_help(ctx))
+
 # Punto de entrada principal
 def main_entry():
     """Entry point principal para el script de consola"""

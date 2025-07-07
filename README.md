@@ -91,6 +91,12 @@ genesis doctor
 
 ## 🎯 Uso Básico
 
+### Mostrar Ayuda
+
+```bash
+genesis help
+```
+
 ### Crear Proyecto con Golden Path (SaaS Básico)
 
 ```bash
