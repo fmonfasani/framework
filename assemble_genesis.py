@@ -5,7 +5,9 @@ Copia todos los artefactos a sus ubicaciones correctas
 """
 
 import os
+import shutil
 from pathlib import Path
+import argparse
 
 # Mapeo completo de artefactos a archivos
 ARTIFACT_MAPPING = {
@@ -43,6 +45,19 @@ ARTIFACT_MAPPING = {
     # Ejemplos
     "genesis_example_demo": "examples/demo_complete.py",
 }
+
+def copy_artifacts(artifact_dir: str) -> None:
+    """Copiar artefactos generados a su ubicación destino."""
+    base = Path(artifact_dir)
+    for name, destination in ARTIFACT_MAPPING.items():
+        dest_path = Path(destination)
+        src_path = base / f"{name}{dest_path.suffix}"
+        if src_path.exists():
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_path, dest_path)
+            print(f"📄 Copiado {src_path} -> {dest_path}")
+        else:
+            print(f"⚠️  Artefacto no encontrado: {src_path}")
 
 def create_file_from_artifact(artifact_content, file_path):
     """Crear archivo desde contenido de artefacto"""
@@ -142,31 +157,29 @@ exclude = ["tests*"]
         f.write(pyproject.strip())
     print("✅ Creado: pyproject.toml")
 
-def main():
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Assemble Genesis Engine package from artifacts")
+    parser.add_argument(
+        "--artifacts",
+        default="artifacts",
+        help="Directorio donde se ubican los artefactos generados",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
     """Función principal"""
-    print("🛠️ Ensamblando Genesis Engine...")
+    args = parse_args()
+    print("🛠️  Ensamblando Genesis Engine...")
     print("=" * 50)
-    
-    # Crear archivos __init__.py
+
+    copy_artifacts(args.artifacts)
     create_init_files()
-    
-    # Crear archivos de configuración
     create_requirements_txt()
     create_pyproject_toml()
-    
-    print("\n📋 Para completar el ensamblaje:")
-    print("1. Copia manualmente cada artefacto a su archivo correspondiente usando la tabla de mapeo")
-    print("2. Ejecuta: pip install -e .")
-    print("3. Prueba: genesis --version")
-    
-    print("\n📁 Estructura creada:")
-    for root, dirs, files in os.walk("genesis_engine"):
-        level = root.replace("genesis_engine", "").count(os.sep)
-        indent = " " * 2 * level
-        print(f"{indent}{os.path.basename(root)}/")
-        subindent = " " * 2 * (level + 1)
-        for file in files:
-            print(f"{subindent}{file}")
+
+    print("\n✅ Ensamblaje completo. Ejecuta `pip install -e .` para instalar.")
 
 if __name__ == "__main__":
     main()

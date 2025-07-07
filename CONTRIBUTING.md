@@ -22,6 +22,20 @@ Thank you for considering a contribution to this project! The following steps wi
    pip install -r requirements.txt
    ```
 
+## Assembling the package
+
+If you obtained the generated artifacts separately (for example from a CI run),
+place them in a directory and run the assembly script to populate the
+`genesis_engine` package:
+
+```bash
+python assemble_genesis.py --artifacts path/to/artifacts
+pip install -e .
+```
+
+The script copies each artifact to its final location and creates
+`requirements.txt` and `pyproject.toml` if they do not exist.
+
 ## Running the tests
 
 The test suite lives in the [`tests/`](tests/) directory and can be executed with `pytest`:
