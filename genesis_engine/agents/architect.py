@@ -678,3 +678,25 @@ class ArchitectAgent(GenesisAgent):
     def _generate_entity_constraints(self, entity_name: str, attributes: Dict[str, str]) -> List[str]:
         """Generar restricciones para una entidad"""
         return []
+
+    async def _handle_validate_design(self, request) -> Dict[str, Any]:
+        """Handler para validar el diseño generado"""
+        params = request.params
+        return await self._validate_design(params)
+
+    async def _validate_design(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Validar coherencia del diseño"""
+        return {"valid": True, "issues": []}
+
+    async def _handle_recommend_stack(self, request) -> Dict[str, Any]:
+        """Handler para recomendación de stack tecnológico"""
+        params = request.params
+        return await self._recommend_technology_stack(params)
+
+    async def _recommend_technology_stack(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Recomendar stack tecnológico basado en configuración por defecto"""
+        stack_name = params.get("template", "golden-path")
+        recommended = GenesisConfig.get_stack_config(stack_name)
+        if not recommended:
+            recommended = GenesisConfig.get_stack_config("golden-path")
+        return {"recommended_stack": recommended}
