@@ -44,13 +44,13 @@ class BaseAgent(ABC):
         pass
     
     @abstractmethod
-    def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
+    async def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
         """
         Manejar solicitud entrante vía MCP
-        
+
         Args:
             request: Solicitud MCP
-            
+
         Returns:
             Dict con resultado de la operación
         """

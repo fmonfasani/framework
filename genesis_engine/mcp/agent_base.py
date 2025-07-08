@@ -47,13 +47,6 @@ class GenesisAgent(BaseAgent):
     def add_capability(self, capability: str):
         if capability not in self.capabilities:
             self.capabilities.append(capability)
-    def get_capabilities(self) -> list:
-        """Retornar capacidades del agente"""
-        return list(self.capabilities)
-
-    def handle_request(self, request) -> Dict[str, Any]:
-        """Manejar request básico"""
-        return {"status": "handled", "agent": self.agent_id}
 
     def register_handler(self, action: str, handler: Callable):
         self.handlers[action] = handler
@@ -67,11 +60,12 @@ class GenesisAgent(BaseAgent):
     def get_capabilities(self) -> list:
         return list(self.capabilities)
 
-    def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
+    async def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
         handler = self.handlers.get(request.action)
         if not handler:
             raise ValueError(f"Handler not found for action '{request.action}'")
 
-        if asyncio.iscoroutinefunction(handler):
-            return asyncio.run(handler(request.data))
-        return handler(request.data)
+        result = handler(request.data)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
