@@ -1,12 +1,10 @@
-"""
-Template Engine - Motor de plantillas Jinja2 para Genesis Engine
+"""Frontend Agent
+-----------------
 
-Este módulo es responsable de:
-- Cargar y renderizar plantillas Jinja2
-- Gestionar templates modulares por tecnología
-- Proporcionar funciones helper personalizadas
-- Validar sintaxis y variables de templates
-- Cache de templates para mejor performance
+Agent responsible for generating frontend projects using different
+JavaScript frameworks. It leverages the :class:`TemplateEngine` to
+render Jinja2 templates and produce a ready to use project skeleton.
+Currently Next.js and React templates are bundled with the engine.
 """
 
 import os
@@ -27,7 +25,7 @@ template_engine = TemplateEngine()
 
 
 class FrontendAgent(GenesisAgent):
-    """Agente Frontend - Generador de interfaz Next.js"""
+    """Agente Frontend - Generador de interfaces web"""
 
     def __init__(self):
         super().__init__(
@@ -38,6 +36,7 @@ class FrontendAgent(GenesisAgent):
 
         # Capacidades básicas
         self.add_capability("nextjs_generation")
+        self.add_capability("react_generation")
         self.add_capability("ui_components")
         self.add_capability("state_management")
 
@@ -50,7 +49,7 @@ class FrontendAgent(GenesisAgent):
         self.logger.info("🎨 Inicializando Frontend Agent")
 
         self.set_metadata("version", "1.0.0")
-        self.set_metadata("supported_frameworks", ["nextjs"])
+        self.set_metadata("supported_frameworks", ["nextjs", "react"])
 
         self.logger.info("✅ Frontend Agent inicializado")
 
@@ -68,8 +67,12 @@ class FrontendAgent(GenesisAgent):
         return await self._generate_complete_frontend(request.params)
 
     async def _generate_complete_frontend(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Generar proyecto Next.js básico"""
-        self.logger.info("🚀 Generando frontend Next.js")
+        """Generate a frontend project for the selected framework."""
+        framework = params.get("framework", "nextjs").lower()
+        if framework not in {"nextjs", "react"}:
+            raise ValueError(f"Framework no soportado: {framework}")
+
+        self.logger.info(f"🚀 Generando frontend {framework}")
 
         schema = params.get("schema", {})
         output_path = Path(params.get("output_path", "./frontend"))
@@ -84,13 +87,14 @@ class FrontendAgent(GenesisAgent):
             "ui_components": params.get("ui_components", "shadcn"),
         }
 
+        template_glob = f"frontend/{framework}/*"
         templates = [
-            t for t in self.template_engine.list_templates("frontend/nextjs/*")
+            t for t in self.template_engine.list_templates(template_glob)
             if t.endswith(".j2")
         ]
 
         generated_files: List[str] = []
-        prefix = "frontend/nextjs/"
+        prefix = f"frontend/{framework}/"
 
         for tpl in templates:
             content = await self.template_engine.render_template(tpl, template_vars)
@@ -102,7 +106,7 @@ class FrontendAgent(GenesisAgent):
             generated_files.append(str(out_file))
 
         return {
-            "framework": "nextjs",
+            "framework": framework,
             "generated_files": generated_files,
             "output_path": str(output_path),
             "next_steps": [
