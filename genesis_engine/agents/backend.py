@@ -711,24 +711,6 @@ class BackendAgent(GenesisAgent):
         """Configurar generadores de código"""
         raise NotImplementedError("_setup_code_generators not implemented")
     
-    async def _generate_typeorm_entity(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
-        """Generar entidad TypeORM"""
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        template_vars = {
-            "entity_name": entity["name"],
-            "attributes": entity.get("attributes", {}),
-        }
-
-        content = await self.template_engine.render_template(
-            "nestjs/entity.ts.j2",
-            template_vars,
-        )
-
-        output_file = output_path / f"{entity['name'].lower()}.entity.ts"
-        output_file.write_text(content)
-
-        return str(output_file)
     
     async def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
         """Generar controlador NestJS"""
