@@ -8,6 +8,7 @@ import logging
 import weakref
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Callable, Optional, Any
+import inspect
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -241,7 +242,7 @@ class MCPProtocol:
                 self.stats["messages_received"] += 1
 
                 if isinstance(message, MCPRequest):
-                    self._handle_request(message)
+                    await self._handle_request(message)
                 elif isinstance(message, MCPResponse):
                     self._handle_response(message)
                 elif isinstance(message, MCPBroadcast):
@@ -255,7 +256,7 @@ class MCPProtocol:
                 logger.error(f"Error procesando mensaje: {e}")
                 self.stats["errors"] += 1
     
-    def _handle_request(self, request: MCPRequest):
+    async def _handle_request(self, request: MCPRequest):
         """Manejar solicitud entrante"""
         target_agent = self.agents.get(request.target_agent)
         if not target_agent:
@@ -275,6 +276,8 @@ class MCPProtocol:
             # Ejecutar acción en el agente
             start_time = datetime.now()
             result = target_agent.handle_request(request)
+            if inspect.isawaitable(result):
+                result = await result
             execution_time = (datetime.now() - start_time).total_seconds()
             
             # Enviar respuesta exitosa
