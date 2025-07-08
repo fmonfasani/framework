@@ -115,6 +115,33 @@ class TemplateEngine:
         
         # Registrar helpers en el entorno Jinja2
         self.env.globals.update(self._helpers)
+    def format_datetime(dt_string: str, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
+        """Formatear string de datetime"""
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
+            return dt.strftime(format_str)
+        except Exception:
+            return dt_string
+
+    def humanize_size(size_bytes: int) -> str:
+        """Convertir bytes a formato humano legible"""
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    def safe_filename(filename: str) -> str:
+        """Crear nombre de archivo seguro"""
+        import re
+        # Remover caracteres no seguros
+        safe_name = re.sub(r'[^\w\-_\.]', '_', filename)
+        # Evitar nombres especiales de Windows
+        reserved_names = ['CON', 'PRN', 'AUX', 'NUL'] + [f'COM{i}' for i in range(1, 10)] + [f'LPT{i}' for i in range(1, 10)]
+        if safe_name.upper() in reserved_names:
+            safe_name = f"_{safe_name}"
+        return safe_name    
     
     def _setup_default_filters(self):
         """Configurar filtros personalizados"""

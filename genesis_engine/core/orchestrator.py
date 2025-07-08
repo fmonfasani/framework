@@ -148,6 +148,26 @@ class GenesisOrchestrator:
         self.mcp.register_handler("task.failed", self._handle_task_failed)
         self.mcp.register_handler("agent.status_changed", self._handle_agent_status_changed)
 
+    def _handle_orchestrator_error(self, error: Exception, context: str) -> None:
+        """Manejar errores del orquestador de manera uniforme"""
+        error_msg = f"Error en {context}: {str(error)}"
+        self.logger.error(error_msg, exc_info=True)
+        
+        # Broadcast error event to other agents if MCP is available
+        if self.mcp and self.mcp.running:
+            try:
+                self.mcp.broadcast(
+                    sender_id="orchestrator",
+                    event="error_occurred",
+                    data={
+                        "context": context,
+                        "error": str(error),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                )
+            except Exception as broadcast_error:
+                self.logger.error(f"Failed to broadcast error: {broadcast_error}")
+
     def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Procesar una solicitud simple dirigida a un agente.
 

@@ -717,40 +717,70 @@ class DevOpsAgent(GenesisAgent):
         file = output_path / "frontend-deployment.yaml"
         file.write_text(content)
         return str(file)
-    
-    async def _generate_k8s_database_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
-        """Generar deployment de la base de datos"""
-        name = f"{schema.get('project_name', 'app')}-db"
-        manifest = {
-            "apiVersion": "apps/v1",
-            "kind": "StatefulSet",
-            "metadata": {"name": name},
-            "spec": {
-                "serviceName": name,
-                "replicas": 1,
-                "selector": {"matchLabels": {"app": name}},
-                "template": {
-                    "metadata": {"labels": {"app": name}},
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": "postgres",
-                                "image": "postgres:15",
-                                "ports": [{"containerPort": 5432}],
-                                "env": [
-                                    {"name": "POSTGRES_PASSWORD", "value": "password"},
-                                    {"name": "POSTGRES_DB", "value": f"{schema.get('project_name','app')}_db"},
-                                ],
-                            }
-                        ]
+    def generate_yaml_content(data: Dict[str, Any]) -> str:
+        """Generar contenido YAML válido"""
+        try:
+            import yaml
+            return yaml.dump(data, default_flow_style=False, sort_keys=False)
+        except ImportError:
+            # Fallback manual si PyYAML no está disponible
+            return _manual_yaml_dump(data)
+
+    def _manual_yaml_dump(data: Dict[str, Any], indent: int = 0) -> str:
+        """Dump YAML manual básico"""
+        result = []
+        prefix = "  " * indent
+        
+        for key, value in data.items():
+            if isinstance(value, dict):
+                result.append(f"{prefix}{key}:")
+                result.append(_manual_yaml_dump(value, indent + 1))
+            elif isinstance(value, list):
+                result.append(f"{prefix}{key}:")
+                for item in value:
+                    if isinstance(item, dict):
+                        result.append(f"{prefix}  -")
+                        result.append(_manual_yaml_dump(item, indent + 2))
+                    else:
+                        result.append(f"{prefix}  - {item}")
+            else:
+                result.append(f"{prefix}{key}: {value}")
+        
+        return "\n".join(result)
+        
+        async def _generate_k8s_database_deployment(self, output_path: Path, schema: Dict[str, Any]) -> str:
+            """Generar deployment de la base de datos"""
+            name = f"{schema.get('project_name', 'app')}-db"
+            manifest = {
+                "apiVersion": "apps/v1",
+                "kind": "StatefulSet",
+                "metadata": {"name": name},
+                "spec": {
+                    "serviceName": name,
+                    "replicas": 1,
+                    "selector": {"matchLabels": {"app": name}},
+                    "template": {
+                        "metadata": {"labels": {"app": name}},
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "postgres",
+                                    "image": "postgres:15",
+                                    "ports": [{"containerPort": 5432}],
+                                    "env": [
+                                        {"name": "POSTGRES_PASSWORD", "value": "password"},
+                                        {"name": "POSTGRES_DB", "value": f"{schema.get('project_name','app')}_db"},
+                                    ],
+                                }
+                            ]
+                        },
                     },
                 },
-            },
-        }
-        content = yaml.dump(manifest)
-        file = output_path / "database-statefulset.yaml"
-        file.write_text(content)
-        return str(file)
+            }
+            content = yaml.dump(manifest)
+            file = output_path / "database-statefulset.yaml"
+            file.write_text(content)
+            return str(file)
     
     async def _generate_k8s_services(self, output_path: Path, schema: Dict[str, Any]) -> str:
         """Generar Services de Kubernetes"""

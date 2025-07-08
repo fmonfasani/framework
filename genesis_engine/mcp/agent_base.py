@@ -47,6 +47,13 @@ class GenesisAgent(BaseAgent):
     def add_capability(self, capability: str):
         if capability not in self.capabilities:
             self.capabilities.append(capability)
+    def get_capabilities(self) -> list:
+        """Retornar capacidades del agente"""
+        return list(self.capabilities)
+
+    def handle_request(self, request) -> Dict[str, Any]:
+        """Manejar request básico"""
+        return {"status": "handled", "agent": self.agent_id}
 
     def register_handler(self, action: str, handler: Callable):
         self.handlers[action] = handler

@@ -9,7 +9,6 @@ Este módulo proporciona:
 - Diagnósticos del sistema
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +19,10 @@ from enum import Enum
 from genesis_engine.core.logging import get_logger
 from genesis_engine.core.config import GenesisConfig
 import re
+import os
+import platform
+import importlib.metadata
+
 
 class ValidationLevel(str, Enum):
     """Niveles de validación"""

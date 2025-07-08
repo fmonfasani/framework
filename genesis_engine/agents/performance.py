@@ -21,6 +21,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import logging
+import ast
+import tokenize
+import io
+from typing import Generator, Tuple
 
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 
@@ -474,6 +478,60 @@ class PerformanceAgent(GenesisAgent):
             "optimizations": optimizations,
             "files_modified": files_modified
         }
+    
+    def analyze_python_complexity(code: str) -> Dict[str, Any]:
+        """Analizar complejidad del código Python"""
+        try:
+             tree = ast.parse(code)
+                
+             complexity_visitor = ComplexityVisitor()
+             complexity_visitor.visit(tree)
+                
+             return {
+                "cyclomatic_complexity": complexity_visitor.complexity,
+                "function_count": complexity_visitor.function_count,
+                "class_count": complexity_visitor.class_count,
+                "max_depth": complexity_visitor.max_depth
+            }
+        except SyntaxError:
+             return {"error": "Syntax error in code"}
+
+    class ComplexityVisitor(ast.NodeVisitor):
+        """Visitor para calcular complejidad ciclomática"""
+        
+        def __init__(self):
+            self.complexity = 1  # Base complexity
+            self.function_count = 0
+            self.class_count = 0
+            self.max_depth = 0
+            self.current_depth = 0
+        
+        def visit_FunctionDef(self, node):
+            self.function_count += 1
+            self.current_depth += 1
+            self.max_depth = max(self.max_depth, self.current_depth)
+            self.generic_visit(node)
+            self.current_depth -= 1
+        
+        def visit_ClassDef(self, node):
+            self.class_count += 1
+            self.current_depth += 1
+            self.max_depth = max(self.max_depth, self.current_depth)
+            self.generic_visit(node)
+            self.current_depth -= 1
+        
+        def visit_If(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+        
+        def visit_While(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+        
+        def visit_For(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+
     
     def _calculate_performance_score(self, issues: List[PerformanceIssue], optimizations: List[str]) -> float:
         """Calcular puntuación de rendimiento"""

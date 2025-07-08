@@ -10,6 +10,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
 
 # Importar comandos
 from genesis_engine.cli.commands.init import init_command
