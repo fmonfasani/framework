@@ -660,7 +660,7 @@ TEMPERATURE={config.temperature}
     async def _generate_frontend_chat_api(self, frontend_path: Path, config: AIConfig) -> str:
         """Generar API de chat del frontend"""
         return ""
-    
+
     async def _generate_chat_page(self, frontend_path: Path, config: AIConfig) -> str:
         """Generar página de chat"""
         return ""
