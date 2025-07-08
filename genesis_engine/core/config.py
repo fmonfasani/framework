@@ -100,6 +100,7 @@ class GenesisConfig:
             "max_workers": 4,
             "timeout": 300,
             "retry_attempts": 3,
+            "strict_template_validation": True,
             "stack_defaults": {
                 "golden-path": StackDefaults.GOLDEN_PATH,
                 "api-first": StackDefaults.API_FIRST,
