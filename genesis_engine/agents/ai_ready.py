@@ -20,8 +20,43 @@ from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
 
+# Imports para IA - pueden no estar disponibles en todas las instalaciones
+try:  # pragma: no cover - opcional según entorno
+    import openai
+    OPENAI_AVAILABLE = True
+except Exception:  # noqa: W0703 - cualquier error al importar
+    OPENAI_AVAILABLE = False
+
+try:  # pragma: no cover - opcional según entorno
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except Exception:  # noqa: W0703
+    ANTHROPIC_AVAILABLE = False
+
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
+
+
+def _check_import(module_name: str) -> bool:
+    """Verificar si un módulo se puede importar"""
+    try:  # pragma: no cover - import check
+        __import__(module_name)
+        return True
+    except ImportError:
+        return False
+
+
+def check_ai_dependencies() -> Dict[str, bool]:
+    """Verificar dependencias de IA disponibles"""
+    return {
+        "openai": OPENAI_AVAILABLE,
+        "anthropic": ANTHROPIC_AVAILABLE,
+        "transformers": _check_import("transformers"),
+        "langchain": _check_import("langchain"),
+        "chromadb": _check_import("chromadb"),
+        "pinecone": _check_import("pinecone"),
+        "weaviate": _check_import("weaviate"),
+    }
 
 class LLMProvider(str, Enum):
     """Proveedores de LLM"""
@@ -627,5 +662,4 @@ TEMPERATURE={config.temperature}
         return ""
     
     async def _generate_chat_page(self, frontend_path: Path, config: AIConfig) -> str:
-        """Generar página de chat"""
-        return ""
+        """Generar página de chat"""        return ""
