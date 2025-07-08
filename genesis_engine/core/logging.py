@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Optional
 
 DEFAULT_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -22,3 +23,49 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
     if level is not None:
         logger.setLevel(level)
     return logger
+
+
+def setup_file_logging(log_file: Path, level: int = logging.INFO) -> logging.Handler:
+    """Configurar logging a archivo"""
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    handler = logging.FileHandler(log_file, encoding="utf-8")
+    handler.setLevel(level)
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    handler.setFormatter(formatter)
+
+    return handler
+
+
+def setup_structured_logging(service_name: str = "genesis-engine") -> None:
+    """Configurar logging estructurado para producción"""
+    try:
+        import structlog
+
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.processors.UnicodeDecoder(),
+                structlog.processors.JSONRenderer(),
+            ],
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
+            cache_logger_on_first_use=True,
+        )
+
+    except ImportError:
+        logging.basicConfig(
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            level=logging.INFO,
+        )

@@ -317,6 +317,40 @@ def ensure_genesis_directories():
     """Asegurar que existan los directorios de Genesis"""
     GenesisConfig.setup_directories()
 
+
+def load_config_from_env() -> Dict[str, Any]:
+    """Cargar configuración desde variables de entorno"""
+    config: Dict[str, Any] = {}
+
+    env_mapping = {
+        "GENESIS_LOG_LEVEL": ("log_level", str),
+        "GENESIS_CACHE_DIR": ("cache_dir", str),
+        "GENESIS_TEMPLATES_DIR": ("templates_dir", str),
+        "GENESIS_VERBOSE": ("verbose", lambda x: x.lower() in ["true", "1", "yes"]),
+        "GENESIS_AUTO_INSTALL": ("auto_install_deps", lambda x: x.lower() in ["true", "1", "yes"]),
+        "GENESIS_MAX_WORKERS": ("max_workers", int),
+        "GENESIS_TIMEOUT": ("timeout", int),
+    }
+
+    for env_var, (config_key, converter) in env_mapping.items():
+        value = os.getenv(env_var)
+        if value:
+            try:
+                config[config_key] = converter(value)
+            except (ValueError, TypeError) as e:
+                logging.warning(f"Invalid value for {env_var}: {value} ({e})")
+
+    return config
+
+
+def save_config_to_file(config: Dict[str, Any], file_path: Path) -> None:
+    """Guardar configuración a archivo JSON"""
+    try:
+        with open(file_path, "w") as f:
+            json.dump(config, f, indent=2, default=str)
+    except Exception as e:  # pragma: no cover - fallo de E/S
+        logging.error(f"Failed to save config to {file_path}: {e}")
+
 def load_user_config():
     """Cargar configuración del usuario"""
     config_file = get_user_config_file()

@@ -737,5 +737,28 @@ class SchemaValidator:
                     message=f"Relación referencia entidad inexistente: {to_entity}",
                     passed=False
                 ))
-        
-        return results
+                return results
+
+def check_network_connectivity() -> bool:
+    """Verificar conectividad de red básica"""
+    try:
+        import socket
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        return False
+
+
+def validate_url(url: str) -> bool:
+    """Validar formato de URL"""
+    import re
+    url_pattern = re.compile(
+        r'^https?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
+        r'(?:/?|[/?]\S+)$',
+        re.IGNORECASE,
+    )
+    return url_pattern.match(url) is not None

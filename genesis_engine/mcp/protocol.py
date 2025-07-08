@@ -5,6 +5,8 @@ Protocolo MCP - Multi-agent Communication Protocol
 import asyncio
 import json
 import logging
+import weakref
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Callable, Optional, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -16,6 +18,30 @@ from genesis_engine.mcp.message_types import (
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+class MCPConnectionManager:
+    """Gestor de conexiones MCP"""
+
+    def __init__(self) -> None:
+        self.connections: weakref.WeakSet = weakref.WeakSet()
+        self.executor = ThreadPoolExecutor(max_workers=4)
+
+    def add_connection(self, conn: Any) -> None:
+        """Registrar una nueva conexión."""
+        self.connections.add(conn)
+
+    def broadcast_to_all(self, message: Any) -> None:
+        """Enviar un mensaje a todas las conexiones registradas."""
+        for conn in list(self.connections):
+            try:
+                asyncio.create_task(conn.send(message))
+            except Exception as exc:  # pragma: no cover - errores de red
+                logging.warning(f"Failed to send to connection: {exc}")
+
+    async def cleanup(self) -> None:
+        """Liberar recursos del gestor de conexiones."""
+        self.executor.shutdown(wait=True)
 
 
 class AgentStatus(str, Enum):
