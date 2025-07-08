@@ -90,16 +90,20 @@ def test_missing_required_vars(tmp_path: Path):
     templates_dir.mkdir(parents=True, exist_ok=True)
     (templates_dir / "file.j2").write_text("{{ project_name }}")
 
-    engine = TemplateEngine(templates_dir)
+    engine_strict = TemplateEngine(templates_dir, strict_validation=True)
+    engine_lenient = TemplateEngine(templates_dir, strict_validation=False)
 
     original = TemplateEngine.REQUIRED_VARIABLES.copy()
     TemplateEngine.REQUIRED_VARIABLES["file.j2"] = ["project_name"]
 
     try:
         with pytest.raises(KeyError):
-            asyncio.run(engine.render_template("file.j2", {}))
+            asyncio.run(engine_strict.render_template("file.j2", {}))
 
-        result = asyncio.run(engine.render_template("file.j2", {"project_name": "Demo"}))
+        result = asyncio.run(engine_lenient.render_template("file.j2", {}))
+        assert result == ""
+
+        result = asyncio.run(engine_lenient.render_template("file.j2", {"project_name": "Demo"}))
         assert result == "Demo"
     finally:
         TemplateEngine.REQUIRED_VARIABLES.clear()

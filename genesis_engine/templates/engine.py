@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Union
 import fnmatch
 from datetime import datetime
 from genesis_engine.core.logging import get_logger
+from genesis_engine.core.config import GenesisConfig
 
 from jinja2 import Environment, FileSystemLoader, Template, TemplateError
 from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
@@ -64,8 +65,11 @@ class TemplateEngine:
         ],
     }
     
-    def __init__(self, templates_dir: Optional[Path] = None):
+    def __init__(self, templates_dir: Optional[Path] = None, strict_validation: Optional[bool] = None):
         self.templates_dir = templates_dir or self._get_default_templates_dir()
+        if strict_validation is None:
+            strict_validation = GenesisConfig.get("strict_template_validation", True)
+        self.strict_validation = strict_validation
         self.env = self._setup_jinja_environment()
         self.logger = get_logger("genesis.template_engine")
         
@@ -182,9 +186,13 @@ class TemplateEngine:
                     if name not in variables:
                         missing.add(name)
         if missing:
-            raise KeyError(
-                f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
-            )
+            message = f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
+            if self.strict_validation:
+                raise KeyError(message)
+            else:
+                self.logger.warning(message)
+                for name in missing:
+                    variables.setdefault(name, "")
     
     async def render_template(
         self,
