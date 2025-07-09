@@ -50,14 +50,12 @@ class TemplateEngine:
             "project_name",
             "description",
             "typescript",
-            "styling",
             "state_management",
         ],
         "frontend/react/*": [
             "project_name",
             "description",
             "typescript",
-            "styling",
             "state_management",
         ],
         "saas-basic/*": [
