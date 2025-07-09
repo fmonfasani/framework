@@ -200,11 +200,13 @@ class TemplateEngine:
 
         self,
         template_name: str,
-        variables: Dict[str, Any],
-        use_cache: bool,
+        variables: Dict[str, Any] | None = None,
+        use_cache: bool = True,
     ) -> str:
         """Versión síncrona del renderizado de plantillas."""
-        render_vars = variables or {}
+        vars_clean = variables or {}
+        self.validate_required_variables(template_name, vars_clean)
+        render_vars = vars_clean
 
         # Obtener template (con cache si está habilitado)
         if use_cache and template_name in self._template_cache:
@@ -225,7 +227,7 @@ class TemplateEngine:
 
         return template.render(**render_vars)
 
-    async def render_template(
+    async def render_template_async(
         self,
         template_name: str,
         variables: Dict[str, Any] = None,
@@ -286,7 +288,7 @@ class TemplateEngine:
         )
         return template.render(**render_vars)
 
-    async def render_string_template(
+    async def render_string_template_async(
         self,
         template_string: str,
         variables: Dict[str, Any] = None,
@@ -296,7 +298,7 @@ class TemplateEngine:
         self.validate_required_variables("string_template", vars_clean)
         try:
             return await asyncio.to_thread(
-                self._render_string_template_sync, template_string, vars_clean
+                self.render_string_template, template_string, vars_clean
             )
         except Exception as e:
             self.logger.error(f"❌ Error renderizando string template: {e}")
@@ -434,7 +436,7 @@ class TemplateEngine:
 
         return generated_files
 
-    async def generate_project(
+    async def generate_project_async(
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -442,7 +444,7 @@ class TemplateEngine:
     ) -> List[str]:
         """Renderizar todas las plantillas dentro de un directorio de forma asíncrona"""
         return await asyncio.to_thread(
-            self._generate_project_sync, template_name, output_dir, context
+            self.generate_project, template_name, output_dir, context
         )
     
     def register_helper(self, name: str, func: callable):
