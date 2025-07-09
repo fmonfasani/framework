@@ -200,11 +200,15 @@ class TemplateEngine:
 
         self,
         template_name: str,
+
         variables: Dict[str, Any],
+
         use_cache: bool = True,
     ) -> str:
         """Versión síncrona del renderizado de plantillas."""
-        render_vars = variables or {}
+        vars_clean = variables or {}
+        self.validate_required_variables(template_name, vars_clean)
+        render_vars = vars_clean
 
         # Validar variables requeridas
         self.validate_required_variables(template_name, render_vars)
@@ -236,6 +240,7 @@ class TemplateEngine:
     ) -> str:
         """Renderizar una plantilla de forma asíncrona."""
         vars_clean = variables or {}
+        render_vars = vars_clean
         # Validar variables antes de ejecutar en hilo separado
         self.validate_required_variables(template_name, vars_clean)
         try:
@@ -299,7 +304,7 @@ class TemplateEngine:
         self.validate_required_variables("string_template", vars_clean)
         try:
             return await asyncio.to_thread(
-                self._render_string_template_sync, template_string, vars_clean
+                self.render_string_template, template_string, vars_clean
             )
         except Exception as e:
             self.logger.error(f"❌ Error renderizando string template: {e}")
@@ -397,16 +402,19 @@ class TemplateEngine:
             return []
 
 
-    def generate_project(
+    def _generate_project_sync(
 
         self,
         template_name: str,
         output_dir: Union[str, Path],
-        context: Optional[Dict[str, Any]],
+        context: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
+        """Lógica interna para generar un proyecto de forma síncrona."""
         template_path = self.templates_dir / template_name
         if not template_path.exists() or not template_path.is_dir():
-            raise FileNotFoundError(f"Directorio de template no encontrado: {template_path}")
+            raise FileNotFoundError(
+                f"Directorio de template no encontrado: {template_path}"
+            )
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -438,6 +446,7 @@ class TemplateEngine:
                     generated_files.append(str(dest))
 
         return generated_files
+
 
     async def generate_project_async(
         self,

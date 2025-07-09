@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 
 import sys
 
@@ -105,7 +106,7 @@ def test_setup_authentication(tmp_path, monkeypatch):
         environment_vars={},
     )
 
-    def fake_generate_fastapi_jwt_auth(path, cfg):
+    async def fake_generate_fastapi_jwt_auth(path, cfg):
         path.mkdir(parents=True, exist_ok=True)
         file = path / 'jwt.py'
         file.write_text('auth')
@@ -184,7 +185,7 @@ def test_generate_fastapi_jwt_auth(tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = agent._generate_fastapi_jwt_auth(tmp_path, config)
+    paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
     file = tmp_path / 'jwt.py'
     assert list(map(Path, paths)) == [file]
     assert 'SECRET_KEY' in file.read_text()
@@ -200,7 +201,7 @@ def test_generate_nestjs_jwt_auth(tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = agent._generate_nestjs_jwt_auth(tmp_path, config)
+    paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
     file = tmp_path / 'jwt.ts'
     assert list(map(Path, paths)) == [file]
     assert 'jwtConstants' in file.read_text()
@@ -233,7 +234,7 @@ def test_generate_api_documentation(tmp_path):
         environment_vars={},
     )
     params = {'schema': {}, 'config': config, 'output_path': tmp_path}
-    paths = agent._generate_api_documentation(params)
+    paths = asyncio.run(agent._generate_api_documentation(params))
     file = tmp_path / 'api.md'
     assert list(map(Path, paths)) == [file]
     assert 'API Documentation' in file.read_text()

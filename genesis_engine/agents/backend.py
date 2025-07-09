@@ -222,11 +222,15 @@ class BackendAgent(GenesisAgent):
         generated_files.extend(config_files)
         
         # 7. Documentación
-        doc_files = self._generate_api_documentation({
-            "schema": project_schema,
-            "config": config,
-            "output_path": output_path / "docs"
-        })
+        doc_files = asyncio.run(
+            self._generate_api_documentation(
+                {
+                    "schema": project_schema,
+                    "config": config,
+                    "output_path": output_path / "docs",
+                }
+            )
+        )
         generated_files.extend(doc_files)
         
         result = {
@@ -575,14 +579,18 @@ class BackendAgent(GenesisAgent):
         output_path = Path(params.get("output_path", "./auth"))
         
         generated_files = []
-        
+
         if config.auth_method == AuthMethod.JWT:
             if config.framework == BackendFramework.FASTAPI:
-                auth_files = self._generate_fastapi_jwt_auth(output_path, config)
+                auth_files = asyncio.run(
+                    self._generate_fastapi_jwt_auth(output_path, config)
+                )
                 generated_files.extend(auth_files)
-                
+
             elif config.framework == BackendFramework.NESTJS:
-                auth_files = self._generate_nestjs_jwt_auth(output_path, config)
+                auth_files = asyncio.run(
+                    self._generate_nestjs_jwt_auth(output_path, config)
+                )
                 generated_files.extend(auth_files)
         
         self.logger.info(f"✅ Autenticación configurada - {len(generated_files)} archivos")
@@ -696,7 +704,7 @@ class BackendAgent(GenesisAgent):
     
     def _handle_generate_docs(self, request) -> Dict[str, Any]:
         """Handler para generación de docs"""
-        files = self._generate_api_documentation(request.params)
+        files = asyncio.run(self._generate_api_documentation(request.params))
         return {"generated_files": files}
     
     # Métodos auxiliares que se implementarían completamente
@@ -858,7 +866,7 @@ class BackendAgent(GenesisAgent):
 
         return str(output_file)
     
-    def _generate_fastapi_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
+    async def _generate_fastapi_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para FastAPI"""
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -878,7 +886,7 @@ class BackendAgent(GenesisAgent):
 
         return [str(auth_file)]
     
-    def _generate_nestjs_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
+    async def _generate_nestjs_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para NestJS"""
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -952,7 +960,7 @@ class BackendAgent(GenesisAgent):
 
         return str(output_file)
     
-    def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
+    async def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
         """Generar documentación de API"""
         output_path = Path(params.get("output_path", "./docs"))
         output_path.mkdir(parents=True, exist_ok=True)
