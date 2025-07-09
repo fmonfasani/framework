@@ -582,7 +582,7 @@ class GenesisOrchestrator:
             agent_id="architect_agent",
             task_name="design_architecture",
             params={
-                "requirements": "{{analyze_requirements.result}}",
+                "requirements": "{{analyze_requirements}}",
                 "pattern": config.get("architecture_pattern", "layered"),
                 "type": config.get("template", "web_app")
             },
@@ -602,8 +602,8 @@ class GenesisOrchestrator:
             params={
                 "name": config.get("name"),
                 "description": config.get("description", ""),
-                "requirements": "{{analyze_requirements.result}}",
-                "architecture": "{{design_architecture.result}}",
+                "requirements": "{{analyze_requirements}}",
+                "architecture": "{{design_architecture}}",
                 "stack": config.get("stack", {})
             },
             dependencies=["analyze_requirements", "design_architecture"],
@@ -620,7 +620,7 @@ class GenesisOrchestrator:
             agent_id="backend_agent",
             task_name="generate_backend",
             params={
-                "schema": "{{generate_schema.result}}",
+                "schema": "{{generate_schema}}",
                 "stack": config.get("stack", {}),
                 "output_path": str(project_path / "backend")
             },
@@ -638,7 +638,7 @@ class GenesisOrchestrator:
             agent_id="frontend_agent",
             task_name="generate_frontend",
             params={
-                "schema": "{{generate_schema.result}}",
+                "schema": "{{generate_schema}}",
                 "stack": config.get("stack", {}),
                 "output_path": str(project_path / "frontend")
             },
@@ -657,9 +657,9 @@ class GenesisOrchestrator:
                 agent_id="devops_agent",
                 task_name="setup_devops",
                 params={
-                    "schema": "{{generate_schema.result}}",
-                    "backend_result": "{{generate_backend.result}}",
-                    "frontend_result": "{{generate_frontend.result}}",
+                    "schema": "{{generate_schema}}",
+                    "backend_result": "{{generate_backend}}",
+                    "frontend_result": "{{generate_frontend}}",
                     "output_path": str(project_path)
                 },
                 dependencies=["generate_backend", "generate_frontend"],
