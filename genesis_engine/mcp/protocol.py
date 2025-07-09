@@ -636,18 +636,23 @@ class MCPProtocol:
     # MÉTODO CORREGIDO: Compatibilidad con tests
     async def send_request(
         self,
-        sender: str,
-        recipient: str,
-        action: str,
+        sender: Optional[str] = None,
+        recipient: Optional[str] = None,
+        action: str = "",
         data: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
         priority: Priority = Priority.NORMAL,
-        retry_config: Optional[RetryConfig] = None
+        retry_config: Optional[RetryConfig] = None,
+        sender_id: Optional[str] = None,
+        target_id: Optional[str] = None
     ) -> MCPResponse:
         """
-        Método de compatibilidad para tests.
         Enviar una solicitud a un agente específico.
-        
+
+        Este método acepta tanto los nombres de parámetros ``sender``/``recipient``
+        como ``sender_id``/``target_id`` para mantener compatibilidad con código
+        previo.
+
         Args:
             sender: ID del agente remitente
             recipient: ID del agente destinatario
@@ -656,15 +661,21 @@ class MCPProtocol:
             timeout: Timeout en segundos
             priority: Prioridad del mensaje
             retry_config: Configuración de retry
-            
+
         Returns:
             Respuesta del agente
         """
+        # Compatibilidad con parámetros antiguos
+        if sender is None:
+            sender = sender_id
+        if recipient is None:
+            recipient = target_id
+
         return await self.send_request_advanced(
             sender_id=sender,
             target_id=recipient,
             action=action,
-            data=data or {},
+            data=(data or {}),
             timeout=timeout,
             priority=priority,
             retry_config=retry_config
