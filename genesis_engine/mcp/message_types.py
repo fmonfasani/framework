@@ -33,7 +33,7 @@ class MCPMessage:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     type: MessageType = MessageType.REQUEST
     sender: str = ""
-    sender_agent: str = ""  # Campo requerido agregado
+    sender_agent: str = ""
     recipient: str = ""
     action: str = ""
     data: Dict[str, Any] = field(default_factory=dict)
