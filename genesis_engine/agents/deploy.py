@@ -183,10 +183,12 @@ class DeployAgent(GenesisAgent):
             
             return result
             
+
         except (OSError, FileNotFoundError, RuntimeError, ValueError, asyncio.TimeoutError) as e:
             self.logger.error(
                 f"❌ Error en despliegue {config.target.value}/{config.environment.value}: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=config.target,
@@ -298,10 +300,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
+
         except (OSError, RuntimeError, asyncio.TimeoutError, subprocess.SubprocessError) as e:
             self.logger.error(
                 f"❌ Error en despliegue local en {project_path}: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.LOCAL,
@@ -370,10 +374,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
+
         except (OSError, RuntimeError, asyncio.TimeoutError, subprocess.SubprocessError) as e:
             self.logger.error(
                 f"❌ Error en despliegue K8s en {project_path}: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.KUBERNETES,
@@ -431,7 +437,9 @@ class DeployAgent(GenesisAgent):
                 "error": f"Comando excedió timeout de {timeout}s",
                 "logs": [f"Timeout ejecutando: {' '.join(command)}"]
             }
+
         except (OSError, subprocess.SubprocessError) as e:
+
             return {
                 "success": False,
                 "returncode": -1,
@@ -453,8 +461,10 @@ class DeployAgent(GenesisAgent):
                         if response.status == 200:
                             self.logger.info("✅ Backend listo")
                             return
+
             except (aiohttp.ClientError, ImportError):
                 pass
+
             
             await asyncio.sleep(5)
             wait_time += 5
@@ -489,8 +499,10 @@ class DeployAgent(GenesisAgent):
                         services[service] = "running"
                 return services
             
+
         except (OSError, subprocess.SubprocessError):
             pass
+
         
         return {}
     
@@ -582,8 +594,10 @@ class DeployAgent(GenesisAgent):
                     self.logger.debug(f"✅ {tool} disponible")
                 else:
                     self.logger.warning(f"⚠️ {tool} no disponible")
+
             except (OSError, subprocess.SubprocessError):
                 self.logger.warning(f"⚠️ {tool} no encontrado")
+
     
     async def _deploy_with_docker(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
         """Desplegar con Docker"""
@@ -625,10 +639,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
+
         except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
             self.logger.error(
                 f"❌ Error en despliegue Heroku para {app_name}: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.HEROKU,
@@ -666,10 +682,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
+
         except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
             self.logger.error(
                 f"❌ Error en despliegue Vercel: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.VERCEL,
@@ -729,10 +747,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
+
         except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
             self.logger.error(
                 f"❌ Error en despliegue AWS para {app_name}: {e}"
             )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.AWS,
@@ -746,8 +766,10 @@ class DeployAgent(GenesisAgent):
             if archive_path and os.path.exists(archive_path):
                 try:
                     os.remove(archive_path)
+
                 except OSError:
                     pass
+
     
     async def _wait_for_k8s_pods_ready(self, project_path: Path):
         """Esperar que los pods de K8s estén listos"""

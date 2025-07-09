@@ -1,20 +1,12 @@
 from pathlib import Path
 import sys
-import types
 import asyncio
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-if 'genesis_engine' not in sys.modules:
-    pkg = types.ModuleType('genesis_engine')
-    pkg.__path__ = [str(ROOT), str(ROOT / 'genesis_engine')]
-    sys.modules['genesis_engine'] = pkg
-
-sys.modules.setdefault('templates', types.ModuleType('templates')).__path__ = [str(ROOT / 'genesis_engine' / 'templates')]
-
-from templates.engine import TemplateEngine
+from genesis_engine.templates.engine import TemplateEngine
 
 
 def test_generate_project(tmp_path: Path):
