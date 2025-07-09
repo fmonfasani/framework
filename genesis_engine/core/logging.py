@@ -1,80 +1,113 @@
-from genesis_engine.core.logging import get_logger
+"""
+Módulo de logging para Genesis Engine - CORREGIDO
+
+Proporciona funciones centralizadas para configuración de logging
+SIN imports circulares
+"""
+
 import logging
-from pathlib import Path
 from typing import Optional
 
-DEFAULT_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-DEFAULT_LEVEL = logging.INFO
-
-
-def configure_logging(level: int = DEFAULT_LEVEL, fmt: str = DEFAULT_FORMAT) -> None:
-    """Configure the root logger once with a standard stream handler."""
-    root_logger = logging.getLogger()
-    if not root_logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(fmt))
-        root_logger.addHandler(handler)
-    root_logger.setLevel(level)
-
-
-def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
-    """Obtener logger configurado"""
-    logger = logging.getLogger(name)
-    if level:
-        logger.setLevel(level)
+def get_logger(name: str = "genesis_engine") -> logging.Logger:
+    """
+    Obtener logger configurado para Genesis Engine
     
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    Args:
+        name: Nombre del logger
     
-    return logger
+    Returns:
+        Logger configurado
+    """
+    # Configurar logging básico si no está configurado
+    if not logging.getLogger().handlers:
+        setup_basic_logging()
+    
+    return logging.getLogger(name)
 
-
-def setup_file_logging(log_file: Path, level: int = logging.INFO) -> logging.Handler:
-    """Configurar logging a archivo"""
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-
-    handler = logging.FileHandler(log_file, encoding="utf-8")
-    handler.setLevel(level)
-
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
-
-    return handler
-
-
-def setup_structured_logging(service_name: str = "genesis-engine") -> None:
-    """Configurar logging estructurado para producción"""
+def setup_basic_logging(level: str = "INFO"):
+    """Configurar logging básico"""
     try:
-        import structlog
-
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.processors.UnicodeDecoder(),
-                structlog.processors.JSONRenderer(),
-            ],
-            context_class=dict,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            wrapper_class=structlog.stdlib.BoundLogger,
-            cache_logger_on_first_use=True,
+        from rich.logging import RichHandler
+        from rich.console import Console
+        
+        # Usar Rich handler si está disponible
+        handler = RichHandler(
+            console=Console(),
+            show_time=True,
+            show_path=False,
+            rich_tracebacks=True
         )
-
+        format_str = "%(message)s"
+        
     except ImportError:
-        logging.basicConfig(
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            level=logging.INFO,
-        )
+        # Fallback a handler estándar
+        handler = logging.StreamHandler()
+        format_str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    
+    # Limpiar handlers existentes para evitar duplicados
+    root_logger = logging.getLogger()
+    for existing_handler in root_logger.handlers[:]:
+        root_logger.removeHandler(existing_handler)
+    
+    # Configurar nuevo handler
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    handler.setLevel(log_level)
+    handler.setFormatter(logging.Formatter(format_str))
+    
+    # Configurar logger raíz
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(handler)
+
+def setup_logging(level: str = "INFO", enable_rich: bool = True) -> logging.Logger:
+    """
+    Configurar logging para Genesis Engine con más opciones
+    
+    Args:
+        level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        enable_rich: Habilitar Rich logging si está disponible
+    
+    Returns:
+        Logger configurado
+    """
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    
+    # Limpiar handlers existentes
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Configurar handler apropiado
+    if enable_rich:
+        try:
+            from rich.logging import RichHandler
+            from rich.console import Console
+            
+            handler = RichHandler(
+                console=Console(),
+                show_time=True,
+                show_path=False,
+                rich_tracebacks=True
+            )
+            format_str = "%(message)s"
+        except ImportError:
+            handler = logging.StreamHandler()
+            format_str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    else:
+        handler = logging.StreamHandler()
+        format_str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    
+    handler.setLevel(log_level)
+    handler.setFormatter(logging.Formatter(format_str))
+    
+    # Configurar logger raíz
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(handler)
+    
+    # Configurar logger específico de Genesis
+    genesis_logger = logging.getLogger("genesis_engine")
+    genesis_logger.setLevel(log_level)
+    
+    return genesis_logger
+
+# Configurar logging básico al importar el módulo
+setup_basic_logging()   
