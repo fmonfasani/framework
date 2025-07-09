@@ -61,8 +61,6 @@ class GenesisAgent(BaseAgent):
     def get_metadata(self, key: str, default: Any = None) -> Any:
         return self.metadata.get(key, default)
 
-    def get_capabilities(self) -> list:
-        return list(self.capabilities)
 
     async def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
 
