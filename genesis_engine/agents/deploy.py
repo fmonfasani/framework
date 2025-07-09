@@ -183,7 +183,7 @@ class DeployAgent(GenesisAgent):
             
             return result
             
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TimeoutError) as e:
             self.logger.error(f"❌ Error en despliegue: {e}")
             return DeploymentResult(
                 success=False,
@@ -296,7 +296,7 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
-        except Exception as e:
+        except (OSError, RuntimeError, TimeoutError, ValueError) as e:
             self.logger.error(f"❌ Error en despliegue local: {e}")
             return DeploymentResult(
                 success=False,
@@ -366,7 +366,7 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
-        except Exception as e:
+        except (OSError, RuntimeError, TimeoutError, ValueError) as e:
             self.logger.error(f"❌ Error en despliegue K8s: {e}")
             return DeploymentResult(
                 success=False,
@@ -425,7 +425,14 @@ class DeployAgent(GenesisAgent):
                 "error": f"Comando excedió timeout de {timeout}s",
                 "logs": [f"Timeout ejecutando: {' '.join(command)}"]
             }
-        except Exception as e:
+        except FileNotFoundError as e:
+            return {
+                "success": False,
+                "returncode": -1,
+                "error": f"Comando no encontrado: {command[0]}",
+                "logs": [f"Comando no encontrado: {e}"]
+            }
+        except OSError as e:
             return {
                 "success": False,
                 "returncode": -1,
@@ -447,8 +454,12 @@ class DeployAgent(GenesisAgent):
                         if response.status == 200:
                             self.logger.info("✅ Backend listo")
                             return
-            except:
-                pass
+            except aiohttp.ClientError as exc:
+                self.logger.debug(f"Health check request failed: {exc}")
+            except asyncio.TimeoutError as exc:
+                self.logger.debug(f"Health check timed out: {exc}")
+            except OSError as exc:
+                self.logger.debug(f"OS error during health check: {exc}")
             
             await asyncio.sleep(5)
             wait_time += 5
@@ -483,8 +494,10 @@ class DeployAgent(GenesisAgent):
                         services[service] = "running"
                 return services
             
-        except Exception:
-            pass
+        except FileNotFoundError as exc:
+            self.logger.warning(f"docker-compose no encontrado: {exc}")
+        except OSError as exc:
+            self.logger.warning(f"Error consultando servicios: {exc}")
         
         return {}
     
@@ -576,8 +589,10 @@ class DeployAgent(GenesisAgent):
                     self.logger.debug(f"✅ {tool} disponible")
                 else:
                     self.logger.warning(f"⚠️ {tool} no disponible")
-            except:
-                self.logger.warning(f"⚠️ {tool} no encontrado")
+            except FileNotFoundError as exc:
+                self.logger.warning(f"⚠️ {tool} no encontrado: {exc}")
+            except OSError as exc:
+                self.logger.warning(f"⚠️ Error ejecutando {tool}: {exc}")
     
     async def _deploy_with_docker(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
         """Desplegar con Docker"""
@@ -619,7 +634,7 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
-        except Exception as e:
+        except (OSError, RuntimeError, TimeoutError, ValueError) as e:
             self.logger.error(f"❌ Error en despliegue Heroku: {e}")
             return DeploymentResult(
                 success=False,
@@ -658,7 +673,7 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
-        except Exception as e:
+        except (OSError, RuntimeError, TimeoutError, ValueError) as e:
             self.logger.error(f"❌ Error en despliegue Vercel: {e}")
             return DeploymentResult(
                 success=False,
@@ -719,7 +734,7 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
 
-        except Exception as e:
+        except (OSError, RuntimeError, TimeoutError, ValueError) as e:
             self.logger.error(f"❌ Error en despliegue AWS: {e}")
             return DeploymentResult(
                 success=False,
@@ -734,8 +749,8 @@ class DeployAgent(GenesisAgent):
             if archive_path and os.path.exists(archive_path):
                 try:
                     os.remove(archive_path)
-                except Exception:
-                    pass
+                except OSError as exc:
+                    self.logger.debug(f"No se pudo eliminar archivo temporal: {exc}")
     
     async def _wait_for_k8s_pods_ready(self, project_path: Path):
         """Esperar que los pods de K8s estén listos"""

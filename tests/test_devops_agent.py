@@ -1,40 +1,17 @@
 import asyncio
-import importlib.util
 import sys
-import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-# Minimal package setup
-pkg = sys.modules.setdefault("genesis_engine", types.ModuleType("genesis_engine"))
-pkg.__path__ = [str(ROOT), str(ROOT / "genesis_engine")]
-sys.modules.setdefault(
-    "genesis_engine.mcp", types.ModuleType("genesis_engine.mcp")
-).__path__ = [str(ROOT / "genesis_engine" / "mcp")]
-sys.modules.setdefault(
-    "genesis_engine.agents", types.ModuleType("genesis_engine.agents")
-).__path__ = [str(ROOT / "genesis_engine" / "agents")]
-sys.modules.setdefault(
-    "genesis_engine.core", types.ModuleType("genesis_engine.core")
-).__path__ = [str(ROOT / "genesis_engine" / "core")]
-sys.modules.setdefault(
-    "genesis_engine.templates", types.ModuleType("genesis_engine.templates")
-).__path__ = [str(ROOT / "genesis_engine" / "templates")]
-sys.modules.setdefault("yaml", types.ModuleType("yaml"))
-
-spec = importlib.util.spec_from_file_location(
-    "genesis_engine.agents.devops", ROOT / "genesis_engine" / "agents" / "devops.py"
+from genesis_engine.agents import devops as devops_mod
+from genesis_engine.agents.devops import (
+    DevOpsAgent,
+    DevOpsConfig,
+    CIProvider,
+    ContainerOrchestrator,
 )
-devops_mod = importlib.util.module_from_spec(spec)
-sys.modules["genesis_engine.agents.devops"] = devops_mod
-spec.loader.exec_module(devops_mod)
-
-DevOpsAgent = devops_mod.DevOpsAgent
-DevOpsConfig = devops_mod.DevOpsConfig
-CIProvider = devops_mod.CIProvider
-ContainerOrchestrator = devops_mod.ContainerOrchestrator
 
 
 class DummyTemplateEngine:

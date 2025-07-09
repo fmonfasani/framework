@@ -6,7 +6,9 @@ from typer.testing import CliRunner
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+
 import yaml
+
 
 from genesis_engine.cli.main import app
 from genesis_engine.cli import commands as cmd_modules
