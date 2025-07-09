@@ -287,11 +287,13 @@ class GenesisAgent(ABC):
         return capability in self.capabilities
 
     def set_metadata(self, key: str, value: Any) -> None:
-        """Establecer un valor en la metadata del agente"""
+
+        """Guardar información arbitraria sobre el agente."""
         self.metadata[key] = value
 
-    def get_metadata(self, key: str, default: Any = None) -> Any:
-        """Obtener un valor de la metadata del agente"""
+    def get_metadata(self, key: str, default=None) -> Any:
+        """Obtener un valor de metadata almacenada."""
+
         return self.metadata.get(key, default)
 
     def get_info(self) -> Dict[str, Any]:
@@ -304,7 +306,7 @@ class GenesisAgent(ABC):
             "version": self.version,
             "capabilities": self.capabilities,
             "handlers": list(self.handlers.keys()),
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
