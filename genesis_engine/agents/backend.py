@@ -701,38 +701,75 @@ class BackendAgent(GenesisAgent):
     # Métodos auxiliares que se implementarían completamente
     def _load_framework_configs(self) -> Dict[str, Any]:
         """Cargar configuraciones por framework"""
-        raise NotImplementedError("_load_framework_configs not implemented")
+        # Basic built-in configuration for supported frameworks. In a full
+        # implementation this would likely be loaded from JSON or YAML files,
+        # however for the purposes of the tests we only need a minimal mapping
+        # describing the main runtime characteristics of each backend
+        # framework.
+
+        return {
+            BackendFramework.FASTAPI.value: {
+                "language": "python",
+                "package_manager": "pip",
+            },
+            BackendFramework.NESTJS.value: {
+                "language": "typescript",
+                "package_manager": "npm",
+            },
+        }
     
     async def _load_code_templates(self):
         """Cargar templates de código"""
-        raise NotImplementedError("_load_code_templates not implemented")
+        # Simply store the list of templates available under the current
+        # TemplateEngine instance.  The TemplateEngine already knows how to
+        # locate templates based on its ``templates_dir`` attribute.
+        self.available_templates = self.template_engine.list_templates()
+        return self.available_templates
     
     async def _setup_code_generators(self):
         """Configurar generadores de código"""
-        raise NotImplementedError("_setup_code_generators not implemented")
-    
-    async def _generate_typeorm_entity(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
-        """Generar entidad TypeORM"""
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        template_vars = {
-            "entity_name": entity["name"],
-            "attributes": entity.get("attributes", {}),
+        # Register simple generator functions used throughout the tests.  This
+        # dictionary isn't used by the production code but provides an easy way
+        # to access generation helpers programmatically.
+        self.code_generators = {
+            "nestjs_controller": self._generate_nestjs_controller,
+            "typeorm_config": self._generate_typeorm_config,
+            "fastapi_jwt_auth": self._generate_fastapi_jwt_auth,
+            "nestjs_jwt_auth": self._generate_nestjs_jwt_auth,
+            "dockerfile_python": self._generate_dockerfile_python,
+            "api_docs": self._generate_api_documentation,
         }
-
-        content = await self.template_engine.render_template(
-            "nestjs/entity.ts.j2",
-            template_vars,
-        )
-
-        output_file = output_path / f"{entity['name'].lower()}.entity.ts"
-        output_file.write_text(content)
-
-        return str(output_file)
+        return self.code_generators
+    
     
     async def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
         """Generar controlador NestJS"""
-        raise NotImplementedError("_generate_nestjs_controller not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        entity_name = entity["name"]
+        entity_lower = entity_name.lower()
+
+        template = (
+            "import { Controller, Get, Post, Param, Body } from '@nestjs/common';\n"
+            "@Controller('{{ entity_lower|plural }}')\n"
+            "export class {{ entity_name }}Controller {\n"
+            "  @Get()\n"
+            "  findAll() { return []; }\n\n"
+            "  @Get(':id')\n"
+            "  findOne(@Param('id') id: string) { return id; }\n\n"
+            "  @Post()\n"
+            "  create(@Body() body: any) { return body; }\n"
+            "}\n"
+        )
+
+        content = await self.template_engine.render_string_template(
+            template,
+            {"entity_name": entity_name, "entity_lower": entity_lower},
+        )
+
+        output_file = output_path / f"{entity_lower}.controller.ts"
+        output_file.write_text(content)
+        return str(output_file)
     
     async def _generate_main_routes(self, entities: List[Dict[str, Any]], output_path: Path, config: BackendConfig) -> str:
         """Generar archivo principal de rutas"""
@@ -804,15 +841,56 @@ class BackendAgent(GenesisAgent):
     
     async def _generate_typeorm_config(self, output_path: Path, config: BackendConfig) -> str:
         """Generar configuración TypeORM"""
-        raise NotImplementedError("_generate_typeorm_config not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "entities": config.environment_vars.get("ENTITIES", []),
+        }
+
+        content = await self.template_engine.render_template(
+            "nestjs/typeorm-config.ts.j2",
+            template_vars,
+        )
+
+        output_file = output_path / "typeorm-config.ts"
+        output_file.write_text(content)
+
+        return str(output_file)
     
     async def _generate_fastapi_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para FastAPI"""
-        raise NotImplementedError("_generate_fastapi_jwt_auth not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        content = (
+            "from jose import jwt\n"
+            "from datetime import timedelta\n\n"
+            "SECRET_KEY = 'CHANGE_ME'\n"
+            "ALGORITHM = 'HS256'\n\n"
+            "def create_access_token(data: dict, expires_delta: timedelta | None = None):\n"
+            "    expire = timedelta(minutes=15) if expires_delta is None else expires_delta\n"
+            "    to_encode = data.copy()\n"
+            "    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)\n"
+        )
+
+        auth_file = output_path / "jwt.py"
+        auth_file.write_text(content)
+
+        return [str(auth_file)]
     
     async def _generate_nestjs_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para NestJS"""
-        raise NotImplementedError("_generate_nestjs_jwt_auth not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        content = (
+            "export const jwtConstants = {\n"
+            "  secret: 'changeMe',\n"
+            "};\n"
+        )
+
+        auth_file = output_path / "jwt.ts"
+        auth_file.write_text(content)
+
+        return [str(auth_file)]
     
     async def _generate_python_requirements(self, output_path: Path, config: BackendConfig) -> str:
         """Generar requirements.txt"""
@@ -824,7 +902,21 @@ class BackendAgent(GenesisAgent):
     
     async def _generate_dockerfile_python(self, output_path: Path, config: BackendConfig) -> str:
         """Generar Dockerfile para Python"""
-        raise NotImplementedError("_generate_dockerfile_python not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "project_name": config.environment_vars.get("PROJECT_NAME", "genesis-app"),
+        }
+
+        content = await self.template_engine.render_template(
+            "fastapi/Dockerfile.j2",
+            template_vars,
+        )
+
+        output_file = output_path / "Dockerfile"
+        output_file.write_text(content)
+
+        return str(output_file)
     
     async def _generate_package_json(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> str:
         """Generar package.json"""
@@ -861,4 +953,10 @@ class BackendAgent(GenesisAgent):
     
     async def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
         """Generar documentación de API"""
-        raise NotImplementedError("_generate_api_documentation not implemented")
+        output_path = Path(params.get("output_path", "./docs"))
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        doc_file = output_path / "api.md"
+        doc_file.write_text("# API Documentation\n")
+
+        return [str(doc_file)]

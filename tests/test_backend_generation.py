@@ -125,3 +125,121 @@ def test_setup_authentication(tmp_path, monkeypatch):
     assert list(map(Path, generated)) == [expected_file]
     assert expected_file.read_text() == 'auth'
 
+
+def test_load_framework_configs():
+    agent = make_agent()
+    configs = agent.framework_configs
+    assert 'fastapi' in configs
+    assert 'nestjs' in configs
+
+
+def test_load_code_templates():
+    agent = make_agent()
+    asyncio.run(agent._load_code_templates())
+    assert any(t.endswith('main.py.j2') for t in agent.available_templates)
+
+
+def test_setup_code_generators():
+    agent = make_agent()
+    asyncio.run(agent._setup_code_generators())
+    assert 'nestjs_controller' in agent.code_generators
+    assert agent.code_generators['nestjs_controller'] == agent._generate_nestjs_controller
+
+
+def test_generate_nestjs_controller(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    entity = {'name': 'User', 'attributes': {}}
+    path = asyncio.run(agent._generate_nestjs_controller(entity, tmp_path, config))
+    file = Path(path)
+    assert file.exists()
+    assert 'class UserController' in file.read_text()
+
+
+def test_generate_typeorm_config(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={'ENTITIES': ['User']},
+    )
+    path = asyncio.run(agent._generate_typeorm_config(tmp_path, config))
+    file = Path(path)
+    assert file.exists()
+    assert 'DataSource' in file.read_text()
+
+
+def test_generate_fastapi_jwt_auth(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
+    file = tmp_path / 'jwt.py'
+    assert list(map(Path, paths)) == [file]
+    assert 'SECRET_KEY' in file.read_text()
+
+
+def test_generate_nestjs_jwt_auth(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
+    file = tmp_path / 'jwt.ts'
+    assert list(map(Path, paths)) == [file]
+    assert 'jwtConstants' in file.read_text()
+
+
+def test_generate_dockerfile_python(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={'PROJECT_NAME': 'demo'},
+    )
+    path = asyncio.run(agent._generate_dockerfile_python(tmp_path, config))
+    file = Path(path)
+    assert file.exists()
+    assert 'FROM python' in file.read_text()
+
+
+def test_generate_api_documentation(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    params = {'schema': {}, 'config': config, 'output_path': tmp_path}
+    paths = asyncio.run(agent._generate_api_documentation(params))
+    file = tmp_path / 'api.md'
+    assert list(map(Path, paths)) == [file]
+    assert 'API Documentation' in file.read_text()
+

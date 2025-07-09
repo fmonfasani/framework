@@ -8,6 +8,7 @@ import logging
 import weakref
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Callable, Optional, Any
+import inspect
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -274,7 +275,11 @@ class MCPProtocol:
         try:
             # Ejecutar acción en el agente
             start_time = datetime.now()
-            result = await target_agent.handle_request(request)
+
+            result = target_agent.handle_request(request)
+            if inspect.isawaitable(result):
+                result = await result
+
             execution_time = (datetime.now() - start_time).total_seconds()
             
             # Enviar respuesta exitosa

@@ -585,43 +585,157 @@ class DeployAgent(GenesisAgent):
         return await self._deploy_to_local({"project_path": project_path, "config": config})
     
     async def _deploy_to_heroku(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en Heroku"""
-        # Implementación específica para Heroku
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.HEROKU,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["Heroku deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar en Heroku utilizando la CLI de Heroku."""
+        self.logger.info("🚀 Deploying to Heroku")
+
+        app_name = config.custom_config.get("app_name", project_path.name.replace("_", "-"))
+        logs: List[str] = []
+
+        try:
+            create_result = await self._run_command(["heroku", "create", app_name])
+            logs.extend(create_result.get("logs", []))
+            if not create_result.get("success"):
+                raise RuntimeError("Error creating Heroku app")
+
+            remote_result = await self._run_command(["heroku", "git:remote", "-a", app_name])
+            logs.extend(remote_result.get("logs", []))
+            if not remote_result.get("success"):
+                raise RuntimeError("Error configuring Heroku git remote")
+
+            push_result = await self._run_command(["git", "push", "heroku", "HEAD:main"])
+            logs.extend(push_result.get("logs", []))
+            if not push_result.get("success"):
+                raise RuntimeError("Error pushing code to Heroku")
+
+            url = f"https://{app_name}.herokuapp.com"
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.HEROKU,
+                environment=config.environment,
+                urls=[url],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ Error en despliegue Heroku: {e}")
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.HEROKU,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e)
+            )
     
     async def _deploy_to_vercel(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en Vercel"""
-        # Implementación específica para Vercel
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.VERCEL,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["Vercel deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar utilizando la CLI de Vercel."""
+        self.logger.info("🚀 Deploying to Vercel")
+
+        logs: List[str] = []
+
+        try:
+            deploy_result = await self._run_command(
+                ["vercel", "deploy", "--prod", "--yes"],
+                capture_output=True,
+            )
+            logs.extend(deploy_result.get("logs", []))
+            if not deploy_result.get("success"):
+                raise RuntimeError("Vercel deployment failed")
+
+            url = deploy_result.get("stdout", "").strip().splitlines()[-1] if deploy_result.get("stdout") else ""
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.VERCEL,
+                environment=config.environment,
+                urls=[url] if url else [],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ Error en despliegue Vercel: {e}")
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.VERCEL,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e)
+            )
     
     async def _deploy_to_aws(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en AWS"""
-        # Implementación específica para AWS
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.AWS,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["AWS deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar en AWS mediante AWS CLI."""
+        self.logger.info("🚀 Deploying to AWS")
+
+        app_name = config.custom_config.get("app_name", project_path.name)
+        bucket = config.custom_config.get("bucket", f"{app_name}-deploy")
+        region = config.custom_config.get("region", "us-east-1")
+
+        logs: List[str] = []
+        archive_path: Optional[str] = None
+
+        try:
+            archive_base = project_path / "deploy_package"
+            archive_path = shutil.make_archive(str(archive_base), "zip", project_path)
+
+            upload_result = await self._run_command(
+                [
+                    "aws", "s3", "cp", archive_path, f"s3://{bucket}/{Path(archive_path).name}", "--region", region
+                ]
+            )
+            logs.extend(upload_result.get("logs", []))
+            if not upload_result.get("success"):
+                raise RuntimeError("Error uploading package to S3")
+
+            deploy_result = await self._run_command(
+                [
+                    "aws", "deploy", "create-deployment",
+                    "--application-name", app_name,
+                    "--deployment-group-name", config.environment.value,
+                    "--s3-location", f"bucket={bucket},key={Path(archive_path).name},bundleType=zip",
+                    "--region", region,
+                ]
+            )
+            logs.extend(deploy_result.get("logs", []))
+            if not deploy_result.get("success"):
+                raise RuntimeError("Error creating AWS deployment")
+
+            url = f"https://{region}.console.aws.amazon.com/codedeploy/home"
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.AWS,
+                environment=config.environment,
+                urls=[url],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+        except Exception as e:
+            self.logger.error(f"❌ Error en despliegue AWS: {e}")
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.AWS,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e)
+            )
+        finally:
+            if archive_path and os.path.exists(archive_path):
+                try:
+                    os.remove(archive_path)
+                except Exception:
+                    pass
     
     async def _wait_for_k8s_pods_ready(self, project_path: Path):
         """Esperar que los pods de K8s estén listos"""
