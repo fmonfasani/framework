@@ -37,7 +37,7 @@ class MCPConnectionManager:
         for conn in list(self.connections):
             try:
                 asyncio.create_task(conn.send(message))
-            except Exception as exc:  # pragma: no cover - errores de red
+            except (ConnectionError, OSError) as exc:  # pragma: no cover - errores de red
                 logging.warning(f"Failed to send to connection: {exc}")
 
     async def cleanup(self) -> None:
@@ -252,7 +252,7 @@ class MCPProtocol:
 
             except asyncio.TimeoutError:
                 continue
-            except Exception as e:
+            except (json.JSONDecodeError, RuntimeError, OSError) as e:
                 logger.error(f"Error procesando mensaje: {e}")
                 self.stats["errors"] += 1
     
@@ -294,9 +294,11 @@ class MCPProtocol:
             )
             self.message_queue.put_nowait(response)
             
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             # Error al ejecutar
-            logger.error(f"Error ejecutando {request.action} en {request.target_agent}: {e}")
+            logger.error(
+                f"Error ejecutando {request.action} en {request.target_agent}: {e}"
+            )
             error_response = MCPResponse(
                 sender_agent=request.target_agent,
                 target_agent=request.sender_agent,
@@ -319,7 +321,7 @@ class MCPProtocol:
         for handler in handlers:
             try:
                 handler(broadcast)
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError) as e:
                 logger.error(f"Error en handler de broadcast: {e}")
     
     def _handle_error(self, error: MCPError):
