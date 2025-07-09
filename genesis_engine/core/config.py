@@ -83,6 +83,28 @@ class GenesisConfig:
         """Retrieve a configuration value from the global instance."""
         cfg = get_config()
         return getattr(cfg, key, default)
+
+    @classmethod
+    def get_supported_frameworks(cls, component: str) -> List[str]:
+        """Return supported frameworks for a component from the global config."""
+        return get_config()._get_supported_frameworks(component)
+
+    @classmethod
+    def set(cls, key: str, value: Any):
+        """Set a configuration value on the global instance."""
+        cfg = get_config()
+        if "." in key:
+            attr, subkey = key.split(".", 1)
+            if attr == "supported_frameworks":
+                mapping = {
+                    "backend": "supported_backends",
+                    "frontend": "supported_frontends",
+                    "database": "supported_databases",
+                }
+                if subkey in mapping:
+                    setattr(cfg, mapping[subkey], value)
+                    return
+        setattr(cfg, key, value)
     
     @classmethod
     def from_file(cls, config_file: Union[str, Path]) -> 'GenesisConfig':
@@ -126,7 +148,7 @@ class GenesisConfig:
         except Exception as e:
             logging.error(f"Error guardando configuración en {config_file}: {e}")
     
-    def get_supported_frameworks(self, component: str) -> List[str]:
+    def _get_supported_frameworks(self, component: str) -> List[str]:
         """Obtener frameworks soportados para un componente"""
         mapping = {
             "backend": self.supported_backends,
@@ -137,7 +159,7 @@ class GenesisConfig:
     
     def is_framework_supported(self, component: str, framework: str) -> bool:
         """Verificar si un framework está soportado"""
-        supported = self.get_supported_frameworks(component)
+        supported = self._get_supported_frameworks(component)
         return framework.lower() in [f.lower() for f in supported]
     
     def get_default_port(self, service: str) -> int:
