@@ -233,6 +233,7 @@ class TemplateEngine:
     ) -> str:
         """Renderizar una plantilla de forma asíncrona."""
         vars_clean = variables or {}
+        render_vars = vars_clean
         # Validar variables antes de ejecutar en hilo separado
         self.validate_required_variables(template_name, vars_clean)
         try:
