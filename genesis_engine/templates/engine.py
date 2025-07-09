@@ -405,7 +405,7 @@ class TemplateEngine:
         self.logger.info(f"Generated {len(generated_files)} files in {output_path}")
         return generated_files
 
-    async def generate_project(
+    async def generate_project_async(
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -416,14 +416,16 @@ class TemplateEngine:
             self.generate_project_sync, template_name, output_dir, context
         )
 
-    async def generate_project_async(
+    def generate_project(
         self,
         template_name: str,
         output_dir: Union[str, Path],
         context: Optional[Dict[str, Any]] = None,
     ) -> List[Path]:
-        """Renderizar todas las plantillas dentro de un directorio de forma asíncrona"""
-        return await self.generate_project(template_name, output_dir, context)
+        """Generar proyecto de forma síncrona."""
+        return asyncio.run(
+            self.generate_project_async(template_name, output_dir, context)
+        )
     
     def validate_template(self, template_name: str) -> Dict[str, Any]:
         """

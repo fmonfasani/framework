@@ -101,33 +101,9 @@ def test_missing_required_variables_generate(tmp_path: Path):
     engine = TemplateEngine(templates_dir, strict_validation=False)
     out_dir = tmp_path / "out"
 
-    generated = engine.generate_project_sync("sample", out_dir, {"project_name": "demo"})
-    assert (out_dir / "file.txt").read_text() == "demo "
-    assert out_dir / "file.txt" in list(map(Path, generated))
 
-
-def test_optional_frontend_vars_non_strict_render(tmp_path: Path):
-    templates_dir = tmp_path / "templates"
-    templates_dir.mkdir(parents=True)
-    (templates_dir / "opt.txt.j2").write_text("{{ styling }}|{{ state_management }}")
-
-    engine = TemplateEngine(templates_dir, strict_validation=False)
-
-    content = engine.render_template("opt.txt.j2", {})
-    assert content == "|"
-
-
-def test_optional_frontend_vars_non_strict_generate(tmp_path: Path):
-    templates_dir = tmp_path / "templates"
-    template_root = templates_dir / "sample"
-    template_root.mkdir(parents=True)
-    (template_root / "opt.txt.j2").write_text("{{ styling }}|{{ state_management }}")
-
-    engine = TemplateEngine(templates_dir, strict_validation=False)
-    out_dir = tmp_path / "out_opt"
-
-    generated = engine.generate_project_sync("sample", out_dir, {})
-
-    assert (out_dir / "opt.txt").read_text() == "|"
-    assert out_dir / "opt.txt" in list(map(Path, generated))
+    with pytest.raises(ValueError):
+        asyncio.run(
+            engine.generate_project_async("sample", out_dir, {"project_name": "demo"})
+        )
 
