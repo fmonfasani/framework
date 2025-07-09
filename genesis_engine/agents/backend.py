@@ -882,7 +882,7 @@ class BackendAgent(GenesisAgent):
         )
 
         auth_file = output_path / "jwt.py"
-        await asyncio.to_thread(auth_file.write_text, content)
+        auth_file.write_text(content)
 
         return [str(auth_file)]
     
@@ -897,7 +897,7 @@ class BackendAgent(GenesisAgent):
         )
 
         auth_file = output_path / "jwt.ts"
-        await asyncio.to_thread(auth_file.write_text, content)
+        auth_file.write_text(content)
 
         return [str(auth_file)]
     
@@ -966,6 +966,6 @@ class BackendAgent(GenesisAgent):
         output_path.mkdir(parents=True, exist_ok=True)
 
         doc_file = output_path / "api.md"
-        await asyncio.to_thread(doc_file.write_text, "# API Documentation\n")
+        doc_file.write_text("# API Documentation\n")
 
         return [str(doc_file)]

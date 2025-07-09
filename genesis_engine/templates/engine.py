@@ -200,13 +200,18 @@ class TemplateEngine:
 
         self,
         template_name: str,
-        variables: Dict[str, Any] | None = None,
+
+        variables: Dict[str, Any],
+
         use_cache: bool = True,
     ) -> str:
         """Versión síncrona del renderizado de plantillas."""
         vars_clean = variables or {}
         self.validate_required_variables(template_name, vars_clean)
         render_vars = vars_clean
+
+        # Validar variables requeridas
+        self.validate_required_variables(template_name, render_vars)
 
         # Obtener template (con cache si está habilitado)
         if use_cache and template_name in self._template_cache:
@@ -425,7 +430,9 @@ class TemplateEngine:
                 if fname.endswith(".j2"):
 
                     rendered = self.render_template(
-                        relative_template.as_posix(), context or {}
+                        relative_template.as_posix(),
+                        context or {},
+                        use_cache=True,
 
                     )
                     dest = output_path / dest_rel.with_suffix("")
@@ -439,17 +446,6 @@ class TemplateEngine:
                     generated_files.append(str(dest))
 
         return generated_files
-
-
-    def generate_project(
-
-        self,
-        template_name: str,
-        output_dir: Union[str, Path],
-        context: Optional[Dict[str, Any]] = None,
-    ) -> List[str]:
-        """Generar todas las plantillas dentro de un directorio de forma síncrona."""
-        return self._generate_project_sync(template_name, output_dir, context)
 
 
     async def generate_project_async(
