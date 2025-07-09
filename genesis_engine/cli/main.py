@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Importar componentes core
 from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
 from genesis_engine.core.orchestrator import GenesisOrchestrator
-from genesis_engine.core.config import GenesisConfig
+from genesis_engine.core.config import initialize
 from genesis_engine.core.logging import get_logger
 from genesis_engine import __version__
 
@@ -144,7 +144,7 @@ def main(
         
     # Inicializar configuración
     try:
-        GenesisConfig.initialize()
+        initialize()
         if verbose:
             logger.info("Configuración inicializada en modo verbose")
     except Exception as e:
@@ -349,7 +349,7 @@ def doctor():
         # Verificar configuración
         console.print("\n[bold cyan]⚙️ Verificando configuración...[/bold cyan]")
         try:
-            GenesisConfig.initialize()
+            initialize()
             console.print("[green]✅ Configuración OK[/green]")
         except Exception as e:
             console.print(f"[red]❌ Error en configuración: {e}[/red]")

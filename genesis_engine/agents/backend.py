@@ -5,6 +5,8 @@ Implementa todos los handlers necesarios para comunicación MCP
 """
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, field
+from enum import Enum
 import os
 import logging
 from datetime import datetime
@@ -59,6 +61,47 @@ class BackendConfig:
     environment_vars: Dict[str, Any]
 
 logger = logging.getLogger(__name__)
+
+
+class BackendFramework(str, Enum):
+    """Supported backend frameworks."""
+    FASTAPI = "fastapi"
+    DJANGO = "django"
+    NESTJS = "nestjs"
+
+
+class DatabaseType(str, Enum):
+    """Supported database engines."""
+    POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
+    SQLITE = "sqlite"
+
+
+class AuthMethod(str, Enum):
+    """Authentication mechanisms."""
+    NONE = "none"
+    JWT = "jwt"
+    OAUTH2 = "oauth2"
+
+
+@dataclass
+class BackendConfig:
+    """Configuration for backend generation."""
+    framework: BackendFramework = BackendFramework.FASTAPI
+    database: DatabaseType = DatabaseType.POSTGRESQL
+    auth_method: AuthMethod = AuthMethod.JWT
+    features: List[str] = field(default_factory=list)
+    dependencies: List[str] = field(default_factory=list)
+    environment_vars: Dict[str, Any] = field(default_factory=dict)
+
+# Export commonly used classes for tests and consumers
+__all__ = [
+    "BackendFramework",
+    "DatabaseType",
+    "AuthMethod",
+    "BackendConfig",
+    "BackendAgent",
+]
 
 
 class BackendAgent(GenesisAgent):
@@ -1161,22 +1204,13 @@ asyncio_mode = auto
             "endpoints": generated_endpoints
         }
     
-    async def _setup_database_config(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Configurar base de datos"""
-        database_type = params.get("database_type", "postgresql")
-        
-        config = self.database_configs.get(database_type, {})
-        
-        return {
-            "status": "success",
-            "database_type": database_type,
-            "configuration": config,
-            "connection_string": f"postgresql://user:pass@localhost:5432/db"
-        }
     
     async def _create_authentication_system(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crear sistema de autenticación"""
-        auth_type = params.get("auth_type", "jwt")
+        backend_cfg: Optional[BackendConfig] = params.get("config")
+        auth_type = (
+            backend_cfg.auth_method.value if backend_cfg else params.get("auth_type", "jwt")
+        )
         
         auth_files = {}
         if auth_type == "jwt":
@@ -1277,14 +1311,17 @@ asyncio_mode = auto
         # Implementación básica        return f"# Endpoint code for {endpoint.get('path', 'unknown')}"
 
     # ------------------------------------------------------------------
+
     # Methods added for unit tests
 
     def _load_code_templates(self) -> None:
         """Populate available template files from the template engine."""
+
         if not hasattr(self, "template_engine"):
             self.available_templates = []
             return
         templates_dir = Path(self.template_engine.templates_dir)
+
         collected: List[str] = []
         for root, _, files in os.walk(templates_dir):
             for file in files:
@@ -1294,9 +1331,11 @@ asyncio_mode = auto
 
     def _setup_code_generators(self) -> None:
         """Register available code generators."""
+
         self.code_generators = {
             "nestjs_controller": self._generate_nestjs_controller,
         }
+
 
     def _generate_data_models(self, params: Dict[str, Any]) -> List[str]:
         """Generate simple data model and schema files."""
@@ -1386,12 +1425,14 @@ asyncio_mode = auto
         output_path.mkdir(parents=True, exist_ok=True)
         file = output_path / "jwt.ts"
         file.write_text("export const jwtConstants = {};\n")
+
         return [str(file)]
 
     def _generate_dockerfile_python(self, output_path: Path, cfg: BackendConfig) -> str:
         """Generate a simple Python Dockerfile."""
         output_path.mkdir(parents=True, exist_ok=True)
         file = output_path / "Dockerfile"
+
         file.write_text("FROM python:3.11-slim\n")
         return str(file)
 
@@ -1402,3 +1443,4 @@ asyncio_mode = auto
         file = output_path / "api.md"
         file.write_text("API Documentation\n")
         return [str(file)]
+
