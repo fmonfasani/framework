@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 import fnmatch
 from datetime import datetime
+import asyncio
 from genesis_engine.core.logging import get_logger
 from genesis_engine.core.config import GenesisConfig
 
@@ -194,91 +195,85 @@ class TemplateEngine:
                 for name in missing:
                     variables.setdefault(name, "")
     
+    def _render_template_sync(
+        self,
+        template_name: str,
+        variables: Dict[str, Any],
+        use_cache: bool,
+    ) -> str:
+        """Versión síncrona del renderizado de plantillas."""
+        render_vars = variables or {}
+
+        # Obtener template (con cache si está habilitado)
+        if use_cache and template_name in self._template_cache:
+            template = self._template_cache[template_name]
+        else:
+            template_key = template_name.replace("\\", "/")
+            template = self.env.get_template(template_key)
+            if use_cache:
+                self._template_cache[template_name] = template
+
+        render_vars.update(
+            {
+                "generated_at": datetime.utcnow().isoformat(),
+                "generator": "Genesis Engine",
+                "template_name": template_name,
+            }
+        )
+
+        return template.render(**render_vars)
+
     async def render_template(
         self,
         template_name: str,
         variables: Dict[str, Any] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
     ) -> str:
-        """
-        Renderizar una plantilla
-        
-        Args:
-            template_name: Nombre del archivo de template
-            variables: Variables para el template
-            use_cache: Usar cache de templates
-            
-        Returns:
-            Contenido renderizado
-        """
-        render_vars = variables or {}
-        # Validar variables requeridas antes de cargar la plantilla
-        self.validate_required_variables(template_name, render_vars)
-
+        """Renderizar una plantilla de forma asíncrona."""
+        vars_clean = variables or {}
+        # Validar variables antes de ejecutar en hilo separado
+        self.validate_required_variables(template_name, vars_clean)
         try:
-            # Obtener template (con cache si está habilitado)
-            if use_cache and template_name in self._template_cache:
-                template = self._template_cache[template_name]
-            else:
-                template_name = template_name.replace("\\", "/")
-                template = self.env.get_template(template_name)
-                if use_cache:
-                    self._template_cache[template_name] = template
-            
-            # Agregar variables globales útiles
-            render_vars.update({
-                'generated_at': datetime.utcnow().isoformat(),
-                'generator': 'Genesis Engine',
-                'template_name': template_name
-            })
-            
-            # Renderizar template
-            content = template.render(**render_vars)
-            
+            content = await asyncio.to_thread(
+                self._render_template_sync, template_name, vars_clean, use_cache
+            )
             self.logger.debug(f"✅ Template renderizado: {template_name}")
             return content
-            
         except TemplateNotFound as e:
             self.logger.error(f"❌ Template no encontrado: {template_name}")
             raise FileNotFoundError(f"Template no encontrado: {template_name}") from e
-            
         except TemplateSyntaxError as e:
             self.logger.error(f"❌ Error de sintaxis en template {template_name}: {e}")
             raise ValueError(f"Error de sintaxis en template: {e}") from e
-            
         except Exception as e:
             self.logger.error(f"❌ Error renderizando template {template_name}: {e}")
             raise RuntimeError(f"Error renderizando template: {e}") from e
     
-    async def render_string_template(
-        self, 
-        template_string: str, 
-        variables: Dict[str, Any] = None
+    def _render_string_template_sync(
+        self, template_string: str, variables: Dict[str, Any]
     ) -> str:
-        """
-        Renderizar una plantilla desde string
-        
-        Args:
-            template_string: Contenido del template
-            variables: Variables para el template
-            
-        Returns:
-            Contenido renderizado
-        """
         render_vars = variables or {}
-        self.validate_required_variables("string_template", render_vars)
+        template = self.env.from_string(template_string)
+        render_vars.update(
+            {
+                "generated_at": datetime.utcnow().isoformat(),
+                "generator": "Genesis Engine",
+            }
+        )
+        return template.render(**render_vars)
 
+    async def render_string_template(
+        self,
+        template_string: str,
+        variables: Dict[str, Any] = None,
+    ) -> str:
+        """Renderizar una plantilla desde un string de forma asíncrona."""
+        vars_clean = variables or {}
+        self.validate_required_variables("string_template", vars_clean)
         try:
-            template = self.env.from_string(template_string)
-
-            # Agregar variables globales
-            render_vars.update({
-                'generated_at': datetime.utcnow().isoformat(),
-                'generator': 'Genesis Engine'
-            })
-            
-            return template.render(**render_vars)
-            
+            return await asyncio.to_thread(
+                self._render_string_template_sync, template_string, vars_clean
+            )
         except Exception as e:
             self.logger.error(f"❌ Error renderizando string template: {e}")
             raise RuntimeError(f"Error renderizando string template: {e}") from e
@@ -374,13 +369,12 @@ class TemplateEngine:
             self.logger.error(f"❌ Error analizando variables del template {template_name}: {e}")
             return []
 
-    async def generate_project(
+    def _generate_project_sync(
         self,
         template_name: str,
         output_dir: Union[str, Path],
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]],
     ) -> List[str]:
-        """Renderizar todas las plantillas dentro de un directorio y crear los archivos"""
         template_path = self.templates_dir / template_name
         if not template_path.exists() or not template_path.is_dir():
             raise FileNotFoundError(f"Directorio de template no encontrado: {template_path}")
@@ -397,8 +391,12 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    rendered = await self.render_template(
-                        relative_template.as_posix(), context or {}
+                    vars_clean = context or {}
+                    self.validate_required_variables(
+                        relative_template.as_posix(), vars_clean
+                    )
+                    rendered = self._render_template_sync(
+                        relative_template.as_posix(), vars_clean, True
                     )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -411,6 +409,17 @@ class TemplateEngine:
                     generated_files.append(str(dest))
 
         return generated_files
+
+    async def generate_project(
+        self,
+        template_name: str,
+        output_dir: Union[str, Path],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Renderizar todas las plantillas dentro de un directorio de forma asíncrona"""
+        return await asyncio.to_thread(
+            self._generate_project_sync, template_name, output_dir, context
+        )
     
     def register_helper(self, name: str, func: callable):
         """

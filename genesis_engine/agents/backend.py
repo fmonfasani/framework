@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
+import asyncio
 
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
@@ -873,7 +874,7 @@ class BackendAgent(GenesisAgent):
         )
 
         auth_file = output_path / "jwt.py"
-        auth_file.write_text(content)
+        await asyncio.to_thread(auth_file.write_text, content)
 
         return [str(auth_file)]
     
@@ -888,7 +889,7 @@ class BackendAgent(GenesisAgent):
         )
 
         auth_file = output_path / "jwt.ts"
-        auth_file.write_text(content)
+        await asyncio.to_thread(auth_file.write_text, content)
 
         return [str(auth_file)]
     
@@ -957,6 +958,6 @@ class BackendAgent(GenesisAgent):
         output_path.mkdir(parents=True, exist_ok=True)
 
         doc_file = output_path / "api.md"
-        doc_file.write_text("# API Documentation\n")
+        await asyncio.to_thread(doc_file.write_text, "# API Documentation\n")
 
         return [str(doc_file)]
