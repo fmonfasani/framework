@@ -307,7 +307,33 @@ def load_user_config(config_file: Optional[Union[str, Path]] = None) -> GenesisC
     config = GenesisConfig.from_file(config_file)
     set_config(config)
     configure_environment()
-    
+
+    return config
+
+def initialize(
+    config_file: Optional[Union[str, Path]] = None,
+    level: Optional[str] = None,
+    log_file: Optional[Union[str, Path]] = None,
+    enable_rich: Optional[bool] = None,
+) -> GenesisConfig:
+    """Inicializar configuración global y logging.
+
+    Esta función carga la configuración de usuario y establece el entorno y
+    el sistema de logging de Genesis Engine.
+
+    Args:
+        config_file: Ruta alternativa al archivo de configuración de usuario.
+        level: Nivel de logging a utilizar.
+        log_file: Archivo de log a emplear.
+        enable_rich: Habilitar salida enriquecida mediante Rich.
+
+    Returns:
+        Instancia de :class:`GenesisConfig` cargada.
+    """
+
+    config = load_user_config(config_file)
+    setup_logging(level=level, log_file=log_file, enable_rich=enable_rich)
+    configure_environment()
     return config
 
 def save_user_config(config: Optional[GenesisConfig] = None, config_file: Optional[Union[str, Path]] = None):
@@ -326,6 +352,22 @@ def save_user_config(config: Optional[GenesisConfig] = None, config_file: Option
     
     config.save_to_file(config_file)
 
+def initialize(
+    config_file: Optional[Union[str, Path]] = None,
+    log_file: Optional[Union[str, Path]] = None,
+    level: Optional[str] = None,
+    enable_rich: Optional[bool] = None,
+) -> GenesisConfig:
+    """Inicializar configuración y logging de Genesis Engine."""
+
+    # Cargar configuración de usuario
+    config = load_user_config(config_file)
+
+    # Configurar logging y variables de entorno
+    setup_logging(level=level, log_file=log_file, enable_rich=enable_rich)
+    configure_environment()
+
+    return config
+
 # Configuración por defecto al importar el módulo
-if _config_instance is None:
-    _config_instance = load_user_config()
+if _config_instance is None:    _config_instance = load_user_config()

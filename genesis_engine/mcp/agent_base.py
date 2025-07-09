@@ -275,23 +275,25 @@ class GenesisAgent(ABC):
         if capability not in self.capabilities:
             self.capabilities.append(capability)
             self.logger.debug(f"Capacidad agregada: {capability}")
-    
+
     def remove_capability(self, capability: str):
         """Remover capacidad del agente"""
         if capability in self.capabilities:
             self.capabilities.remove(capability)
             self.logger.debug(f"Capacidad removida: {capability}")
-    
+
     def has_capability(self, capability: str) -> bool:
         """Verificar si el agente tiene una capacidad específica"""
         return capability in self.capabilities
 
     def set_metadata(self, key: str, value: Any) -> None:
+
         """Guardar información arbitraria sobre el agente."""
         self.metadata[key] = value
 
     def get_metadata(self, key: str, default=None) -> Any:
         """Obtener un valor de metadata almacenada."""
+
         return self.metadata.get(key, default)
 
     def get_info(self) -> Dict[str, Any]:
