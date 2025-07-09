@@ -179,13 +179,24 @@ class TemplateEngine:
         self.env.filters.update(self._custom_filters)
 
     def validate_required_variables(self, template_name: str, variables: Dict[str, Any]):
-        """Verificar que se proporcionen las variables requeridas para una plantilla"""
+        """Validar que se proporcionen las variables requeridas para una plantilla."""
+
         missing = set()
+
+        # Reglas específicas por patrón de template
         for pattern, required in self.REQUIRED_VARIABLES.items():
             if fnmatch.fnmatch(template_name, pattern):
                 for name in required:
                     if name not in variables:
                         missing.add(name)
+
+        # Validación genérica basada en variables esperadas dentro del template
+        expected = set(self.get_template_variables(template_name))
+        generic_required = {"project_name", "description"}
+        for name in generic_required:
+            if name in expected and name not in variables:
+                missing.add(name)
+
         if missing:
             message = f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
             if self.strict_validation:
@@ -414,15 +425,6 @@ class TemplateEngine:
             return []
 
 
-    def validate_required_variables(self, template_name: str, variables: Dict[str, Any]) -> None:
-        """Validar que existan variables críticas en el contexto."""
-        expected = set(self.get_template_variables(template_name))
-        required_keys = {"project_name", "description"}
-        missing = [k for k in required_keys if k in expected and k not in variables]
-        if missing:
-            raise ValueError(
-                f"Faltan variables requeridas para {template_name}: {', '.join(missing)}"
-            )
 
     async def generate_project(
 
