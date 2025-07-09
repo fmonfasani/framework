@@ -22,6 +22,7 @@ import logging
 import os
 import shutil
 import platform
+import json
 from pathlib import Path
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 
@@ -773,40 +774,190 @@ class DeployAgent(GenesisAgent):
     
     async def _wait_for_k8s_pods_ready(self, project_path: Path):
         """Esperar que los pods de K8s estén listos"""
-        pass
+        self.logger.info("⏳ Esperando pods de Kubernetes...")
+        wait_time = 0
+        max_wait = 300
+        while wait_time < max_wait:
+            result = await self._run_command([
+                "kubectl",
+                "get",
+                "pods",
+                "-o",
+                "json",
+            ])
+
+            if result.get("success"):
+                try:
+                    data = json.loads(result.get("stdout", ""))
+                    items = data.get("items", [])
+                    if items:
+                        all_ready = True
+                        for pod in items:
+                            statuses = pod.get("status", {}).get(
+                                "containerStatuses", []
+                            )
+                            for st in statuses:
+                                if not st.get("ready"):
+                                    all_ready = False
+                                    break
+                            if not all_ready:
+                                break
+                        if all_ready:
+                            self.logger.info("✅ Pods listos")
+                            return
+                except json.JSONDecodeError:
+                    pass
+
+            await asyncio.sleep(5)
+            wait_time += 5
+
+        raise TimeoutError("Pods de Kubernetes no estuvieron listos a tiempo")
     
     async def _get_k8s_service_urls(self, project_path: Path) -> List[str]:
         """Obtener URLs de servicios de K8s"""
-        return []
+        result = await self._run_command([
+            "kubectl",
+            "get",
+            "svc",
+            "-o",
+            "json",
+        ])
+        urls: List[str] = []
+        if result.get("success"):
+            try:
+                data = json.loads(result.get("stdout", ""))
+                for svc in data.get("items", []):
+                    host = None
+                    ingress = (
+                        svc.get("status", {})
+                        .get("loadBalancer", {})
+                        .get("ingress", [])
+                    )
+                    if ingress:
+                        host = ingress[0].get("hostname") or ingress[0].get("ip")
+                    if not host:
+                        host = svc.get("spec", {}).get("clusterIP")
+
+                    for port in svc.get("spec", {}).get("ports", []):
+                        port_num = port.get("nodePort") or port.get("port")
+                        if host and port_num:
+                            protocol = (
+                                "https" if port_num == 443 else "http"
+                            )
+                            urls.append(f"{protocol}://{host}:{port_num}")
+            except json.JSONDecodeError:
+                pass
+
+        return urls
     
     async def _get_k8s_services(self) -> Dict[str, str]:
         """Obtener servicios de K8s"""
-        return {}
+        result = await self._run_command([
+            "kubectl",
+            "get",
+            "pods",
+            "-o",
+            "json",
+        ])
+        services: Dict[str, str] = {}
+        if result.get("success"):
+            try:
+                data = json.loads(result.get("stdout", ""))
+                for pod in data.get("items", []):
+                    name = pod.get("metadata", {}).get("name")
+                    status = pod.get("status", {}).get("phase")
+                    if name and status:
+                        services[name] = status
+            except json.JSONDecodeError:
+                pass
+
+        return services
     
     async def _run_database_migrations(self, project_path: Path):
         """Ejecutar migraciones de base de datos"""
-        pass
+        self.logger.info("🔄 Ejecutando migraciones de base de datos")
+        backend_path = project_path / "backend"
+        if (backend_path / "alembic.ini").exists():
+            original_cwd = Path.cwd()
+            os.chdir(backend_path)
+            try:
+                await self._run_command(["alembic", "upgrade", "head"])
+            finally:
+                os.chdir(original_cwd)
     
     async def _setup_monitoring(self, project_path: Path, config: DeploymentConfig):
         """Configurar monitoreo"""
-        pass
+        self.logger.info("📈 Configurando monitoreo")
+        compose_file = project_path / "monitoring" / "docker-compose.yml"
+        if compose_file.exists():
+            await self._run_command([
+                "docker-compose",
+                "-f",
+                str(compose_file),
+                "up",
+                "-d",
+            ])
     
     async def _setup_backup(self, project_path: Path, config: DeploymentConfig):
         """Configurar backup"""
-        pass
+        self.logger.info("💾 Configurando backup")
+        backup_script = project_path / "backup" / "backup.sh"
+        if backup_script.exists():
+            await self._run_command(["bash", str(backup_script)])
     
     async def _setup_ssl(self, domain: str):
         """Configurar SSL"""
-        pass
+        self.logger.info(f"🔒 Configurando SSL para {domain}")
+        await self._run_command(
+            [
+                "certbot",
+                "certonly",
+                "--standalone",
+                "--non-interactive",
+                "--agree-tos",
+                "-m",
+                f"admin@{domain}",
+                "-d",
+                domain,
+            ]
+        )
     
     async def _perform_rollback(self, params: Dict[str, Any]) -> bool:
         """Realizar rollback"""
-        return False
+        target = params.get("target")
+        environment = params.get("environment")
+        project_path = Path(params.get("project_path", "./"))
+
+        if not target or not environment:
+            return False
+
+        try:
+            target_enum = DeploymentTarget(target)
+            env_enum = DeploymentEnvironment(environment)
+        except ValueError:
+            return False
+
+        deployment_id = f"{target_enum.value}_{env_enum.value}"
+        if deployment_id not in self.active_deployments:
+            return False
+
+        self.logger.info(f"↩️  Rollback de {deployment_id}")
+        try:
+            if target_enum in [DeploymentTarget.LOCAL, DeploymentTarget.DOCKER]:
+                await self._run_command(["docker-compose", "down"])
+            elif target_enum == DeploymentTarget.KUBERNETES:
+                k8s_dir = project_path / "k8s"
+                if k8s_dir.exists():
+                    await self._run_command(["kubectl", "delete", "-f", str(k8s_dir)])
+        except Exception as e:  # pragma: no cover - rollback best effort
+            self.logger.error(f"Error en rollback: {e}")
+
+        self.active_deployments.pop(deployment_id, None)
+        return True
     
     async def _get_deployment_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Obtener estado del despliegue"""
         return {
             "active_deployments": len(self.active_deployments),
             "total_deployments": len(self.deployment_history),
-            "deployments": list(self.active_deployments.keys())
-        }
+            "deployments": list(self.active_deployments.keys())        }
