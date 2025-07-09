@@ -201,10 +201,13 @@ class TemplateEngine:
         self,
         template_name: str,
         variables: Dict[str, Any],
-        use_cache: bool,
+        use_cache: bool = True,
     ) -> str:
         """Versión síncrona del renderizado de plantillas."""
         render_vars = variables or {}
+
+        # Validar variables requeridas
+        self.validate_required_variables(template_name, render_vars)
 
         # Obtener template (con cache si está habilitado)
         if use_cache and template_name in self._template_cache:
@@ -225,7 +228,7 @@ class TemplateEngine:
 
         return template.render(**render_vars)
 
-    async def render_template(
+    async def render_template_async(
         self,
         template_name: str,
         variables: Dict[str, Any] = None,
@@ -286,7 +289,7 @@ class TemplateEngine:
         )
         return template.render(**render_vars)
 
-    async def render_string_template(
+    async def render_string_template_async(
         self,
         template_string: str,
         variables: Dict[str, Any] = None,
@@ -419,7 +422,9 @@ class TemplateEngine:
                 if fname.endswith(".j2"):
 
                     rendered = self.render_template(
-                        relative_template.as_posix(), context or {}
+                        relative_template.as_posix(),
+                        context or {},
+                        use_cache=True,
 
                     )
                     dest = output_path / dest_rel.with_suffix("")
@@ -434,7 +439,7 @@ class TemplateEngine:
 
         return generated_files
 
-    async def generate_project(
+    async def generate_project_async(
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -442,7 +447,7 @@ class TemplateEngine:
     ) -> List[str]:
         """Renderizar todas las plantillas dentro de un directorio de forma asíncrona"""
         return await asyncio.to_thread(
-            self._generate_project_sync, template_name, output_dir, context
+            self.generate_project, template_name, output_dir, context
         )
     
     def register_helper(self, name: str, func: callable):
