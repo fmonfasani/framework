@@ -37,8 +37,10 @@ class MCPConnectionManager:
         for conn in list(self.connections):
             try:
                 asyncio.create_task(conn.send(message))
-            except (ConnectionError, OSError) as exc:  # pragma: no cover - errores de red
-                logging.warning(f"Failed to send to connection: {exc}")
+
+            except (ConnectionError, OSError, RuntimeError) as exc:  # pragma: no cover - errores de red
+                logging.warning(f"Failed to send to connection {conn}: {exc}")
+
 
     async def cleanup(self) -> None:
         """Liberar recursos del gestor de conexiones."""
@@ -252,8 +254,10 @@ class MCPProtocol:
 
             except asyncio.TimeoutError:
                 continue
-            except (json.JSONDecodeError, RuntimeError, OSError) as e:
-                logger.error(f"Error procesando mensaje: {e}")
+
+            except (ValueError, RuntimeError, KeyError, OSError) as e:
+                logger.error(f"Error procesando mensaje {message}: {e}")
+
                 self.stats["errors"] += 1
     
     async def _handle_request(self, request: MCPRequest):
@@ -294,7 +298,9 @@ class MCPProtocol:
             )
             self.message_queue.put_nowait(response)
             
-        except (RuntimeError, ValueError, OSError) as e:
+
+        except (AttributeError, ValueError, RuntimeError, KeyError, OSError) as e:
+
             # Error al ejecutar
             logger.error(
                 f"Error ejecutando {request.action} en {request.target_agent}: {e}"
@@ -321,8 +327,12 @@ class MCPProtocol:
         for handler in handlers:
             try:
                 handler(broadcast)
-            except (RuntimeError, ValueError, OSError) as e:
-                logger.error(f"Error en handler de broadcast: {e}")
+
+            except (RuntimeError, ValueError, KeyError) as e:
+                logger.error(
+                    f"Error en handler de broadcast {broadcast.event}: {e}"
+                )
+
     
     def _handle_error(self, error: MCPError):
         """Manejar mensaje de error"""
