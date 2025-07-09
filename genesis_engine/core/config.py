@@ -77,6 +77,12 @@ class GenesisConfig:
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def get(cls, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration value from the global instance."""
+        cfg = get_config()
+        return getattr(cfg, key, default)
     
     @classmethod
     def from_file(cls, config_file: Union[str, Path]) -> 'GenesisConfig':
