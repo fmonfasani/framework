@@ -371,7 +371,7 @@ class DevOpsAgent(GenesisAgent):
             "ssl_enabled": config.ssl_enabled
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "devops/docker-compose.yml.j2",
             template_vars
         )
@@ -399,7 +399,7 @@ class DevOpsAgent(GenesisAgent):
             "node_version": "18"
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "devops/github/ci.yml.j2",
             template_vars
         )
@@ -522,7 +522,7 @@ class DevOpsAgent(GenesisAgent):
         """Generar Dockerfile para Python/FastAPI"""
         output_path.mkdir(parents=True, exist_ok=True)
         template_vars = {"project_name": service_name}
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "backend/fastapi/Dockerfile.j2", template_vars
         )
         dockerfile = output_path / "Dockerfile"

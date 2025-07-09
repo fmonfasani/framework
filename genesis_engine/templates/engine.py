@@ -195,7 +195,9 @@ class TemplateEngine:
                 for name in missing:
                     variables.setdefault(name, "")
     
-    def _render_template_sync(
+
+    def render_template(
+
         self,
         template_name: str,
         variables: Dict[str, Any],
@@ -234,9 +236,27 @@ class TemplateEngine:
         # Validar variables antes de ejecutar en hilo separado
         self.validate_required_variables(template_name, vars_clean)
         try:
-            content = await asyncio.to_thread(
-                self._render_template_sync, template_name, vars_clean, use_cache
-            )
+
+            # Obtener template (con cache si está habilitado)
+            if use_cache and template_name in self._template_cache:
+                template = self._template_cache[template_name]
+            else:
+                template_name = template_name.replace("\\", "/")
+                template = self.env.get_template(template_name)
+                if use_cache:
+                    self._template_cache[template_name] = template
+            
+            # Agregar variables globales útiles
+            render_vars.update({
+                'generated_at': datetime.utcnow().isoformat(),
+                'generator': 'Genesis Engine',
+                'template_name': template_name
+            })
+            
+            # Renderizar template
+            content = template.render(**render_vars)
+
+
             self.logger.debug(f"✅ Template renderizado: {template_name}")
             return content
         except TemplateNotFound as e:
@@ -249,8 +269,12 @@ class TemplateEngine:
             self.logger.error(f"❌ Error renderizando template {template_name}: {e}")
             raise RuntimeError(f"Error renderizando template: {e}") from e
     
-    def _render_string_template_sync(
-        self, template_string: str, variables: Dict[str, Any]
+
+    def render_string_template(
+        self,
+        template_string: str,
+        variables: Dict[str, Any] = None
+
     ) -> str:
         render_vars = variables or {}
         template = self.env.from_string(template_string)
@@ -369,7 +393,9 @@ class TemplateEngine:
             self.logger.error(f"❌ Error analizando variables del template {template_name}: {e}")
             return []
 
-    def _generate_project_sync(
+
+    def generate_project(
+
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -391,12 +417,10 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    vars_clean = context or {}
-                    self.validate_required_variables(
-                        relative_template.as_posix(), vars_clean
-                    )
-                    rendered = self._render_template_sync(
-                        relative_template.as_posix(), vars_clean, True
+
+                    rendered = self.render_template(
+                        relative_template.as_posix(), context or {}
+
                     )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)

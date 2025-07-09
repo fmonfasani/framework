@@ -154,12 +154,10 @@ def init_command(
         }
 
         # Generar archivos usando template engine
-        asyncio.run(
-            template_engine.generate_project(
-                template_name=template,
-                output_dir=project_dir,
-                context=context,
-            )
+        template_engine.generate_project(
+            template_name=template,
+            output_dir=project_dir,
+            context=context,
         )
         
         progress.update(task3, completed=1)

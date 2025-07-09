@@ -394,7 +394,7 @@ class AIReadyAgent(GenesisAgent):
         else:
             template_name = "ai/generic_llm_client.py.j2"
         
-        content = await self.template_engine.render_template(template_name, template_vars)
+        content = self.template_engine.render_template(template_name, template_vars)
         
         output_file = ai_dir / "llm_client.py"
         output_file.write_text(content)
@@ -411,8 +411,8 @@ class AIReadyAgent(GenesisAgent):
             "custom_prompts": config.custom_prompts
         }
         
-        content = await self.template_engine.render_template(
-            "ai/chat_service.py.j2", 
+        content = self.template_engine.render_template(
+            "ai/chat_service.py.j2",
             template_vars
         )
         
@@ -436,7 +436,7 @@ class AIReadyAgent(GenesisAgent):
         else:
             template_name = "ai/generic_vector_client.py.j2"
         
-        content = await self.template_engine.render_template(template_name, template_vars)
+        content = self.template_engine.render_template(template_name, template_vars)
         
         output_file = ai_dir / "vector_store.py"
         output_file.write_text(content)
@@ -451,7 +451,7 @@ class AIReadyAgent(GenesisAgent):
             "llm_provider": config.llm_provider.value
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "ai/react/ChatComponent.tsx.j2",
             template_vars
         )

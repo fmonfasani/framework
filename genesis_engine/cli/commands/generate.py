@@ -4,6 +4,7 @@ Genesis Generate Command
 """
 
 import asyncio
+import inspect
 from uuid import uuid4
 
 from rich.console import Console
@@ -62,13 +63,18 @@ def generate_command(component: str, name: str, agent: str | None, interactive: 
 
     async def _run_generate():
         inst = agent_cls()
-        await inst.initialize()
+        init_result = inst.initialize()
+        if inspect.iscoroutine(init_result):
+            await init_result
         task = AgentTask(
             id=str(uuid4()),
             name=task_name,
             params={"name": name, "interactive": interactive},
         )
-        return await inst.execute_task(task)
+        result = inst.execute_task(task)
+        if inspect.iscoroutine(result):
+            result = await result
+        return result
 
     result = asyncio.run(_run_generate())
 

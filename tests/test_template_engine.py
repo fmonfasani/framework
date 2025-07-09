@@ -1,6 +1,8 @@
 from pathlib import Path
 import sys
-import asyncio
+
+import types
+
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +27,7 @@ def test_generate_project(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output"
-    generated = asyncio.run(engine.generate_project("sample", out_dir, {"name": "World"}))
+    generated = engine.generate_project("sample", out_dir, {"name": "World"})
 
     expected_files = {
         out_dir / "file.txt",
@@ -47,7 +49,7 @@ def test_render_template_windows_style(tmp_path: Path):
 
     engine = TemplateEngine(templates_dir)
 
-    content = asyncio.run(engine.render_template("dir\\file.txt.j2", {"name": "Bob"}))
+    content = engine.render_template("dir\\file.txt.j2", {"name": "Bob"})
     assert content == "Hello Bob!"
 
 
@@ -64,7 +66,7 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output_async"
-    generated = asyncio.run(engine.generate_project("sample", out_dir, {"name": "World"}))
+    generated = engine.generate_project("sample", out_dir, {"name": "World"})
 
     expected_files = {
         out_dir / "file.txt",
@@ -90,12 +92,12 @@ def test_missing_required_vars(tmp_path: Path):
 
     try:
         with pytest.raises(KeyError):
-            asyncio.run(engine_strict.render_template("file.j2", {}))
+            engine_strict.render_template("file.j2", {})
 
-        result = asyncio.run(engine_lenient.render_template("file.j2", {}))
+        result = engine_lenient.render_template("file.j2", {})
         assert result == ""
 
-        result = asyncio.run(engine_lenient.render_template("file.j2", {"project_name": "Demo"}))
+        result = engine_lenient.render_template("file.j2", {"project_name": "Demo"})
         assert result == "Demo"
     finally:
         TemplateEngine.REQUIRED_VARIABLES.clear()
