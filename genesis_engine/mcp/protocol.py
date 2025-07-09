@@ -18,7 +18,7 @@ import weakref
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Callable, Optional, Any, Set, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass, asdict
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from enum import Enum
@@ -951,6 +951,15 @@ class MCPProtocol:
             result = target_agent.handle_request(request)
             if inspect.isawaitable(result):
                 result = await result
+
+            # Convertir dataclasses o modelos Pydantic a diccionarios
+            if is_dataclass(result):
+                result = asdict(result)
+            elif hasattr(result, "model_dump"):
+                try:
+                    result = result.model_dump()
+                except Exception:
+                    pass
 
             execution_time = time.time() - start_time
             
