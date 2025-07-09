@@ -5,7 +5,10 @@ Protocolo MCP - Multi-agent Communication Protocol
 import asyncio
 import json
 import logging
+import weakref
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Callable, Optional, Any
+import inspect
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -16,6 +19,32 @@ from genesis_engine.mcp.message_types import (
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+class MCPConnectionManager:
+    """Gestor de conexiones MCP"""
+
+    def __init__(self) -> None:
+        self.connections: weakref.WeakSet = weakref.WeakSet()
+        self.executor = ThreadPoolExecutor(max_workers=4)
+
+    def add_connection(self, conn: Any) -> None:
+        """Registrar una nueva conexión."""
+        self.connections.add(conn)
+
+    def broadcast_to_all(self, message: Any) -> None:
+        """Enviar un mensaje a todas las conexiones registradas."""
+        for conn in list(self.connections):
+            try:
+                asyncio.create_task(conn.send(message))
+
+            except (ConnectionError, OSError, RuntimeError) as exc:  # pragma: no cover - errores de red
+                logging.warning(f"Failed to send to connection {conn}: {exc}")
+
+
+    async def cleanup(self) -> None:
+        """Liberar recursos del gestor de conexiones."""
+        self.executor.shutdown(wait=True)
 
 
 class AgentStatus(str, Enum):
@@ -215,7 +244,7 @@ class MCPProtocol:
                 self.stats["messages_received"] += 1
 
                 if isinstance(message, MCPRequest):
-                    self._handle_request(message)
+                    await self._handle_request(message)
                 elif isinstance(message, MCPResponse):
                     self._handle_response(message)
                 elif isinstance(message, MCPBroadcast):
@@ -225,11 +254,13 @@ class MCPProtocol:
 
             except asyncio.TimeoutError:
                 continue
-            except Exception as e:
-                logger.error(f"Error procesando mensaje: {e}")
+
+            except (ValueError, RuntimeError, KeyError, OSError) as e:
+                logger.error(f"Error procesando mensaje {message}: {e}")
+
                 self.stats["errors"] += 1
     
-    def _handle_request(self, request: MCPRequest):
+    async def _handle_request(self, request: MCPRequest):
         """Manejar solicitud entrante"""
         target_agent = self.agents.get(request.target_agent)
         if not target_agent:
@@ -248,7 +279,11 @@ class MCPProtocol:
         try:
             # Ejecutar acción en el agente
             start_time = datetime.now()
+
             result = target_agent.handle_request(request)
+            if inspect.isawaitable(result):
+                result = await result
+
             execution_time = (datetime.now() - start_time).total_seconds()
             
             # Enviar respuesta exitosa
@@ -263,9 +298,13 @@ class MCPProtocol:
             )
             self.message_queue.put_nowait(response)
             
-        except Exception as e:
+
+        except (AttributeError, ValueError, RuntimeError, KeyError, OSError) as e:
+
             # Error al ejecutar
-            logger.error(f"Error ejecutando {request.action} en {request.target_agent}: {e}")
+            logger.error(
+                f"Error ejecutando {request.action} en {request.target_agent}: {e}"
+            )
             error_response = MCPResponse(
                 sender_agent=request.target_agent,
                 target_agent=request.sender_agent,
@@ -288,8 +327,12 @@ class MCPProtocol:
         for handler in handlers:
             try:
                 handler(broadcast)
-            except Exception as e:
-                logger.error(f"Error en handler de broadcast: {e}")
+
+            except (RuntimeError, ValueError, KeyError) as e:
+                logger.error(
+                    f"Error en handler de broadcast {broadcast.event}: {e}"
+                )
+
     
     def _handle_error(self, error: MCPError):
         """Manejar mensaje de error"""

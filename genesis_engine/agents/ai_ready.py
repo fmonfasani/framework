@@ -20,8 +20,43 @@ from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
 
+# Imports para IA - pueden no estar disponibles en todas las instalaciones
+try:  # pragma: no cover - opcional según entorno
+    import openai
+    OPENAI_AVAILABLE = True
+except Exception:  # noqa: W0703 - cualquier error al importar
+    OPENAI_AVAILABLE = False
+
+try:  # pragma: no cover - opcional según entorno
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except Exception:  # noqa: W0703
+    ANTHROPIC_AVAILABLE = False
+
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
+
+
+def _check_import(module_name: str) -> bool:
+    """Verificar si un módulo se puede importar"""
+    try:  # pragma: no cover - import check
+        __import__(module_name)
+        return True
+    except ImportError:
+        return False
+
+
+def check_ai_dependencies() -> Dict[str, bool]:
+    """Verificar dependencias de IA disponibles"""
+    return {
+        "openai": OPENAI_AVAILABLE,
+        "anthropic": ANTHROPIC_AVAILABLE,
+        "transformers": _check_import("transformers"),
+        "langchain": _check_import("langchain"),
+        "chromadb": _check_import("chromadb"),
+        "pinecone": _check_import("pinecone"),
+        "weaviate": _check_import("weaviate"),
+    }
 
 class LLMProvider(str, Enum):
     """Proveedores de LLM"""
@@ -359,7 +394,7 @@ class AIReadyAgent(GenesisAgent):
         else:
             template_name = "ai/generic_llm_client.py.j2"
         
-        content = await self.template_engine.render_template(template_name, template_vars)
+        content = self.template_engine.render_template(template_name, template_vars)
         
         output_file = ai_dir / "llm_client.py"
         output_file.write_text(content)
@@ -376,8 +411,8 @@ class AIReadyAgent(GenesisAgent):
             "custom_prompts": config.custom_prompts
         }
         
-        content = await self.template_engine.render_template(
-            "ai/chat_service.py.j2", 
+        content = self.template_engine.render_template(
+            "ai/chat_service.py.j2",
             template_vars
         )
         
@@ -401,7 +436,7 @@ class AIReadyAgent(GenesisAgent):
         else:
             template_name = "ai/generic_vector_client.py.j2"
         
-        content = await self.template_engine.render_template(template_name, template_vars)
+        content = self.template_engine.render_template(template_name, template_vars)
         
         output_file = ai_dir / "vector_store.py"
         output_file.write_text(content)
@@ -416,7 +451,7 @@ class AIReadyAgent(GenesisAgent):
             "llm_provider": config.llm_provider.value
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "ai/react/ChatComponent.tsx.j2",
             template_vars
         )
@@ -539,23 +574,55 @@ class AIReadyAgent(GenesisAgent):
     
     async def _load_ai_code_templates(self):
         """Cargar templates de código IA"""
-        pass
+        # For the test-suite we simply record which templates are available
+        # under the ``ai`` folder of the bundled templates directory.  The
+        # :class:`TemplateEngine` already knows how to list templates so we just
+        # store the result for potential use by the generator helpers.
+        self.available_ai_templates = self.template_engine.list_templates("ai/*")
+        return self.available_ai_templates
     
     async def _setup_embedding_pipeline(self, params: Dict[str, Any]) -> List[str]:
         """Configurar pipeline de embeddings"""
-        return []
+        project_path = Path(params.get("project_path", "./"))
+        config = params.get("config")
+
+        ai_dir = project_path / "backend" / "app" / "ai"
+        ai_dir.mkdir(parents=True, exist_ok=True)
+
+        files = [await self._generate_embedding_service(ai_dir, config)]
+        return files
     
     async def _implement_semantic_search(self, params: Dict[str, Any]) -> List[str]:
         """Implementar búsqueda semántica"""
-        return []
+        project_path = Path(params.get("project_path", "./"))
+        config = params.get("config")
+
+        ai_dir = project_path / "backend" / "app" / "ai"
+        ai_dir.mkdir(parents=True, exist_ok=True)
+
+        search_utils = await self._generate_search_utilities(ai_dir, config)
+        return [search_utils]
     
     async def _setup_ai_workflows(self, project_path: Path, config: AIConfig, schema: Dict[str, Any]) -> List[str]:
         """Configurar workflows de IA"""
-        return []
+        workflow_file = project_path / "backend" / "app" / "ai" / "workflows.py"
+        workflow_file.parent.mkdir(parents=True, exist_ok=True)
+        content = """async def run_workflow(input_text: str) -> str:\n    return input_text\n"""
+        await asyncio.to_thread(workflow_file.write_text, content)
+        return [str(workflow_file)]
     
     async def _generate_ai_documentation(self, project_path: Path, config: AIConfig) -> List[str]:
         """Generar documentación de IA"""
-        return []
+        docs_dir = project_path / "docs"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        doc_file = docs_dir / "AI_README.md"
+        content = (
+            "# AI Integration\n"
+            "This project includes basic AI endpoints and utilities.\n"
+        )
+
+        await asyncio.to_thread(doc_file.write_text, content)
+        return [str(doc_file)]
     
     async def _setup_ai_environment_variables(self, project_path: Path, config: AIConfig) -> str:
         """Configurar variables de entorno de IA"""
@@ -592,40 +659,191 @@ TEMPERATURE={config.temperature}
     
     async def _generate_prompt_utilities(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar utilidades de prompts"""
-        return ""
+        prompts = self.ai_templates.get("chat_prompts", {}).copy()
+        prompts.update(config.custom_prompts or {})
+
+        content = (
+            f"DEFAULT_SYSTEM_PROMPT = {json.dumps(prompts.get('system_prompt', ''))}\n"
+            f"WELCOME_MESSAGE = {json.dumps(prompts.get('welcome_message', ''))}\n"
+        )
+
+        output_file = ai_dir / "prompts.py"
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_ai_endpoints(self, routes_dir: Path, config: AIConfig) -> str:
         """Generar endpoints de IA"""
-        return ""
+        routes_dir.mkdir(parents=True, exist_ok=True)
+        output_file = routes_dir / "ai.py"
+
+        content_lines = [
+            "from fastapi import APIRouter, UploadFile",
+            "from ..ai.chat_service import ChatService",
+            "",
+            "router = APIRouter()",
+            "chat_service = ChatService()",
+            "",
+            "@router.post('/ai/chat')",
+            "async def chat(payload: dict):",
+            "    message = payload.get('message', '')",
+            "    return await chat_service.chat(message)",
+        ]
+
+        if config.enable_streaming:
+            content_lines.extend([
+                "",
+                "@router.post('/ai/chat/stream')",
+                "async def chat_stream(payload: dict):",
+                "    message = payload.get('message', '')",
+                "    return chat_service.chat_stream(message)",
+            ])
+
+        if AIFeature.RAG_SYSTEM in config.features:
+            content_lines.extend([
+                "",
+                "@router.post('/ai/documents')",
+                "async def upload_document(file: UploadFile):",
+                "    # Placeholder for document ingestion",
+                "    return {'status': 'uploaded'}",
+                "",
+                "@router.post('/ai/search')",
+                "async def search(payload: dict):",
+                "    query = payload.get('query', '')",
+                "    return await chat_service.search(query)",
+            ])
+
+        if AIFeature.SEMANTIC_SEARCH in config.features:
+            content_lines.extend([
+                "",
+                "@router.post('/ai/search/semantic')",
+                "async def semantic_search(payload: dict):",
+                "    query = payload.get('query', '')",
+                "    return await chat_service.semantic_search(query)",
+            ])
+
+        content = "\n".join(content_lines) + "\n"
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_embedding_service(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar servicio de embeddings"""
-        return ""
+        output_file = ai_dir / "embedding_service.py"
+        lines = [
+            "from typing import List",
+            "",
+            "try:",
+            "    import openai",
+            "except Exception:",
+            "    openai = None",
+            "",
+            "",
+            "class EmbeddingService:",
+            f"    def __init__(self, model: str = '{config.embedding_model}'):",
+            "        self.model = model",
+            "",
+            "    async def embed(self, text: str) -> List[float]:",
+            "        if openai is None:",
+            "            return []",
+            "        resp = await openai.Embedding.acreate(input=text, model=self.model)",
+            "        return resp['data'][0]['embedding']",
+        ]
+        await asyncio.to_thread(output_file.write_text, "\n".join(lines) + "\n")
+        return str(output_file)
     
     async def _generate_search_utilities(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar utilidades de búsqueda"""
-        return ""
+        output_file = ai_dir / "search_utils.py"
+        content = (
+            "def similarity_search(store, embedding, top_k=5):\n"
+            "    return store.similarity_search(embedding, top_k)\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_rag_service(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar servicio RAG"""
-        return ""
+        output_file = ai_dir / "rag_service.py"
+        content = (
+            "class RAGService:\n"
+            "    def __init__(self, vector_store, llm_client):\n"
+            "        self.vector_store = vector_store\n"
+            "        self.llm_client = llm_client\n\n"
+            "    async def answer(self, query: str) -> str:\n"
+            "        docs = self.vector_store.search(query)\n"
+            "        context = '\n'.join(docs)\n"
+            "        prompt = f'{context}\n{query}'\n"
+            "        return await self.llm_client.chat(prompt)\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_document_processor(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar procesador de documentos"""
-        return ""
+        output_file = ai_dir / "document_processor.py"
+        content = (
+            "def process_document(text: str) -> list[str]:\n"
+            "    return [text]\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_chunking_strategies(self, ai_dir: Path, config: AIConfig) -> str:
         """Generar estrategias de chunking"""
-        return ""
+        output_file = ai_dir / "chunking.py"
+        content = (
+            "def chunk_text(text: str, size: int = 500) -> list[str]:\n"
+            "    return [text[i:i+size] for i in range(0, len(text), size)]\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_chat_hook(self, frontend_path: Path, config: AIConfig) -> str:
         """Generar hook de chat"""
-        return ""
+        hooks_dir = frontend_path / "lib"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        output_file = hooks_dir / "useChat.ts"
+
+        content = (
+            "import { useState } from 'react';\n"
+            "import { sendChatMessage } from './api/chat';\n\n"
+            "export function useChat() {\n"
+            "  const [messages, setMessages] = useState<string[]>([]);\n\n"
+            "  const send = async (message: string) => {\n"
+            "    const res = await sendChatMessage(message);\n"
+            "    setMessages([...messages, res.data]);\n"
+            "  };\n\n"
+            "  return { messages, send };\n"
+            "}\n"
+        )
+
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
     
     async def _generate_frontend_chat_api(self, frontend_path: Path, config: AIConfig) -> str:
         """Generar API de chat del frontend"""
-        return ""
-    
+        api_dir = frontend_path / "lib" / "api"
+        api_dir.mkdir(parents=True, exist_ok=True)
+        output_file = api_dir / "chat.ts"
+
+        content = (
+            "import { apiClient } from './client';\n\n"
+            "export const sendChatMessage = (message: string) =>\n"
+            "  apiClient.post('/ai/chat', { message });\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)
+
     async def _generate_chat_page(self, frontend_path: Path, config: AIConfig) -> str:
         """Generar página de chat"""
-        return ""
+        page_dir = frontend_path / "app" / "chat"
+        page_dir.mkdir(parents=True, exist_ok=True)
+        output_file = page_dir / "page.tsx"
+
+        content = (
+            "import ChatComponent from '../../components/ai/ChatComponent';\n\n"
+            "export default function ChatPage() {\n"
+            "  return <ChatComponent />;\n"
+            "}\n"
+        )
+        await asyncio.to_thread(output_file.write_text, content)
+        return str(output_file)

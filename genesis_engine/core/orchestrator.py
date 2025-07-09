@@ -148,6 +148,26 @@ class GenesisOrchestrator:
         self.mcp.register_handler("task.failed", self._handle_task_failed)
         self.mcp.register_handler("agent.status_changed", self._handle_agent_status_changed)
 
+    def _handle_orchestrator_error(self, error: Exception, context: str) -> None:
+        """Manejar errores del orquestador de manera uniforme"""
+        error_msg = f"Error en {context}: {str(error)}"
+        self.logger.error(error_msg, exc_info=True)
+        
+        # Broadcast error event to other agents if MCP is available
+        if self.mcp and self.mcp.running:
+            try:
+                self.mcp.broadcast(
+                    sender_id="orchestrator",
+                    event="error_occurred",
+                    data={
+                        "context": context,
+                        "error": str(error),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                )
+            except Exception as broadcast_error:
+                self.logger.error(f"Failed to broadcast error: {broadcast_error}")
+
     def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Procesar una solicitud simple dirigida a un agente.
 
@@ -178,7 +198,9 @@ class GenesisOrchestrator:
 
         task = AgentTask(id=str(uuid.uuid4()), name=action, params=data)
         try:
-            result = asyncio.run(agent.execute_task(task))
+            result = agent.execute_task(task)
+            if asyncio.iscoroutine(result):
+                result = asyncio.run(result)
             return {"success": True, "result": result}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -657,15 +679,84 @@ Generado con ❤️ por Genesis Engine
     # Event handlers
     async def _handle_task_completed(self, event: Dict[str, Any]):
         """Manejar tarea completada"""
-        pass
-    
+        try:
+            step_id = event.get("task_id") or event.get("step_id")
+            if not step_id:
+                self.logger.warning("Evento task.completed sin task_id")
+                return
+
+            step = self.workflow_steps.get(step_id)
+            if not step:
+                self.logger.warning(
+                    f"Evento task.completed para paso desconocido: {step_id}"
+                )
+                return
+
+            step.status = WorkflowStatus.COMPLETED
+            step.end_time = datetime.utcnow()
+            step.result = TaskResult(
+                task_id=step.id,
+                success=True,
+                result=event.get("result"),
+            )
+
+            self.workflow_results[step_id] = step.result.result
+
+            genesis_console.print(f"✅ {step.name} completado")
+            self.logger.info(f"✅ Paso {step.name} completado")
+        except Exception as exc:  # pragma: no cover - logging
+            self._handle_orchestrator_error(exc, "handle_task_completed")
+
     async def _handle_task_failed(self, event: Dict[str, Any]):
         """Manejar tarea fallida"""
-        pass
-    
+        try:
+            step_id = event.get("task_id") or event.get("step_id")
+            if not step_id:
+                self.logger.warning("Evento task.failed sin task_id")
+                return
+
+            step = self.workflow_steps.get(step_id)
+            if not step:
+                self.logger.warning(
+                    f"Evento task.failed para paso desconocido: {step_id}"
+                )
+                return
+
+            step.status = WorkflowStatus.FAILED
+            step.end_time = datetime.utcnow()
+            step.result = TaskResult(
+                task_id=step.id,
+                success=False,
+                error=event.get("error"),
+            )
+
+            self.workflow_results[step_id] = {"error": step.result.error}
+
+            genesis_console.print(f"❌ {step.name} falló: {step.result.error}")
+            self.logger.error(f"❌ Paso {step.name} falló: {step.result.error}")
+        except Exception as exc:  # pragma: no cover - logging
+            self._handle_orchestrator_error(exc, "handle_task_failed")
+
     async def _handle_agent_status_changed(self, event: Dict[str, Any]):
         """Manejar cambio de estado de agente"""
-        pass
+        try:
+            agent_id = event.get("agent_id")
+            status = event.get("status")
+            if not agent_id or status is None:
+                self.logger.warning(
+                    "Evento agent.status_changed incompleto"
+                )
+                return
+
+            agent = self.agents.get(agent_id)
+            if agent:
+                agent.status = status
+
+            self.logger.info(
+                f"📣 Estado del agente {agent_id} cambiado a {status}"
+            )
+        except Exception as exc:  # pragma: no cover - logging
+            self._handle_orchestrator_error(exc, "handle_agent_status_changed")
     
     async def shutdown(self):
         """Detener el orquestador"""
@@ -677,5 +768,4 @@ Generado con ❤️ por Genesis Engine
         
         # Detener protocolo MCP
         await self.mcp.stop()
-        
-        self.logger.info("🛑 Orchestrator detenido")
+                self.logger.info("🛑 Orchestrator detenido")

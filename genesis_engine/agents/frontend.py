@@ -1,12 +1,10 @@
-"""
-Template Engine - Motor de plantillas Jinja2 para Genesis Engine
+"""Frontend Agent
+-----------------
 
-Este módulo es responsable de:
-- Cargar y renderizar plantillas Jinja2
-- Gestionar templates modulares por tecnología
-- Proporcionar funciones helper personalizadas
-- Validar sintaxis y variables de templates
-- Cache de templates para mejor performance
+Agent responsible for generating frontend projects using different
+JavaScript frameworks. It leverages the :class:`TemplateEngine` to
+render Jinja2 templates and produce a ready to use project skeleton.
+Currently Next.js and React templates are bundled with the engine.
 """
 
 import os
@@ -27,7 +25,7 @@ template_engine = TemplateEngine()
 
 
 class FrontendAgent(GenesisAgent):
-    """Agente Frontend - Generador de interfaz Next.js"""
+    """Agente Frontend - Generador de interfaces web"""
 
     def __init__(self):
         super().__init__(
@@ -38,6 +36,7 @@ class FrontendAgent(GenesisAgent):
 
         # Capacidades básicas
         self.add_capability("nextjs_generation")
+        self.add_capability("react_generation")
         self.add_capability("ui_components")
         self.add_capability("state_management")
 
@@ -45,31 +44,35 @@ class FrontendAgent(GenesisAgent):
 
         self.template_engine = TemplateEngine()
 
-    async def initialize(self):
+    def initialize(self):
         """Inicialización del agente frontend"""
         self.logger.info("🎨 Inicializando Frontend Agent")
 
         self.set_metadata("version", "1.0.0")
-        self.set_metadata("supported_frameworks", ["nextjs"])
+        self.set_metadata("supported_frameworks", ["nextjs", "react"])
 
         self.logger.info("✅ Frontend Agent inicializado")
 
-    async def execute_task(self, task: AgentTask) -> Any:
+    def execute_task(self, task: AgentTask) -> Any:
         """Ejecutar tarea específica del frontend"""
         task_name = task.name.lower()
 
         if "generate_frontend" in task_name:
-            return await self._generate_complete_frontend(task.params)
+            return self._generate_complete_frontend(task.params)
 
         raise ValueError(f"Tarea no reconocida: {task.name}")
 
-    async def _handle_generate_frontend(self, request) -> Dict[str, Any]:
+    def _handle_generate_frontend(self, request) -> Dict[str, Any]:
         """Handler para generación de frontend"""
-        return await self._generate_complete_frontend(request.params)
+        return self._generate_complete_frontend(request.params)
 
-    async def _generate_complete_frontend(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Generar proyecto Next.js básico"""
-        self.logger.info("🚀 Generando frontend Next.js")
+    def _generate_complete_frontend(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a frontend project for the selected framework."""
+        framework = params.get("framework", "nextjs").lower()
+        if framework not in {"nextjs", "react"}:
+            raise ValueError(f"Framework no soportado: {framework}")
+
+        self.logger.info(f"🚀 Generando frontend {framework}")
 
         schema = params.get("schema", {})
         output_path = Path(params.get("output_path", "./frontend"))
@@ -84,16 +87,17 @@ class FrontendAgent(GenesisAgent):
             "ui_components": params.get("ui_components", "shadcn"),
         }
 
+        template_glob = f"frontend/{framework}/*"
         templates = [
-            t for t in self.template_engine.list_templates("frontend/nextjs/*")
+            t for t in self.template_engine.list_templates(template_glob)
             if t.endswith(".j2")
         ]
 
         generated_files: List[str] = []
-        prefix = "frontend/nextjs/"
+        prefix = f"frontend/{framework}/"
 
         for tpl in templates:
-            content = await self.template_engine.render_template(tpl, template_vars)
+            content = self.template_engine.render_template(tpl, template_vars)
 
             rel_path = Path(tpl[len(prefix):]).with_suffix("")
             out_file = output_path / rel_path
@@ -102,7 +106,7 @@ class FrontendAgent(GenesisAgent):
             generated_files.append(str(out_file))
 
         return {
-            "framework": "nextjs",
+            "framework": framework,
             "generated_files": generated_files,
             "output_path": str(output_path),
             "next_steps": [

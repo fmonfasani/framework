@@ -1,5 +1,5 @@
-import asyncio
 from pathlib import Path
+import asyncio
 
 import sys
 
@@ -15,10 +15,6 @@ from genesis_engine.agents.backend import (
     AuthMethod,
 )
 from genesis_engine.templates.engine import TemplateEngine
-
-
-async def run_async(coro):
-    return await coro
 
 def make_agent():
     agent = BackendAgent()
@@ -55,7 +51,7 @@ def test_generate_data_models(tmp_path):
     output = tmp_path / 'models'
     output.mkdir(parents=True, exist_ok=True)
     params = {'schema': schema, 'config': config, 'output_path': output}
-    generated = asyncio.run(agent._generate_data_models(params))
+    generated = agent._generate_data_models(params)
     expected_model = output / 'user.py'
     expected_schema = output.parent / 'schemas' / 'user.py'
     assert list(map(Path, generated)) == [expected_model, expected_schema]
@@ -75,13 +71,13 @@ def test_setup_database_config(tmp_path, monkeypatch):
     )
     schema = {'entities': [{'name': 'User'}]}
 
-    async def fake_generate_sqlalchemy_config(path, cfg):
+    def fake_generate_sqlalchemy_config(path, cfg):
         path.mkdir(parents=True, exist_ok=True)
         file = path / 'database.py'
         file.write_text('db')
         return str(file)
 
-    async def fake_setup_alembic_migrations(path, cfg, sch):
+    def fake_setup_alembic_migrations(path, cfg, sch):
         file = path / 'alembic.ini'
         file.write_text('alembic')
         return [str(file)]
@@ -90,7 +86,7 @@ def test_setup_database_config(tmp_path, monkeypatch):
     monkeypatch.setattr(agent, '_setup_alembic_migrations', fake_setup_alembic_migrations)
 
     params = {'config': config, 'schema': schema, 'output_path': tmp_path}
-    generated = asyncio.run(agent._setup_database_config(params))
+    generated = agent._setup_database_config(params)
 
     db_config_file = tmp_path / 'app' / 'db' / 'database.py'
     migration_file = tmp_path / 'alembic.ini'
@@ -119,9 +115,127 @@ def test_setup_authentication(tmp_path, monkeypatch):
     monkeypatch.setattr(agent, '_generate_fastapi_jwt_auth', fake_generate_fastapi_jwt_auth)
 
     params = {'config': config, 'output_path': tmp_path}
-    generated = asyncio.run(agent._setup_authentication(params))
+    generated = agent._setup_authentication(params)
 
     expected_file = tmp_path / 'jwt.py'
     assert list(map(Path, generated)) == [expected_file]
     assert expected_file.read_text() == 'auth'
+
+
+def test_load_framework_configs():
+    agent = make_agent()
+    configs = agent.framework_configs
+    assert 'fastapi' in configs
+    assert 'nestjs' in configs
+
+
+def test_load_code_templates():
+    agent = make_agent()
+    agent._load_code_templates()
+    assert any(t.endswith('main.py.j2') for t in agent.available_templates)
+
+
+def test_setup_code_generators():
+    agent = make_agent()
+    agent._setup_code_generators()
+    assert 'nestjs_controller' in agent.code_generators
+    assert agent.code_generators['nestjs_controller'] == agent._generate_nestjs_controller
+
+
+def test_generate_nestjs_controller(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    entity = {'name': 'User', 'attributes': {}}
+    path = agent._generate_nestjs_controller(entity, tmp_path, config)
+    file = Path(path)
+    assert file.exists()
+    assert 'class UserController' in file.read_text()
+
+
+def test_generate_typeorm_config(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={'ENTITIES': ['User']},
+    )
+    path = agent._generate_typeorm_config(tmp_path, config)
+    file = Path(path)
+    assert file.exists()
+    assert 'DataSource' in file.read_text()
+
+
+def test_generate_fastapi_jwt_auth(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
+    file = tmp_path / 'jwt.py'
+    assert list(map(Path, paths)) == [file]
+    assert 'SECRET_KEY' in file.read_text()
+
+
+def test_generate_nestjs_jwt_auth(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.NESTJS,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
+    file = tmp_path / 'jwt.ts'
+    assert list(map(Path, paths)) == [file]
+    assert 'jwtConstants' in file.read_text()
+
+
+def test_generate_dockerfile_python(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={'PROJECT_NAME': 'demo'},
+    )
+    path = agent._generate_dockerfile_python(tmp_path, config)
+    file = Path(path)
+    assert file.exists()
+    assert 'FROM python' in file.read_text()
+
+
+def test_generate_api_documentation(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    params = {'schema': {}, 'config': config, 'output_path': tmp_path}
+    paths = asyncio.run(agent._generate_api_documentation(params))
+    file = tmp_path / 'api.md'
+    assert list(map(Path, paths)) == [file]
+    assert 'API Documentation' in file.read_text()
 

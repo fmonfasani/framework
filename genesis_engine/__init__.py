@@ -16,25 +16,24 @@ import logging
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-# Importaciones principales
+# Importaciones principales con manejo de errores
 try:
     from genesis_engine.core.orchestrator import GenesisOrchestrator
     from genesis_engine.core.project_manager import ProjectManager
     from genesis_engine.mcp.protocol import MCPProtocol
-    from genesis_engine.agents.base_agent import BaseAgent
-except ImportError:  # pragma: no cover - graceful fallback if deps fail
-    logger.error("Failed to import core dependencies", exc_info=True)
+    from genesis_engine.mcp.agent_base import GenesisAgent
+except Exception as e:  # pragma: no cover - graceful fallback if deps fail
+    logger.error(f"Failed to import core dependencies: {e}", exc_info=True)
     GenesisOrchestrator = None
     ProjectManager = None
     MCPProtocol = None
-    BaseAgent = None
+    GenesisAgent = None
 
 __all__ = [
     "GenesisOrchestrator",
     "ProjectManager", 
     "MCPProtocol",
-    "BaseAgent",
+    "GenesisAgent",
     "__version__",
     "__author__",
-    "__email__"
-]
+    "__email__"]

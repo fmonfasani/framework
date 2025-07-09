@@ -21,6 +21,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import logging
+import ast
+import tokenize
+import io
+from typing import Generator, Tuple
 
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 
@@ -475,6 +479,60 @@ class PerformanceAgent(GenesisAgent):
             "files_modified": files_modified
         }
     
+    def analyze_python_complexity(code: str) -> Dict[str, Any]:
+        """Analizar complejidad del código Python"""
+        try:
+             tree = ast.parse(code)
+                
+             complexity_visitor = ComplexityVisitor()
+             complexity_visitor.visit(tree)
+                
+             return {
+                "cyclomatic_complexity": complexity_visitor.complexity,
+                "function_count": complexity_visitor.function_count,
+                "class_count": complexity_visitor.class_count,
+                "max_depth": complexity_visitor.max_depth
+            }
+        except SyntaxError:
+             return {"error": "Syntax error in code"}
+
+    class ComplexityVisitor(ast.NodeVisitor):
+        """Visitor para calcular complejidad ciclomática"""
+        
+        def __init__(self):
+            self.complexity = 1  # Base complexity
+            self.function_count = 0
+            self.class_count = 0
+            self.max_depth = 0
+            self.current_depth = 0
+        
+        def visit_FunctionDef(self, node):
+            self.function_count += 1
+            self.current_depth += 1
+            self.max_depth = max(self.max_depth, self.current_depth)
+            self.generic_visit(node)
+            self.current_depth -= 1
+        
+        def visit_ClassDef(self, node):
+            self.class_count += 1
+            self.current_depth += 1
+            self.max_depth = max(self.max_depth, self.current_depth)
+            self.generic_visit(node)
+            self.current_depth -= 1
+        
+        def visit_If(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+        
+        def visit_While(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+        
+        def visit_For(self, node):
+            self.complexity += 1
+            self.generic_visit(node)
+
+    
     def _calculate_performance_score(self, issues: List[PerformanceIssue], optimizations: List[str]) -> float:
         """Calcular puntuación de rendimiento"""
         # Empezar con score perfecto
@@ -588,19 +646,156 @@ class PerformanceAgent(GenesisAgent):
     
     async def _perform_security_audit(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Realizar auditoría de seguridad"""
-        return {"issues": []}
+        project_path = Path(params.get("project_path", "./"))
+
+        issues: List[PerformanceIssue] = []
+        files_modified: List[str] = []
+
+        for py_file in project_path.glob("**/*.py"):
+            try:
+                lines = py_file.read_text(encoding="utf-8").splitlines()
+            except Exception:
+                continue
+
+            modified = False
+            for idx, line in enumerate(lines):
+                if "eval(" in line or "exec(" in line:
+                    issues.append(
+                        PerformanceIssue(
+                            type=OptimizationType.SECURITY,
+                            severity=SeverityLevel.CRITICAL,
+                            file_path=str(py_file),
+                            line_number=idx + 1,
+                            description="Uso inseguro de eval/exec",
+                            recommendation="Reemplazar por alternativas seguras",
+                            code_snippet=line.strip(),
+                        )
+                    )
+                    lines[idx] = line + "  # TODO: fix security issue"
+                    modified = True
+
+                if re.search(r"(?i)(password|secret|token)\s*=\s*['\"]", line):
+                    issues.append(
+                        PerformanceIssue(
+                            type=OptimizationType.SECURITY,
+                            severity=SeverityLevel.HIGH,
+                            file_path=str(py_file),
+                            line_number=idx + 1,
+                            description="Credencial hardcodeada",
+                            recommendation="Mover secreto a variables de entorno",
+                            code_snippet=line.strip(),
+                        )
+                    )
+                    lines[idx] = line + "  # TODO: move secret"
+                    modified = True
+
+            if modified:
+                py_file.write_text("\n".join(lines))
+                files_modified.append(str(py_file))
+
+        report_file = project_path / ".genesis" / "security_audit.json"
+        report_file.parent.mkdir(exist_ok=True)
+        report_file.write_text(
+            json.dumps([issue.__dict__ for issue in issues], indent=2)
+        )
+
+        return {
+            "issues": issues,
+            "files_modified": files_modified,
+            "report_file": str(report_file),
+        }
     
     async def _optimize_database_queries(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Optimizar consultas de base de datos"""
-        return {"optimizations": []}
+        project_path = Path(params.get("project_path", "./"))
+
+        optimizations: List[str] = []
+        files_modified: List[str] = []
+        issues: List[PerformanceIssue] = []
+
+        for py_file in project_path.glob("**/*.py"):
+            try:
+                lines = py_file.read_text(encoding="utf-8").splitlines()
+            except Exception:
+                continue
+
+            modified = False
+            for idx, line in enumerate(lines):
+                if re.search(r"SELECT\s+\*", line, re.IGNORECASE):
+                    issues.append(
+                        PerformanceIssue(
+                            type=OptimizationType.DATABASE,
+                            severity=SeverityLevel.MEDIUM,
+                            file_path=str(py_file),
+                            line_number=idx + 1,
+                            description="Uso de SELECT * en consulta",
+                            recommendation="Seleccionar solo columnas necesarias",
+                            code_snippet=line.strip(),
+                        )
+                    )
+                    lines[idx] = line + "  # TODO optimize query"
+                    modified = True
+                    optimizations.append(f"Marcada consulta SELECT * en {py_file}")
+
+                if re.search(r"\.objects\.all\(\)", line):
+                    issues.append(
+                        PerformanceIssue(
+                            type=OptimizationType.DATABASE,
+                            severity=SeverityLevel.MEDIUM,
+                            file_path=str(py_file),
+                            line_number=idx + 1,
+                            description="Uso potencial de ORM N+1",
+                            recommendation="Utilizar select_related/prefetch_related",
+                            code_snippet=line.strip(),
+                        )
+                    )
+                    lines[idx] = line + "  # TODO optimize ORM query"
+                    modified = True
+                    optimizations.append(f"Marcado objects.all() en {py_file}")
+
+            if modified:
+                py_file.write_text("\n".join(lines))
+                files_modified.append(str(py_file))
+
+        return {
+            "optimizations": optimizations,
+            "files_modified": files_modified,
+            "issues": issues,
+        }
     
     async def _setup_caching_strategy(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Configurar estrategia de cache"""
-        return {"optimizations": [], "files_modified": []}
+        project_path = Path(params.get("project_path", "./"))
+
+        config_file = project_path / "cache_config.json"
+        optimizations: List[str] = []
+        files_modified: List[str] = []
+
+        if not config_file.exists():
+            config = {"backend": "redis", "ttl_seconds": 300}
+            config_file.write_text(json.dumps(config, indent=2))
+            optimizations.append("added cache_config.json")
+            files_modified.append(str(config_file))
+
+        return {"optimizations": optimizations, "files_modified": files_modified}
     
     async def _setup_performance_monitoring(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Configurar monitoreo de rendimiento"""
-        return {"optimizations": [], "files_modified": []}
+        project_path = Path(params.get("project_path", "./"))
+
+        config_dir = project_path / ".genesis"
+        config_file = config_dir / "monitoring.json"
+        optimizations: List[str] = []
+        files_modified: List[str] = []
+
+        if not config_file.exists():
+            config_dir.mkdir(exist_ok=True)
+            config = {"provider": "prometheus", "enabled": True}
+            config_file.write_text(json.dumps(config, indent=2))
+            optimizations.append("added performance monitoring config")
+            files_modified.append(str(config_file))
+
+        return {"optimizations": optimizations, "files_modified": files_modified}
     
     async def _optimize_database_model(self, model_file: Path) -> bool:
         """Optimizar modelo de base de datos"""

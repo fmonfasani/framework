@@ -1,20 +1,14 @@
 from pathlib import Path
 import sys
+
 import types
-import asyncio
+
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-if 'genesis_engine' not in sys.modules:
-    pkg = types.ModuleType('genesis_engine')
-    pkg.__path__ = [str(ROOT), str(ROOT / 'genesis_engine')]
-    sys.modules['genesis_engine'] = pkg
-
-sys.modules.setdefault('templates', types.ModuleType('templates')).__path__ = [str(ROOT / 'genesis_engine' / 'templates')]
-
-from templates.engine import TemplateEngine
+from genesis_engine.templates.engine import TemplateEngine
 
 
 def test_generate_project(tmp_path: Path):
@@ -33,7 +27,7 @@ def test_generate_project(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output"
-    generated = asyncio.run(engine.generate_project("sample", out_dir, {"name": "World"}))
+    generated = engine.generate_project("sample", out_dir, {"name": "World"})
 
     expected_files = {
         out_dir / "file.txt",
@@ -55,7 +49,7 @@ def test_render_template_windows_style(tmp_path: Path):
 
     engine = TemplateEngine(templates_dir)
 
-    content = asyncio.run(engine.render_template("dir\\file.txt.j2", {"name": "Bob"}))
+    content = engine.render_template("dir\\file.txt.j2", {"name": "Bob"})
     assert content == "Hello Bob!"
 
 
@@ -72,7 +66,7 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output_async"
-    generated = asyncio.run(engine.generate_project("sample", out_dir, {"name": "World"}))
+    generated = engine.generate_project("sample", out_dir, {"name": "World"})
 
     expected_files = {
         out_dir / "file.txt",
@@ -83,6 +77,7 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     assert (out_dir / "file.txt").read_text() == "Hello World!"
     assert (out_dir / "sub" / "inner.txt").read_text() == "Inner World"
     assert (out_dir / "static.txt").read_text() == "STATIC"
+
 
 
 def test_missing_required_variables_render(tmp_path: Path):

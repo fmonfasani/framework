@@ -9,7 +9,6 @@ Este módulo proporciona:
 - Diagnósticos del sistema
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -18,7 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from genesis_engine.core.logging import get_logger
+from genesis_engine.core.config import GenesisConfig
 import re
+import os
+import platform
+import importlib.metadata
+
 
 class ValidationLevel(str, Enum):
     """Niveles de validación"""
@@ -106,7 +110,7 @@ class EnvironmentValidator:
                     f"Python {version_str} no compatible",
                     "Instale Python 3.9 o superior"
                 )
-        except Exception as e:
+        except (AttributeError, ValueError) as e:
             self._add_result(
                 "Python Version",
                 ValidationLevel.ERROR,
@@ -175,7 +179,7 @@ class EnvironmentValidator:
                 ValidationLevel.WARNING,
                 "Timeout verificando versión de Node.js"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Node.js Version",
                 ValidationLevel.ERROR,
@@ -213,7 +217,7 @@ class EnvironmentValidator:
                 "Git no está instalado",
                 "Instale Git desde https://git-scm.com"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Git Installation",
                 ValidationLevel.ERROR,
@@ -254,7 +258,7 @@ class EnvironmentValidator:
                 "Docker no está instalado",
                 "Docker es opcional pero recomendado. Instale desde https://docker.com"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Docker Installation",
                 ValidationLevel.WARNING,
@@ -284,7 +288,7 @@ class EnvironmentValidator:
                     "Docker daemon no está corriendo",
                     "Inicie Docker Desktop o el servicio Docker"
                 )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Docker Daemon",
                 ValidationLevel.WARNING,
@@ -323,7 +327,7 @@ class EnvironmentValidator:
                     f"{package} no está instalado",
                     f"Instale con: pip install {package}>={min_version}"
                 )
-        except Exception as e:
+        except (ModuleNotFoundError, AttributeError) as e:
             self._add_result(
                 f"Python Package: {package}",
                 ValidationLevel.ERROR,
@@ -357,8 +361,9 @@ class EnvironmentValidator:
                         f"{tool} {version} ✓"
                     )
                     package_manager_found = True
-                    break  # Solo necesitamos uno
-            except:
+            except FileNotFoundError:
+                continue
+            except subprocess.SubprocessError:
                 continue
         
         if not package_manager_found:
@@ -382,7 +387,7 @@ class EnvironmentValidator:
                     ValidationLevel.SUCCESS,
                     "Conexión a PyPI ✓"
                 )
-            except:
+            except urllib.error.URLError:
                 self._add_result(
                     "PyPI Connectivity",
                     ValidationLevel.WARNING,
@@ -398,14 +403,14 @@ class EnvironmentValidator:
                     ValidationLevel.SUCCESS,
                     "Conexión a npm registry ✓"
                 )
-            except:
+            except urllib.error.URLError:
                 self._add_result(
                     "NPM Registry Connectivity",
                     ValidationLevel.WARNING,
                     "No se puede conectar al npm registry"
                 )
                 
-        except Exception as e:
+        except (urllib.error.URLError, OSError) as e:
             self._add_result(
                 "Internet Connectivity",
                 ValidationLevel.ERROR,
@@ -435,14 +440,14 @@ class EnvironmentValidator:
                     "No hay permisos de escritura en el directorio actual",
                     "Ejecute desde un directorio con permisos de escritura"
                 )
-            except Exception as e:
+            except OSError as e:
                 self._add_result(
                     "Write Permissions",
                     ValidationLevel.WARNING,
                     f"Error verificando permisos: {e}"
                 )
                 
-        except Exception as e:
+        except OSError as e:
             self._add_result(
                 "File Permissions",
                 ValidationLevel.ERROR,
@@ -540,23 +545,15 @@ class ConfigValidator:
         """Validar configuración del stack"""
         results = []
         
-        # Stacks válidos
-        valid_stacks = {
-            "backend": ["fastapi", "nestjs", "express", "django", "flask"],
-            "frontend": ["nextjs", "react", "vue", "nuxt", "svelte", "angular"],
-            "database": ["postgresql", "mysql", "mongodb", "sqlite"],
-            "styling": ["tailwind", "styled_components", "sass", "css_modules"],
-            "state_management": ["redux_toolkit", "zustand", "context_api", "pinia", "vuex"]
-        }
-        
         for key, value in stack.items():
-            if key in valid_stacks:
-                if value not in valid_stacks[key]:
+            valid_values = GenesisConfig.get_supported_frameworks(key)
+            if valid_values:
+                if value not in valid_values:
                     results.append(ValidationResult(
                         name=f"Stack: {key}",
                         level=ValidationLevel.ERROR,
                         message=f"Valor inválido para {key}: {value}",
-                        suggestion=f"Valores válidos: {', '.join(valid_stacks[key])}",
+                        suggestion=f"Valores válidos: {', '.join(valid_values)}",
                         passed=False
                     ))
                 else:
@@ -742,5 +739,28 @@ class SchemaValidator:
                     message=f"Relación referencia entidad inexistente: {to_entity}",
                     passed=False
                 ))
-        
-        return results
+                return results
+
+def check_network_connectivity() -> bool:
+    """Verificar conectividad de red básica"""
+    try:
+        import socket
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        return False
+
+
+def validate_url(url: str) -> bool:
+    """Validar formato de URL"""
+    import re
+    url_pattern = re.compile(
+        r'^https?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
+        r'(?:/?|[/?]\S+)$',
+        re.IGNORECASE,
+    )
+    return url_pattern.match(url) is not None

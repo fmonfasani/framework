@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, List
 from dataclasses import dataclass
 import logging
+import threading
 from rich.logging import RichHandler
 
 # Versión de Genesis Engine
@@ -68,18 +69,18 @@ class StackDefaults:
     }
 
 class GenesisConfig:
-    """
-    Gestión de configuración global de Genesis Engine
-    """
+    """Singleton that manages the global configuration for Genesis Engine."""
     
     _instance = None
+    _lock = threading.Lock()
     _config: Dict[str, Any] = {}
     _verbose: bool = False
     
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(GenesisConfig, cls).__new__(cls)
-            cls._instance._load_default_config()
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(GenesisConfig, cls).__new__(cls)
+                cls._instance._load_default_config()
         return cls._instance
     
     def _load_default_config(self):
@@ -99,6 +100,7 @@ class GenesisConfig:
             "max_workers": 4,
             "timeout": 300,
             "retry_attempts": 3,
+            "strict_template_validation": True,
             "stack_defaults": {
                 "golden-path": StackDefaults.GOLDEN_PATH,
                 "api-first": StackDefaults.API_FIRST,
@@ -223,23 +225,33 @@ class GenesisConfig:
     def _setup_logging(self):
         """Configurar sistema de logging"""
         log_level = getattr(logging, self._config.get("log_level", "INFO"))
-        
+
         # Crear directorio de logs
         log_dir = Path(self._config.get("log_dir", LOG_DIR))
         log_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Configurar logger root
-        console_handler = RichHandler()
-        file_handler = logging.FileHandler(log_dir / "genesis.log", encoding="utf-8")
 
-        logging.basicConfig(
-            level=log_level,
-            format=LOG_FORMAT,
-            handlers=[
-                console_handler,
-                file_handler,
-            ]
+        root_logger = logging.getLogger()
+        root_logger.setLevel(log_level)
+
+        formatter = logging.Formatter(LOG_FORMAT)
+
+        has_console = any(isinstance(h, RichHandler) for h in root_logger.handlers)
+        if not has_console:
+            console_handler = RichHandler()
+            console_handler.setLevel(log_level)
+            console_handler.setFormatter(formatter)
+            root_logger.addHandler(console_handler)
+
+        log_path = log_dir / "genesis.log"
+        has_file = any(
+            isinstance(h, logging.FileHandler) and Path(getattr(h, "baseFilename", "")) == log_path
+            for h in root_logger.handlers
         )
+        if not has_file:
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
+            file_handler.setLevel(log_level)
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
     
     @classmethod
     def get_stack_config(cls, stack_name: str) -> Dict[str, Any]:
@@ -292,6 +304,11 @@ class GenesisConfig:
             cache_dir.mkdir(parents=True, exist_ok=True)
             logging.info("Cache limpiado")
 
+    @classmethod
+    def initialize(cls):
+        """Inicializar Genesis Engine"""
+        initialize_genesis()
+
 # Funciones de utilidad
 def get_user_config_file() -> Path:
     """Obtener archivo de configuración del usuario"""
@@ -300,6 +317,40 @@ def get_user_config_file() -> Path:
 def ensure_genesis_directories():
     """Asegurar que existan los directorios de Genesis"""
     GenesisConfig.setup_directories()
+
+
+def load_config_from_env() -> Dict[str, Any]:
+    """Cargar configuración desde variables de entorno"""
+    config: Dict[str, Any] = {}
+
+    env_mapping = {
+        "GENESIS_LOG_LEVEL": ("log_level", str),
+        "GENESIS_CACHE_DIR": ("cache_dir", str),
+        "GENESIS_TEMPLATES_DIR": ("templates_dir", str),
+        "GENESIS_VERBOSE": ("verbose", lambda x: x.lower() in ["true", "1", "yes"]),
+        "GENESIS_AUTO_INSTALL": ("auto_install_deps", lambda x: x.lower() in ["true", "1", "yes"]),
+        "GENESIS_MAX_WORKERS": ("max_workers", int),
+        "GENESIS_TIMEOUT": ("timeout", int),
+    }
+
+    for env_var, (config_key, converter) in env_mapping.items():
+        value = os.getenv(env_var)
+        if value:
+            try:
+                config[config_key] = converter(value)
+            except (ValueError, TypeError) as e:
+                logging.warning(f"Invalid value for {env_var}: {value} ({e})")
+
+    return config
+
+
+def save_config_to_file(config: Dict[str, Any], file_path: Path) -> None:
+    """Guardar configuración a archivo JSON"""
+    try:
+        with open(file_path, "w") as f:
+            json.dump(config, f, indent=2, default=str)
+    except Exception as e:  # pragma: no cover - fallo de E/S
+        logging.error(f"Failed to save config to {file_path}: {e}")
 
 def load_user_config():
     """Cargar configuración del usuario"""
@@ -469,6 +520,3 @@ def validate_project_name(name: str) -> List[str]:
         errors.append(f"'{name}' es una palabra reservada")
     
     return errors
-
-# Inicializar al importar el módulo
-initialize_genesis()

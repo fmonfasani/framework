@@ -19,7 +19,11 @@ from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
 import logging
-
+import os
+import shutil
+import platform
+import json
+from pathlib import Path
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 
 class DeploymentTarget(str, Enum):
@@ -180,8 +184,12 @@ class DeployAgent(GenesisAgent):
             
             return result
             
-        except Exception as e:
-            self.logger.error(f"❌ Error en despliegue: {e}")
+
+        except (OSError, FileNotFoundError, RuntimeError, ValueError, asyncio.TimeoutError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue {config.target.value}/{config.environment.value}: {e}"
+            )
+
             return DeploymentResult(
                 success=False,
                 target=config.target,
@@ -293,8 +301,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
-        except Exception as e:
-            self.logger.error(f"❌ Error en despliegue local: {e}")
+
+        except (OSError, RuntimeError, asyncio.TimeoutError, subprocess.SubprocessError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue local en {project_path}: {e}"
+            )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.LOCAL,
@@ -363,8 +375,12 @@ class DeployAgent(GenesisAgent):
                 rollback_available=True
             )
             
-        except Exception as e:
-            self.logger.error(f"❌ Error en despliegue K8s: {e}")
+
+        except (OSError, RuntimeError, asyncio.TimeoutError, subprocess.SubprocessError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue K8s en {project_path}: {e}"
+            )
+
             return DeploymentResult(
                 success=False,
                 target=DeploymentTarget.KUBERNETES,
@@ -422,12 +438,14 @@ class DeployAgent(GenesisAgent):
                 "error": f"Comando excedió timeout de {timeout}s",
                 "logs": [f"Timeout ejecutando: {' '.join(command)}"]
             }
-        except Exception as e:
+
+        except (OSError, subprocess.SubprocessError) as e:
+
             return {
                 "success": False,
                 "returncode": -1,
                 "error": str(e),
-                "logs": [f"Error ejecutando comando: {e}"]
+                "logs": [f"Error ejecutando comando {' '.join(command)}: {e}"]
             }
     
     async def _wait_for_services_ready(self, project_path: Path, max_wait: int = 120):
@@ -444,8 +462,10 @@ class DeployAgent(GenesisAgent):
                         if response.status == 200:
                             self.logger.info("✅ Backend listo")
                             return
-            except:
+
+            except (aiohttp.ClientError, ImportError):
                 pass
+
             
             await asyncio.sleep(5)
             wait_time += 5
@@ -480,8 +500,10 @@ class DeployAgent(GenesisAgent):
                         services[service] = "running"
                 return services
             
-        except Exception:
+
+        except (OSError, subprocess.SubprocessError):
             pass
+
         
         return {}
     
@@ -573,8 +595,10 @@ class DeployAgent(GenesisAgent):
                     self.logger.debug(f"✅ {tool} disponible")
                 else:
                     self.logger.warning(f"⚠️ {tool} no disponible")
-            except:
+
+            except (OSError, subprocess.SubprocessError):
                 self.logger.warning(f"⚠️ {tool} no encontrado")
+
     
     async def _deploy_with_docker(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
         """Desplegar con Docker"""
@@ -582,80 +606,358 @@ class DeployAgent(GenesisAgent):
         return await self._deploy_to_local({"project_path": project_path, "config": config})
     
     async def _deploy_to_heroku(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en Heroku"""
-        # Implementación específica para Heroku
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.HEROKU,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["Heroku deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar en Heroku utilizando la CLI de Heroku."""
+        self.logger.info("🚀 Deploying to Heroku")
+
+        app_name = config.custom_config.get("app_name", project_path.name.replace("_", "-"))
+        logs: List[str] = []
+
+        try:
+            create_result = await self._run_command(["heroku", "create", app_name])
+            logs.extend(create_result.get("logs", []))
+            if not create_result.get("success"):
+                raise RuntimeError("Error creating Heroku app")
+
+            remote_result = await self._run_command(["heroku", "git:remote", "-a", app_name])
+            logs.extend(remote_result.get("logs", []))
+            if not remote_result.get("success"):
+                raise RuntimeError("Error configuring Heroku git remote")
+
+            push_result = await self._run_command(["git", "push", "heroku", "HEAD:main"])
+            logs.extend(push_result.get("logs", []))
+            if not push_result.get("success"):
+                raise RuntimeError("Error pushing code to Heroku")
+
+            url = f"https://{app_name}.herokuapp.com"
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.HEROKU,
+                environment=config.environment,
+                urls=[url],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+
+        except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue Heroku para {app_name}: {e}"
+            )
+
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.HEROKU,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e)
+            )
     
     async def _deploy_to_vercel(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en Vercel"""
-        # Implementación específica para Vercel
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.VERCEL,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["Vercel deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar utilizando la CLI de Vercel."""
+        self.logger.info("🚀 Deploying to Vercel")
+
+        logs: List[str] = []
+
+        try:
+            deploy_result = await self._run_command(
+                ["vercel", "deploy", "--prod", "--yes"],
+                capture_output=True,
+            )
+            logs.extend(deploy_result.get("logs", []))
+            if not deploy_result.get("success"):
+                raise RuntimeError("Vercel deployment failed")
+
+            url = deploy_result.get("stdout", "").strip().splitlines()[-1] if deploy_result.get("stdout") else ""
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.VERCEL,
+                environment=config.environment,
+                urls=[url] if url else [],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+
+        except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue Vercel: {e}"
+            )
+
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.VERCEL,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e)
+            )
     
     async def _deploy_to_aws(self, project_path: Path, config: DeploymentConfig) -> DeploymentResult:
-        """Desplegar en AWS"""
-        # Implementación específica para AWS
-        return DeploymentResult(
-            success=False,
-            target=DeploymentTarget.AWS,
-            environment=config.environment,
-            urls=[],
-            services={},
-            logs=["AWS deployment not implemented yet"],
-            error="Not implemented"
-        )
+        """Desplegar en AWS mediante AWS CLI."""
+        self.logger.info("🚀 Deploying to AWS")
+
+        app_name = config.custom_config.get("app_name", project_path.name)
+        bucket = config.custom_config.get("bucket", f"{app_name}-deploy")
+        region = config.custom_config.get("region", "us-east-1")
+
+        logs: List[str] = []
+        archive_path: Optional[str] = None
+
+        try:
+            archive_base = project_path / "deploy_package"
+            archive_path = shutil.make_archive(str(archive_base), "zip", project_path)
+
+            upload_result = await self._run_command(
+                [
+                    "aws", "s3", "cp", archive_path, f"s3://{bucket}/{Path(archive_path).name}", "--region", region
+                ]
+            )
+            logs.extend(upload_result.get("logs", []))
+            if not upload_result.get("success"):
+                raise RuntimeError("Error uploading package to S3")
+
+            deploy_result = await self._run_command(
+                [
+                    "aws", "deploy", "create-deployment",
+                    "--application-name", app_name,
+                    "--deployment-group-name", config.environment.value,
+                    "--s3-location", f"bucket={bucket},key={Path(archive_path).name},bundleType=zip",
+                    "--region", region,
+                ]
+            )
+            logs.extend(deploy_result.get("logs", []))
+            if not deploy_result.get("success"):
+                raise RuntimeError("Error creating AWS deployment")
+
+            url = f"https://{region}.console.aws.amazon.com/codedeploy/home"
+
+            return DeploymentResult(
+                success=True,
+                target=DeploymentTarget.AWS,
+                environment=config.environment,
+                urls=[url],
+                services={},
+                logs=logs,
+                rollback_available=True
+            )
+
+
+        except (OSError, RuntimeError, subprocess.SubprocessError, asyncio.TimeoutError) as e:
+            self.logger.error(
+                f"❌ Error en despliegue AWS para {app_name}: {e}"
+            )
+
+            return DeploymentResult(
+                success=False,
+                target=DeploymentTarget.AWS,
+                environment=config.environment,
+                urls=[],
+                services={},
+                logs=logs + [f"Error: {str(e)}"],
+                error=str(e),
+            )
+        finally:
+            if archive_path and os.path.exists(archive_path):
+                try:
+                    os.remove(archive_path)
+
+                except OSError:
+                    pass
+
     
     async def _wait_for_k8s_pods_ready(self, project_path: Path):
         """Esperar que los pods de K8s estén listos"""
-        pass
+        self.logger.info("⏳ Esperando pods de Kubernetes...")
+        wait_time = 0
+        max_wait = 300
+        while wait_time < max_wait:
+            result = await self._run_command([
+                "kubectl",
+                "get",
+                "pods",
+                "-o",
+                "json",
+            ])
+
+            if result.get("success"):
+                try:
+                    data = json.loads(result.get("stdout", ""))
+                    items = data.get("items", [])
+                    if items:
+                        all_ready = True
+                        for pod in items:
+                            statuses = pod.get("status", {}).get(
+                                "containerStatuses", []
+                            )
+                            for st in statuses:
+                                if not st.get("ready"):
+                                    all_ready = False
+                                    break
+                            if not all_ready:
+                                break
+                        if all_ready:
+                            self.logger.info("✅ Pods listos")
+                            return
+                except json.JSONDecodeError:
+                    pass
+
+            await asyncio.sleep(5)
+            wait_time += 5
+
+        raise TimeoutError("Pods de Kubernetes no estuvieron listos a tiempo")
     
     async def _get_k8s_service_urls(self, project_path: Path) -> List[str]:
         """Obtener URLs de servicios de K8s"""
-        return []
+        result = await self._run_command([
+            "kubectl",
+            "get",
+            "svc",
+            "-o",
+            "json",
+        ])
+        urls: List[str] = []
+        if result.get("success"):
+            try:
+                data = json.loads(result.get("stdout", ""))
+                for svc in data.get("items", []):
+                    host = None
+                    ingress = (
+                        svc.get("status", {})
+                        .get("loadBalancer", {})
+                        .get("ingress", [])
+                    )
+                    if ingress:
+                        host = ingress[0].get("hostname") or ingress[0].get("ip")
+                    if not host:
+                        host = svc.get("spec", {}).get("clusterIP")
+
+                    for port in svc.get("spec", {}).get("ports", []):
+                        port_num = port.get("nodePort") or port.get("port")
+                        if host and port_num:
+                            protocol = (
+                                "https" if port_num == 443 else "http"
+                            )
+                            urls.append(f"{protocol}://{host}:{port_num}")
+            except json.JSONDecodeError:
+                pass
+
+        return urls
     
     async def _get_k8s_services(self) -> Dict[str, str]:
         """Obtener servicios de K8s"""
-        return {}
+        result = await self._run_command([
+            "kubectl",
+            "get",
+            "pods",
+            "-o",
+            "json",
+        ])
+        services: Dict[str, str] = {}
+        if result.get("success"):
+            try:
+                data = json.loads(result.get("stdout", ""))
+                for pod in data.get("items", []):
+                    name = pod.get("metadata", {}).get("name")
+                    status = pod.get("status", {}).get("phase")
+                    if name and status:
+                        services[name] = status
+            except json.JSONDecodeError:
+                pass
+
+        return services
     
     async def _run_database_migrations(self, project_path: Path):
         """Ejecutar migraciones de base de datos"""
-        pass
+        self.logger.info("🔄 Ejecutando migraciones de base de datos")
+        backend_path = project_path / "backend"
+        if (backend_path / "alembic.ini").exists():
+            original_cwd = Path.cwd()
+            os.chdir(backend_path)
+            try:
+                await self._run_command(["alembic", "upgrade", "head"])
+            finally:
+                os.chdir(original_cwd)
     
     async def _setup_monitoring(self, project_path: Path, config: DeploymentConfig):
         """Configurar monitoreo"""
-        pass
+        self.logger.info("📈 Configurando monitoreo")
+        compose_file = project_path / "monitoring" / "docker-compose.yml"
+        if compose_file.exists():
+            await self._run_command([
+                "docker-compose",
+                "-f",
+                str(compose_file),
+                "up",
+                "-d",
+            ])
     
     async def _setup_backup(self, project_path: Path, config: DeploymentConfig):
         """Configurar backup"""
-        pass
+        self.logger.info("💾 Configurando backup")
+        backup_script = project_path / "backup" / "backup.sh"
+        if backup_script.exists():
+            await self._run_command(["bash", str(backup_script)])
     
     async def _setup_ssl(self, domain: str):
         """Configurar SSL"""
-        pass
+        self.logger.info(f"🔒 Configurando SSL para {domain}")
+        await self._run_command(
+            [
+                "certbot",
+                "certonly",
+                "--standalone",
+                "--non-interactive",
+                "--agree-tos",
+                "-m",
+                f"admin@{domain}",
+                "-d",
+                domain,
+            ]
+        )
     
     async def _perform_rollback(self, params: Dict[str, Any]) -> bool:
         """Realizar rollback"""
-        return False
+        target = params.get("target")
+        environment = params.get("environment")
+        project_path = Path(params.get("project_path", "./"))
+
+        if not target or not environment:
+            return False
+
+        try:
+            target_enum = DeploymentTarget(target)
+            env_enum = DeploymentEnvironment(environment)
+        except ValueError:
+            return False
+
+        deployment_id = f"{target_enum.value}_{env_enum.value}"
+        if deployment_id not in self.active_deployments:
+            return False
+
+        self.logger.info(f"↩️  Rollback de {deployment_id}")
+        try:
+            if target_enum in [DeploymentTarget.LOCAL, DeploymentTarget.DOCKER]:
+                await self._run_command(["docker-compose", "down"])
+            elif target_enum == DeploymentTarget.KUBERNETES:
+                k8s_dir = project_path / "k8s"
+                if k8s_dir.exists():
+                    await self._run_command(["kubectl", "delete", "-f", str(k8s_dir)])
+        except Exception as e:  # pragma: no cover - rollback best effort
+            self.logger.error(f"Error en rollback: {e}")
+
+        self.active_deployments.pop(deployment_id, None)
+        return True
     
     async def _get_deployment_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Obtener estado del despliegue"""
         return {
             "active_deployments": len(self.active_deployments),
             "total_deployments": len(self.deployment_history),
-            "deployments": list(self.active_deployments.keys())
-        }
+            "deployments": list(self.active_deployments.keys())        }

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
+import asyncio
 
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
@@ -107,19 +108,19 @@ class BackendAgent(GenesisAgent):
             self.logger.warning("Framework config loader not implemented")
             self.framework_configs = {}
         
-    async def initialize(self):
+    def initialize(self):
         """Inicialización del agente backend"""
         self.logger.info("⚙️ Inicializando Backend Agent")
         
         # Cargar templates de código
         try:
-            await self._load_code_templates()
+            self._load_code_templates()
         except NotImplementedError:
             self.logger.warning("Code template loading not implemented")
 
         # Configurar generadores específicos
         try:
-            await self._setup_code_generators()
+            self._setup_code_generators()
         except NotImplementedError:
             self.logger.warning("Code generators setup not implemented")
         
@@ -127,27 +128,47 @@ class BackendAgent(GenesisAgent):
         self.set_metadata("supported_frameworks", list(BackendFramework))
         
         self.logger.info("✅ Backend Agent inicializado")
+
+    def _generate_typeorm_entity(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
+        """Generar entidad TypeORM"""
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "entity_name": entity["name"],
+            "attributes": entity.get("attributes", {}),
+        }
+
+        content = self.template_engine.render_template(
+            "backend/nestjs/entity.ts.j2",
+            template_vars,
+        )
+
+        output_file = output_path / f"{entity['name'].lower()}.entity.ts"
+        output_file.write_text(content)
+
+        return str(output_file)
     
-    async def execute_task(self, task: AgentTask) -> Any:
+    
+    def execute_task(self, task: AgentTask) -> Any:
         """Ejecutar tarea específica del backend"""
         task_name = task.name.lower()
         
         if "generate_backend" in task_name:
-            return await self._generate_complete_backend(task.params)
+            return self._generate_complete_backend(task.params)
         elif "generate_models" in task_name:
-            return await self._generate_data_models(task.params)
+            return self._generate_data_models(task.params)
         elif "generate_api" in task_name:
-            return await self._generate_api_endpoints(task.params)
+            return self._generate_api_endpoints(task.params)
         elif "setup_database" in task_name:
-            return await self._setup_database_config(task.params)
+            return self._setup_database_config(task.params)
         elif "setup_auth" in task_name:
-            return await self._setup_authentication(task.params)
+            return self._setup_authentication(task.params)
         elif "generate_docs" in task_name:
-            return await self._generate_api_documentation(task.params)
+            return self._generate_api_documentation(task.params)
         else:
             raise ValueError(f"Tarea no reconocida: {task.name}")
     
-    async def _generate_complete_backend(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_complete_backend(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generar backend completo"""
         self.logger.info("🚀 Generando backend completo")
         
@@ -162,11 +183,11 @@ class BackendAgent(GenesisAgent):
         generated_files = []
         
         # 1. Archivo principal de la aplicación
-        main_file = await self._generate_main_application(output_path, config, project_schema)
+        main_file = self._generate_main_application(output_path, config, project_schema)
         generated_files.append(main_file)
         
         # 2. Modelos de datos
-        model_files = await self._generate_data_models({
+        model_files = self._generate_data_models({
             "schema": project_schema,
             "config": config,
             "output_path": output_path / "models"
@@ -174,7 +195,7 @@ class BackendAgent(GenesisAgent):
         generated_files.extend(model_files)
         
         # 3. Endpoints de API
-        api_files = await self._generate_api_endpoints({
+        api_files = self._generate_api_endpoints({
             "schema": project_schema,
             "config": config,
             "output_path": output_path / "routes"
@@ -182,7 +203,7 @@ class BackendAgent(GenesisAgent):
         generated_files.extend(api_files)
         
         # 4. Configuración de base de datos
-        db_files = await self._setup_database_config({
+        db_files = self._setup_database_config({
             "config": config,
             "schema": project_schema,
             "output_path": output_path
@@ -190,22 +211,26 @@ class BackendAgent(GenesisAgent):
         generated_files.extend(db_files)
         
         # 5. Configuración de autenticación
-        auth_files = await self._setup_authentication({
+        auth_files = self._setup_authentication({
             "config": config,
             "output_path": output_path / "auth"
         })
         generated_files.extend(auth_files)
         
         # 6. Archivos de configuración
-        config_files = await self._generate_config_files(output_path, config, project_schema)
+        config_files = self._generate_config_files(output_path, config, project_schema)
         generated_files.extend(config_files)
         
         # 7. Documentación
-        doc_files = await self._generate_api_documentation({
-            "schema": project_schema,
-            "config": config,
-            "output_path": output_path / "docs"
-        })
+        doc_files = asyncio.run(
+            self._generate_api_documentation(
+                {
+                    "schema": project_schema,
+                    "config": config,
+                    "output_path": output_path / "docs",
+                }
+            )
+        )
         generated_files.extend(doc_files)
         
         result = {
@@ -280,10 +305,10 @@ class BackendAgent(GenesisAgent):
                 if not init_file.exists():
                     init_file.write_text("")
     
-    async def _generate_main_application(
-        self, 
-        output_path: Path, 
-        config: BackendConfig, 
+    def _generate_main_application(
+        self,
+        output_path: Path,
+        config: BackendConfig,
         schema: Dict[str, Any]
     ) -> str:
         """Generar archivo principal de la aplicación"""
@@ -317,14 +342,14 @@ class BackendAgent(GenesisAgent):
             raise ValueError(f"Framework no soportado: {config.framework}")
         
         # Generar archivo usando template
-        content = await self.template_engine.render_template(template_name, template_vars)
+        content = self.template_engine.render_template(template_name, template_vars)
         
         output_file.write_text(content)
         
         self.logger.info(f"📝 Archivo principal generado: {output_file}")
         return str(output_file)
     
-    async def _generate_data_models(self, params: Dict[str, Any]) -> List[str]:
+    def _generate_data_models(self, params: Dict[str, Any]) -> List[str]:
         """Generar modelos de datos"""
         self.logger.info("📊 Generando modelos de datos")
         
@@ -338,20 +363,20 @@ class BackendAgent(GenesisAgent):
         for entity in entities:
             if config.framework == BackendFramework.FASTAPI:
                 # Generar modelo SQLAlchemy
-                model_file = await self._generate_sqlalchemy_model(
+                model_file = self._generate_sqlalchemy_model(
                     entity, output_path, config
                 )
                 generated_files.append(model_file)
                 
                 # Generar schema Pydantic
-                schema_file = await self._generate_pydantic_schema(
+                schema_file = self._generate_pydantic_schema(
                     entity, output_path.parent / "schemas", config
                 )
                 generated_files.append(schema_file)
                 
             elif config.framework == BackendFramework.NESTJS:
                 # Generar entidad TypeORM
-                entity_file = await self._generate_typeorm_entity(
+                entity_file = self._generate_typeorm_entity(
                     entity, output_path, config
                 )
                 generated_files.append(entity_file)
@@ -359,10 +384,10 @@ class BackendAgent(GenesisAgent):
         self.logger.info(f"✅ {len(generated_files)} modelos generados")
         return generated_files
     
-    async def _generate_sqlalchemy_model(
-        self, 
-        entity: Dict[str, Any], 
-        output_path: Path, 
+    def _generate_sqlalchemy_model(
+        self,
+        entity: Dict[str, Any],
+        output_path: Path,
         config: BackendConfig
     ) -> str:
         """Generar modelo SQLAlchemy"""
@@ -376,8 +401,8 @@ class BackendAgent(GenesisAgent):
             "database_type": config.database.value
         }
         
-        content = await self.template_engine.render_template(
-            "fastapi/models/model.py.j2", 
+        content = self.template_engine.render_template(
+            "fastapi/models/model.py.j2",
             template_vars
         )
         
@@ -386,10 +411,10 @@ class BackendAgent(GenesisAgent):
         
         return str(output_file)
     
-    async def _generate_pydantic_schema(
-        self, 
-        entity: Dict[str, Any], 
-        output_path: Path, 
+    def _generate_pydantic_schema(
+        self,
+        entity: Dict[str, Any],
+        output_path: Path,
         config: BackendConfig
     ) -> str:
         """Generar schema Pydantic"""
@@ -402,7 +427,7 @@ class BackendAgent(GenesisAgent):
             "description": entity.get("description", f"Schema for {entity['name']}")
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "fastapi/schemas/schema.py.j2",
             template_vars
         )
@@ -412,7 +437,7 @@ class BackendAgent(GenesisAgent):
         
         return str(output_file)
     
-    async def _generate_api_endpoints(self, params: Dict[str, Any]) -> List[str]:
+    def _generate_api_endpoints(self, params: Dict[str, Any]) -> List[str]:
         """Generar endpoints de API"""
         self.logger.info("🌐 Generando endpoints de API")
         
@@ -425,19 +450,19 @@ class BackendAgent(GenesisAgent):
         
         for entity in entities:
             if config.framework == BackendFramework.FASTAPI:
-                router_file = await self._generate_fastapi_router(
+                router_file = self._generate_fastapi_router(
                     entity, output_path, config
                 )
                 generated_files.append(router_file)
                 
             elif config.framework == BackendFramework.NESTJS:
-                controller_file = await self._generate_nestjs_controller(
+                controller_file = self._generate_nestjs_controller(
                     entity, output_path, config
                 )
                 generated_files.append(controller_file)
         
         # Generar archivo de rutas principal
-        main_routes_file = await self._generate_main_routes(
+        main_routes_file = self._generate_main_routes(
             entities, output_path, config
         )
         generated_files.append(main_routes_file)
@@ -445,7 +470,7 @@ class BackendAgent(GenesisAgent):
         self.logger.info(f"✅ {len(generated_files)} archivos de API generados")
         return generated_files
     
-    async def _generate_fastapi_router(
+    def _generate_fastapi_router(
         self,
         entity: Dict[str, Any],
         output_path: Path,
@@ -503,7 +528,7 @@ class BackendAgent(GenesisAgent):
             "auth_enabled": config.auth_method != AuthMethod.API_KEY
         }
         
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "fastapi/routes/router.py.j2",
             template_vars
         )
@@ -513,7 +538,7 @@ class BackendAgent(GenesisAgent):
         
         return str(output_file)
     
-    async def _setup_database_config(self, params: Dict[str, Any]) -> List[str]:
+    def _setup_database_config(self, params: Dict[str, Any]) -> List[str]:
         """Configurar base de datos"""
         self.logger.info("🗄️ Configurando base de datos")
         
@@ -525,20 +550,20 @@ class BackendAgent(GenesisAgent):
         
         if config.framework == BackendFramework.FASTAPI:
             # Generar configuración de SQLAlchemy
-            db_config_file = await self._generate_sqlalchemy_config(
+            db_config_file = self._generate_sqlalchemy_config(
                 output_path / "app" / "db", config
             )
             generated_files.append(db_config_file)
             
             # Generar migraciones Alembic
-            migration_files = await self._setup_alembic_migrations(
+            migration_files = self._setup_alembic_migrations(
                 output_path, config, schema
             )
             generated_files.extend(migration_files)
         
         elif config.framework == BackendFramework.NESTJS:
             # Generar configuración de TypeORM
-            db_config_file = await self._generate_typeorm_config(
+            db_config_file = self._generate_typeorm_config(
                 output_path / "src" / "database", config
             )
             generated_files.append(db_config_file)
@@ -546,7 +571,7 @@ class BackendAgent(GenesisAgent):
         self.logger.info(f"✅ Configuración de BD generada - {len(generated_files)} archivos")
         return generated_files
     
-    async def _setup_authentication(self, params: Dict[str, Any]) -> List[str]:
+    def _setup_authentication(self, params: Dict[str, Any]) -> List[str]:
         """Configurar autenticación"""
         self.logger.info("🔐 Configurando autenticación")
         
@@ -554,23 +579,27 @@ class BackendAgent(GenesisAgent):
         output_path = Path(params.get("output_path", "./auth"))
         
         generated_files = []
-        
+
         if config.auth_method == AuthMethod.JWT:
             if config.framework == BackendFramework.FASTAPI:
-                auth_files = await self._generate_fastapi_jwt_auth(output_path, config)
+                auth_files = asyncio.run(
+                    self._generate_fastapi_jwt_auth(output_path, config)
+                )
                 generated_files.extend(auth_files)
-                
+
             elif config.framework == BackendFramework.NESTJS:
-                auth_files = await self._generate_nestjs_jwt_auth(output_path, config)
+                auth_files = asyncio.run(
+                    self._generate_nestjs_jwt_auth(output_path, config)
+                )
                 generated_files.extend(auth_files)
         
         self.logger.info(f"✅ Autenticación configurada - {len(generated_files)} archivos")
         return generated_files
     
-    async def _generate_config_files(
-        self, 
-        output_path: Path, 
-        config: BackendConfig, 
+    def _generate_config_files(
+        self,
+        output_path: Path,
+        config: BackendConfig,
         schema: Dict[str, Any]
     ) -> List[str]:
         """Generar archivos de configuración"""
@@ -578,30 +607,30 @@ class BackendAgent(GenesisAgent):
         
         if config.framework == BackendFramework.FASTAPI:
             # requirements.txt
-            requirements_file = await self._generate_python_requirements(
+            requirements_file = self._generate_python_requirements(
                 output_path, config
             )
             generated_files.append(requirements_file)
             
             # .env template
-            env_file = await self._generate_env_template(output_path, config)
+            env_file = self._generate_env_template(output_path, config)
             generated_files.append(env_file)
             
             # Dockerfile
-            dockerfile = await self._generate_dockerfile_python(output_path, config)
+            dockerfile = self._generate_dockerfile_python(output_path, config)
             generated_files.append(dockerfile)
             
         elif config.framework == BackendFramework.NESTJS:
             # package.json
-            package_file = await self._generate_package_json(output_path, config, schema)
+            package_file = self._generate_package_json(output_path, config, schema)
             generated_files.append(package_file)
             
             # .env template
-            env_file = await self._generate_env_template(output_path, config)
+            env_file = self._generate_env_template(output_path, config)
             generated_files.append(env_file)
             
             # Dockerfile
-            dockerfile = await self._generate_dockerfile_node(output_path, config)
+            dockerfile = self._generate_dockerfile_node(output_path, config)
             generated_files.append(dockerfile)
         
         return generated_files
@@ -649,72 +678,109 @@ class BackendAgent(GenesisAgent):
         return {}
     
     # Handlers MCP
-    async def _handle_generate_backend(self, request) -> Dict[str, Any]:
+    def _handle_generate_backend(self, request) -> Dict[str, Any]:
         """Handler para generación de backend"""
-        return await self._generate_complete_backend(request.params)
+        return self._generate_complete_backend(request.params)
     
-    async def _handle_generate_models(self, request) -> Dict[str, Any]:
+    def _handle_generate_models(self, request) -> Dict[str, Any]:
         """Handler para generación de modelos"""
-        files = await self._generate_data_models(request.params)
+        files = self._generate_data_models(request.params)
         return {"generated_files": files}
     
-    async def _handle_generate_api(self, request) -> Dict[str, Any]:
+    def _handle_generate_api(self, request) -> Dict[str, Any]:
         """Handler para generación de API"""
-        files = await self._generate_api_endpoints(request.params)
+        files = self._generate_api_endpoints(request.params)
         return {"generated_files": files}
     
-    async def _handle_setup_database(self, request) -> Dict[str, Any]:
+    def _handle_setup_database(self, request) -> Dict[str, Any]:
         """Handler para configuración de BD"""
-        files = await self._setup_database_config(request.params)
+        files = self._setup_database_config(request.params)
         return {"generated_files": files}
     
-    async def _handle_setup_auth(self, request) -> Dict[str, Any]:
+    def _handle_setup_auth(self, request) -> Dict[str, Any]:
         """Handler para configuración de auth"""
-        files = await self._setup_authentication(request.params)
+        files = self._setup_authentication(request.params)
         return {"generated_files": files}
     
-    async def _handle_generate_docs(self, request) -> Dict[str, Any]:
+    def _handle_generate_docs(self, request) -> Dict[str, Any]:
         """Handler para generación de docs"""
-        files = await self._generate_api_documentation(request.params)
+        files = asyncio.run(self._generate_api_documentation(request.params))
         return {"generated_files": files}
     
     # Métodos auxiliares que se implementarían completamente
     def _load_framework_configs(self) -> Dict[str, Any]:
         """Cargar configuraciones por framework"""
-        raise NotImplementedError("_load_framework_configs not implemented")
+        # Basic built-in configuration for supported frameworks. In a full
+        # implementation this would likely be loaded from JSON or YAML files,
+        # however for the purposes of the tests we only need a minimal mapping
+        # describing the main runtime characteristics of each backend
+        # framework.
+
+        return {
+            BackendFramework.FASTAPI.value: {
+                "language": "python",
+                "package_manager": "pip",
+            },
+            BackendFramework.NESTJS.value: {
+                "language": "typescript",
+                "package_manager": "npm",
+            },
+        }
     
-    async def _load_code_templates(self):
+    def _load_code_templates(self):
         """Cargar templates de código"""
-        raise NotImplementedError("_load_code_templates not implemented")
+        # Simply store the list of templates available under the current
+        # TemplateEngine instance.  The TemplateEngine already knows how to
+        # locate templates based on its ``templates_dir`` attribute.
+        self.available_templates = self.template_engine.list_templates()
+        return self.available_templates
     
-    async def _setup_code_generators(self):
+    def _setup_code_generators(self):
         """Configurar generadores de código"""
-        raise NotImplementedError("_setup_code_generators not implemented")
+        # Register simple generator functions used throughout the tests.  This
+        # dictionary isn't used by the production code but provides an easy way
+        # to access generation helpers programmatically.
+        self.code_generators = {
+            "nestjs_controller": self._generate_nestjs_controller,
+            "typeorm_config": self._generate_typeorm_config,
+            "fastapi_jwt_auth": self._generate_fastapi_jwt_auth,
+            "nestjs_jwt_auth": self._generate_nestjs_jwt_auth,
+            "dockerfile_python": self._generate_dockerfile_python,
+            "api_docs": self._generate_api_documentation,
+        }
+        return self.code_generators
     
-    async def _generate_typeorm_entity(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
-        """Generar entidad TypeORM"""
+    
+    def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
+        """Generar controlador NestJS"""
         output_path.mkdir(parents=True, exist_ok=True)
 
-        template_vars = {
-            "entity_name": entity["name"],
-            "attributes": entity.get("attributes", {}),
-        }
+        entity_name = entity["name"]
+        entity_lower = entity_name.lower()
 
-        content = await self.template_engine.render_template(
-            "nestjs/entity.ts.j2",
-            template_vars,
+        template = (
+            "import { Controller, Get, Post, Param, Body } from '@nestjs/common';\n"
+            "@Controller('{{ entity_lower|plural }}')\n"
+            "export class {{ entity_name }}Controller {\n"
+            "  @Get()\n"
+            "  findAll() { return []; }\n\n"
+            "  @Get(':id')\n"
+            "  findOne(@Param('id') id: string) { return id; }\n\n"
+            "  @Post()\n"
+            "  create(@Body() body: any) { return body; }\n"
+            "}\n"
         )
 
-        output_file = output_path / f"{entity['name'].lower()}.entity.ts"
-        output_file.write_text(content)
+        content = self.template_engine.render_string_template(
+            template,
+            {"entity_name": entity_name, "entity_lower": entity_lower},
+        )
 
+        output_file = output_path / f"{entity_lower}.controller.ts"
+        output_file.write_text(content)
         return str(output_file)
     
-    async def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, config: BackendConfig) -> str:
-        """Generar controlador NestJS"""
-        raise NotImplementedError("_generate_nestjs_controller not implemented")
-    
-    async def _generate_main_routes(self, entities: List[Dict[str, Any]], output_path: Path, config: BackendConfig) -> str:
+    def _generate_main_routes(self, entities: List[Dict[str, Any]], output_path: Path, config: BackendConfig) -> str:
         """Generar archivo principal de rutas"""
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -727,7 +793,7 @@ class BackendAgent(GenesisAgent):
         else:
             raise ValueError(f"Framework no soportado: {config.framework}")
 
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             template_name,
             {"entities": entities},
         )
@@ -735,7 +801,7 @@ class BackendAgent(GenesisAgent):
         output_file.write_text(content)
         return str(output_file)
     
-    async def _generate_sqlalchemy_config(self, output_path: Path, config: BackendConfig) -> str:
+    def _generate_sqlalchemy_config(self, output_path: Path, config: BackendConfig) -> str:
         """Generar configuración SQLAlchemy"""
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -744,7 +810,7 @@ class BackendAgent(GenesisAgent):
             "entities": config.environment_vars.get("ENTITIES", []),
         }
 
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "fastapi/database.py.j2",
             template_vars,
         )
@@ -754,7 +820,7 @@ class BackendAgent(GenesisAgent):
 
         return str(output_file)
     
-    async def _setup_alembic_migrations(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> List[str]:
+    def _setup_alembic_migrations(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> List[str]:
         """Configurar migraciones Alembic"""
         migrations_dir = output_path / "alembic"
         versions_dir = migrations_dir / "versions"
@@ -766,11 +832,11 @@ class BackendAgent(GenesisAgent):
             f"postgresql+asyncpg://postgres:password@localhost:5432/{schema.get('project_name', 'genesis').lower()}_db",
         )
 
-        ini_content = await self.template_engine.render_template(
+        ini_content = self.template_engine.render_template(
             "fastapi/alembic/alembic.ini.j2",
             {"database_url": database_url},
         )
-        env_content = await self.template_engine.render_template(
+        env_content = self.template_engine.render_template(
             "fastapi/alembic/env.py.j2",
             {},
         )
@@ -782,31 +848,134 @@ class BackendAgent(GenesisAgent):
 
         return [str(ini_file), str(env_file)]
     
-    async def _generate_typeorm_config(self, output_path: Path, config: BackendConfig) -> str:
+    def _generate_typeorm_config(self, output_path: Path, config: BackendConfig) -> str:
         """Generar configuración TypeORM"""
-        raise NotImplementedError("_generate_typeorm_config not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "entities": config.environment_vars.get("ENTITIES", []),
+        }
+
+        content = self.template_engine.render_template(
+            "nestjs/typeorm-config.ts.j2",
+            template_vars,
+        )
+
+        output_file = output_path / "typeorm-config.ts"
+        output_file.write_text(content)
+
+        return str(output_file)
     
     async def _generate_fastapi_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para FastAPI"""
-        raise NotImplementedError("_generate_fastapi_jwt_auth not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        content = (
+            "from jose import jwt\n"
+            "from datetime import timedelta\n\n"
+            "SECRET_KEY = 'CHANGE_ME'\n"
+            "ALGORITHM = 'HS256'\n\n"
+            "def create_access_token(data: dict, expires_delta: timedelta | None = None):\n"
+            "    expire = timedelta(minutes=15) if expires_delta is None else expires_delta\n"
+            "    to_encode = data.copy()\n"
+            "    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)\n"
+        )
+
+        auth_file = output_path / "jwt.py"
+        auth_file.write_text(content)
+
+        return [str(auth_file)]
     
     async def _generate_nestjs_jwt_auth(self, output_path: Path, config: BackendConfig) -> List[str]:
         """Generar autenticación JWT para NestJS"""
-        raise NotImplementedError("_generate_nestjs_jwt_auth not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        content = (
+            "export const jwtConstants = {\n"
+            "  secret: 'changeMe',\n"
+            "};\n"
+        )
+
+        auth_file = output_path / "jwt.ts"
+        auth_file.write_text(content)
+
+        return [str(auth_file)]
     
-    async def _generate_python_requirements(self, output_path: Path, config: BackendConfig) -> str:
+    def _generate_python_requirements(self, output_path: Path, config: BackendConfig) -> str:
         """Generar requirements.txt"""
-        raise NotImplementedError("_generate_python_requirements not implemented")
-    
-    async def _generate_env_template(self, output_path: Path, config: BackendConfig) -> str:
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "project_name": config.environment_vars.get("PROJECT_NAME", "genesis-app"),
+            "description": config.environment_vars.get("DESCRIPTION", "Generated by Genesis Engine"),
+            "version": config.environment_vars.get("VERSION", "0.1.0"),
+            "entities": config.environment_vars.get("ENTITIES", []),
+            "database_type": config.database.value,
+        }
+
+        content = self.template_engine.render_template(
+            "fastapi/requirements.txt.j2",
+            template_vars,
+        )
+
+        if config.dependencies:
+            content += "\n" + "\n".join(config.dependencies)
+
+        output_file = output_path / "requirements.txt"
+        output_file.write_text(content)
+
+        return str(output_file)
+
+    def _generate_env_template(self, output_path: Path, config: BackendConfig) -> str:
         """Generar template .env"""
-        raise NotImplementedError("_generate_env_template not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        if config.framework == BackendFramework.FASTAPI:
+            template_vars = {
+                "project_name": config.environment_vars.get("PROJECT_NAME", "genesis-app"),
+                "description": config.environment_vars.get("DESCRIPTION", "Generated by Genesis Engine"),
+                "version": config.environment_vars.get("VERSION", "0.1.0"),
+                "entities": config.environment_vars.get("ENTITIES", []),
+                "database_type": config.database.value,
+            }
+
+            content = self.template_engine.render_template(
+                "fastapi/.env.j2",
+                template_vars,
+            )
+        else:
+            # Fallback: generate simple key=value pairs from provided env vars
+            env_vars = {
+                "DATABASE_URL": f"postgresql://postgres:password@localhost:5432/{config.environment_vars.get('PROJECT_NAME', 'genesis').lower()}_db",
+                "PORT": "3000",
+                **config.environment_vars,
+            }
+            content = "\n".join(f"{k}={v}" for k, v in env_vars.items())
+
+        output_file = output_path / ".env"
+        output_file.write_text(content)
+
+        return str(output_file)
     
-    async def _generate_dockerfile_python(self, output_path: Path, config: BackendConfig) -> str:
+    def _generate_dockerfile_python(self, output_path: Path, config: BackendConfig) -> str:
         """Generar Dockerfile para Python"""
-        raise NotImplementedError("_generate_dockerfile_python not implemented")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        template_vars = {
+            "project_name": config.environment_vars.get("PROJECT_NAME", "genesis-app"),
+        }
+
+        content = self.template_engine.render_template(
+            "fastapi/Dockerfile.j2",
+            template_vars,
+        )
+
+        output_file = output_path / "Dockerfile"
+        output_file.write_text(content)
+
+        return str(output_file)
     
-    async def _generate_package_json(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> str:
+    def _generate_package_json(self, output_path: Path, config: BackendConfig, schema: Dict[str, Any]) -> str:
         """Generar package.json"""
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -815,7 +984,7 @@ class BackendAgent(GenesisAgent):
             "description": schema.get("description", "Generated by Genesis Engine"),
         }
 
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "nestjs/package.json.j2",
             template_vars,
         )
@@ -825,11 +994,11 @@ class BackendAgent(GenesisAgent):
 
         return str(output_file)
     
-    async def _generate_dockerfile_node(self, output_path: Path, config: BackendConfig) -> str:
+    def _generate_dockerfile_node(self, output_path: Path, config: BackendConfig) -> str:
         """Generar Dockerfile para Node.js"""
         output_path.mkdir(parents=True, exist_ok=True)
 
-        content = await self.template_engine.render_template(
+        content = self.template_engine.render_template(
             "nestjs/Dockerfile.j2",
             {},
         )
@@ -841,4 +1010,10 @@ class BackendAgent(GenesisAgent):
     
     async def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
         """Generar documentación de API"""
-        raise NotImplementedError("_generate_api_documentation not implemented")
+        output_path = Path(params.get("output_path", "./docs"))
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        doc_file = output_path / "api.md"
+        doc_file.write_text("# API Documentation\n")
+
+        return [str(doc_file)]
