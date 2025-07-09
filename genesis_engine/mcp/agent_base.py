@@ -47,11 +47,11 @@ class GenesisAgent(BaseAgent):
     def add_capability(self, capability: str):
         if capability not in self.capabilities:
             self.capabilities.append(capability)
+
     def get_capabilities(self) -> list:
         """Retornar capacidades del agente"""
         return list(self.capabilities)
-
-
+      
     def register_handler(self, action: str, handler: Callable):
         self.handlers[action] = handler
 
@@ -65,10 +65,13 @@ class GenesisAgent(BaseAgent):
         return list(self.capabilities)
 
     async def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
+
         """Dispatch a request to a registered handler."""
+
         handler = self.handlers.get(request.action)
         if not handler:
             raise ValueError(f"Handler not found for action '{request.action}'")
+
 
         if asyncio.iscoroutinefunction(handler):
             return await handler(request.data)
@@ -78,5 +81,6 @@ class GenesisAgent(BaseAgent):
             # In case the handler returned a coroutine instead of being
             # declared as async, await it using the current loop
             return await result
+
 
         return result

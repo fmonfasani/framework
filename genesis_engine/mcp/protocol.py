@@ -275,9 +275,11 @@ class MCPProtocol:
         try:
             # Ejecutar acción en el agente
             start_time = datetime.now()
+
             result = target_agent.handle_request(request)
             if inspect.isawaitable(result):
                 result = await result
+
             execution_time = (datetime.now() - start_time).total_seconds()
             
             # Enviar respuesta exitosa
