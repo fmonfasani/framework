@@ -110,7 +110,7 @@ class EnvironmentValidator:
                     f"Python {version_str} no compatible",
                     "Instale Python 3.9 o superior"
                 )
-        except Exception as e:
+        except (AttributeError, ValueError) as e:
             self._add_result(
                 "Python Version",
                 ValidationLevel.ERROR,
@@ -179,7 +179,7 @@ class EnvironmentValidator:
                 ValidationLevel.WARNING,
                 "Timeout verificando versión de Node.js"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Node.js Version",
                 ValidationLevel.ERROR,
@@ -217,7 +217,7 @@ class EnvironmentValidator:
                 "Git no está instalado",
                 "Instale Git desde https://git-scm.com"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Git Installation",
                 ValidationLevel.ERROR,
@@ -258,7 +258,7 @@ class EnvironmentValidator:
                 "Docker no está instalado",
                 "Docker es opcional pero recomendado. Instale desde https://docker.com"
             )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Docker Installation",
                 ValidationLevel.WARNING,
@@ -288,7 +288,7 @@ class EnvironmentValidator:
                     "Docker daemon no está corriendo",
                     "Inicie Docker Desktop o el servicio Docker"
                 )
-        except Exception as e:
+        except subprocess.SubprocessError as e:
             self._add_result(
                 "Docker Daemon",
                 ValidationLevel.WARNING,
@@ -327,7 +327,7 @@ class EnvironmentValidator:
                     f"{package} no está instalado",
                     f"Instale con: pip install {package}>={min_version}"
                 )
-        except Exception as e:
+        except (ModuleNotFoundError, AttributeError) as e:
             self._add_result(
                 f"Python Package: {package}",
                 ValidationLevel.ERROR,
@@ -361,7 +361,9 @@ class EnvironmentValidator:
                         f"{tool} {version} ✓"
                     )
                     package_manager_found = True
-            except:
+            except FileNotFoundError:
+                continue
+            except subprocess.SubprocessError:
                 continue
         
         if not package_manager_found:
@@ -385,7 +387,7 @@ class EnvironmentValidator:
                     ValidationLevel.SUCCESS,
                     "Conexión a PyPI ✓"
                 )
-            except:
+            except urllib.error.URLError:
                 self._add_result(
                     "PyPI Connectivity",
                     ValidationLevel.WARNING,
@@ -401,14 +403,14 @@ class EnvironmentValidator:
                     ValidationLevel.SUCCESS,
                     "Conexión a npm registry ✓"
                 )
-            except:
+            except urllib.error.URLError:
                 self._add_result(
                     "NPM Registry Connectivity",
                     ValidationLevel.WARNING,
                     "No se puede conectar al npm registry"
                 )
                 
-        except Exception as e:
+        except (urllib.error.URLError, OSError) as e:
             self._add_result(
                 "Internet Connectivity",
                 ValidationLevel.ERROR,
@@ -438,14 +440,14 @@ class EnvironmentValidator:
                     "No hay permisos de escritura en el directorio actual",
                     "Ejecute desde un directorio con permisos de escritura"
                 )
-            except Exception as e:
+            except OSError as e:
                 self._add_result(
                     "Write Permissions",
                     ValidationLevel.WARNING,
                     f"Error verificando permisos: {e}"
                 )
                 
-        except Exception as e:
+        except OSError as e:
             self._add_result(
                 "File Permissions",
                 ValidationLevel.ERROR,
