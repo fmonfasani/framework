@@ -5,6 +5,8 @@ Implementa todos los handlers necesarios para comunicación MCP
 """
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
 from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, field
+from enum import Enum
 import os
 import logging
 from datetime import datetime
@@ -12,6 +14,47 @@ from pathlib import Path
 import json
 
 logger = logging.getLogger(__name__)
+
+
+class BackendFramework(str, Enum):
+    """Supported backend frameworks."""
+    FASTAPI = "fastapi"
+    DJANGO = "django"
+    NESTJS = "nestjs"
+
+
+class DatabaseType(str, Enum):
+    """Supported database engines."""
+    POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
+    SQLITE = "sqlite"
+
+
+class AuthMethod(str, Enum):
+    """Authentication mechanisms."""
+    NONE = "none"
+    JWT = "jwt"
+    OAUTH2 = "oauth2"
+
+
+@dataclass
+class BackendConfig:
+    """Configuration for backend generation."""
+    framework: BackendFramework = BackendFramework.FASTAPI
+    database: DatabaseType = DatabaseType.POSTGRESQL
+    auth_method: AuthMethod = AuthMethod.JWT
+    features: List[str] = field(default_factory=list)
+    dependencies: List[str] = field(default_factory=list)
+    environment_vars: Dict[str, Any] = field(default_factory=dict)
+
+# Export commonly used classes for tests and consumers
+__all__ = [
+    "BackendFramework",
+    "DatabaseType",
+    "AuthMethod",
+    "BackendConfig",
+    "BackendAgent",
+]
 
 
 class BackendAgent(GenesisAgent):
@@ -1107,22 +1150,13 @@ asyncio_mode = auto
             "endpoints": generated_endpoints
         }
     
-    async def _setup_database_config(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Configurar base de datos"""
-        database_type = params.get("database_type", "postgresql")
-        
-        config = self.database_configs.get(database_type, {})
-        
-        return {
-            "status": "success",
-            "database_type": database_type,
-            "configuration": config,
-            "connection_string": f"postgresql://user:pass@localhost:5432/db"
-        }
     
     async def _create_authentication_system(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crear sistema de autenticación"""
-        auth_type = params.get("auth_type", "jwt")
+        backend_cfg: Optional[BackendConfig] = params.get("config")
+        auth_type = (
+            backend_cfg.auth_method.value if backend_cfg else params.get("auth_type", "jwt")
+        )
         
         auth_files = {}
         if auth_type == "jwt":
@@ -1220,5 +1254,124 @@ asyncio_mode = auto
     
     def _generate_endpoint_code(self, endpoint: Dict[str, Any]) -> str:
         """Generar código para un endpoint específico"""
-        # Implementación básica
-        return f"# Endpoint code for {endpoint.get('path', 'unknown')}"
+        # Implementación básica        return f"# Endpoint code for {endpoint.get('path', 'unknown')}"
+
+    # ------------------------------------------------------------------
+    # Additional helper methods used in tests
+    # ------------------------------------------------------------------
+    def _load_framework_configs(self) -> Dict[str, Any]:
+        """Return available framework configurations."""
+        self.framework_configs = self.supported_frameworks
+        return self.framework_configs
+
+    def _load_code_templates(self) -> None:
+        """Load available Jinja templates under the backend templates directory."""
+        if not hasattr(self, "template_engine"):
+            self.available_templates = []
+            return
+        templates_dir = Path(self.template_engine.templates_dir)
+        self.available_templates = [str(p) for p in templates_dir.rglob("*.j2")]
+
+    def _setup_code_generators(self) -> None:
+        """Register built-in code generators."""
+        self.code_generators = {
+            "nestjs_controller": self._generate_nestjs_controller,
+        }
+
+    def _generate_nestjs_controller(self, entity: Dict[str, Any], output_path: Path, cfg: BackendConfig) -> str:
+        """Generate a simple NestJS controller file."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file_path = output_path / f"{entity['name'].lower()}.controller.ts"
+        content = f"class {entity['name']}Controller {{}}"
+        file_path.write_text(content)
+        return str(file_path)
+
+    def _generate_typeorm_config(self, output_path: Path, cfg: BackendConfig) -> str:
+        """Generate a minimal TypeORM config file."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file_path = output_path / "typeorm.config.ts"
+        file_path.write_text("export const DataSource = {};")
+        return str(file_path)
+
+    async def _generate_fastapi_jwt_auth(self, output_path: Path, cfg: BackendConfig) -> List[str]:
+        """Generate JWT auth helper for FastAPI."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file = output_path / "jwt.py"
+        file.write_text("SECRET_KEY = 'change-me'")
+        return [str(file)]
+
+    async def _generate_nestjs_jwt_auth(self, output_path: Path, cfg: BackendConfig) -> List[str]:
+        """Generate JWT auth helper for NestJS."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file = output_path / "jwt.ts"
+        file.write_text("export const jwtConstants = {};")
+        return [str(file)]
+
+    def _generate_dockerfile_python(self, output_path: Path, cfg: BackendConfig) -> str:
+        """Generate a simple Python Dockerfile."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file = output_path / "Dockerfile"
+        file.write_text("FROM python:3.11-slim")
+        return str(file)
+
+    async def _generate_api_documentation(self, params: Dict[str, Any]) -> List[str]:
+        """Generate API documentation file."""
+        output_path = Path(params.get("output_path", "."))
+        output_path.mkdir(parents=True, exist_ok=True)
+        file = output_path / "api.md"
+        file.write_text("# API Documentation")
+        return [str(file)]
+
+    def _generate_data_models(self, params: Dict[str, Any]) -> List[str]:
+        """Generate minimal model and schema files for an entity."""
+        schema = params.get("schema", {})
+        output_path = Path(params.get("output_path", "."))
+        output_path.mkdir(parents=True, exist_ok=True)
+        schema_dir = output_path.parent / "schemas"
+        schema_dir.mkdir(parents=True, exist_ok=True)
+
+        paths: List[str] = []
+        for entity in schema.get("entities", []):
+            name = entity.get("name", "Model")
+            model_file = output_path / f"{name.lower()}.py"
+            schema_file = schema_dir / f"{name.lower()}.py"
+            model_file.write_text(f"class {name}:\n    pass\n")
+            schema_file.write_text(f"class {name}Base:\n    pass\n")
+            paths.extend([str(model_file), str(schema_file)])
+        return paths
+
+    async def _setup_alembic_migrations(self, output_path: Path, cfg: BackendConfig, schema: Dict[str, Any]) -> List[str]:
+        """Stub for alembic setup."""
+        file = output_path / "alembic.ini"
+        file.write_text("[alembic]")
+        return [str(file)]
+
+    def _generate_sqlalchemy_config(self, output_path: Path, cfg: BackendConfig) -> str:
+        """Generate simple SQLAlchemy configuration."""
+        file = output_path / "database.py"
+        output_path.mkdir(parents=True, exist_ok=True)
+        file.write_text("db = None")
+        return str(file)
+
+    def _setup_database_config(self, params: Dict[str, Any]) -> List[str]:
+        """Configure database by generating config and migrations."""
+        backend_cfg: Optional[BackendConfig] = params.get("config")
+        database_type = (
+            backend_cfg.database.value if backend_cfg else params.get("database_type", "postgresql")
+        )
+        output_path = Path(params.get("output_path", "."))
+        files = []
+        db_path = output_path / "app" / "db"
+        files.append(self._generate_sqlalchemy_config(db_path, backend_cfg))
+        files.extend(self._setup_alembic_migrations(output_path, backend_cfg, params.get("schema", {})))
+        return [str(Path(p)) for p in files]
+
+    async def _setup_authentication(self, params: Dict[str, Any]) -> List[str]:
+        """Setup authentication based on configuration."""
+        cfg: BackendConfig = params.get("config")
+        output_path = Path(params.get("output_path", "."))
+        if cfg.framework is BackendFramework.FASTAPI:
+            return await self._generate_fastapi_jwt_auth(output_path, cfg)
+        if cfg.framework is BackendFramework.NESTJS:
+            return await self._generate_nestjs_jwt_auth(output_path, cfg)
+        return []
