@@ -17,11 +17,19 @@ def configure_logging(level: int = DEFAULT_LEVEL, fmt: str = DEFAULT_FORMAT) -> 
 
 
 def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
-    """Return a logger configured with the global settings."""
-    configure_logging(level or DEFAULT_LEVEL)
+    """Obtener logger configurado"""
     logger = logging.getLogger(name)
-    if level is not None:
+    if level:
         logger.setLevel(level)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    
     return logger
 
 

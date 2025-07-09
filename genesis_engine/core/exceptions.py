@@ -11,3 +11,5 @@ class ProjectCreationError(GenesisException):
 class ValidationError(GenesisException):
     """Validation error"""
     pass
+
+
