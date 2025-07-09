@@ -250,6 +250,11 @@ class GenesisOrchestrator:
             "average_execution_time": 0.0
         }
 
+    @property
+    def protocol(self) -> MCPProtocol:
+        # Alias retained for backward compatibility with earlier interface
+        return self.mcp
+
     async def start(self):
         """Wrapper asincrónico para inicializar el orquestador"""
         await self.initialize()
