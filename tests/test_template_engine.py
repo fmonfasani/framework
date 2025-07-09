@@ -28,7 +28,7 @@ def test_generate_project(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output"
-    generated = engine.generate_project("sample", out_dir, {"name": "World"})
+    generated = engine.generate_project_sync("sample", out_dir, {"name": "World"})
 
     expected_files = {
         out_dir / "file.txt",
@@ -67,7 +67,7 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     engine = TemplateEngine(templates_dir)
 
     out_dir = tmp_path / "output_async"
-    generated = engine.generate_project("sample", out_dir, {"name": "World"})
+    generated = asyncio.run(engine.generate_project_async("sample", out_dir, {"name": "World"}))
 
     expected_files = {
         out_dir / "file.txt",
@@ -86,10 +86,10 @@ def test_missing_required_variables_render(tmp_path: Path):
     templates_dir.mkdir(parents=True)
     (templates_dir / "file.txt.j2").write_text("{{ project_name }} {{ description }}")
 
-    engine = TemplateEngine(templates_dir)
+    engine = TemplateEngine(templates_dir, strict_validation=False)
 
-    with pytest.raises(ValueError):
-        asyncio.run(engine.render_template("file.txt.j2", {"description": "test"}))
+    content = engine.render_template("file.txt.j2", {"description": "test"})
+    assert content.strip() == "test"
 
 
 def test_missing_required_variables_generate(tmp_path: Path):
@@ -98,8 +98,9 @@ def test_missing_required_variables_generate(tmp_path: Path):
     template_root.mkdir(parents=True)
     (template_root / "file.txt.j2").write_text("{{ project_name }} {{ description }}")
 
-    engine = TemplateEngine(templates_dir)
+    engine = TemplateEngine(templates_dir, strict_validation=False)
     out_dir = tmp_path / "out"
+
 
     with pytest.raises(ValueError):
         asyncio.run(

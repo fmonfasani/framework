@@ -82,20 +82,35 @@ except ImportError as e:
     print(f"Warning: Could not import ProjectManager: {e}")
     ProjectManager = None
 
-try:
-    from genesis_engine.cli.ui.console import genesis_console
-except ImportError as e:
-    print(f"Warning: Could not import genesis_console: {e}")
-    # Crear un console básico como fallback
+_console_instance = None
+
+
+def get_genesis_console():
+    """Lazily import and return ``genesis_console``.
+
+    This avoids importing the CLI package at module load time which can lead to
+    circular import warnings when the CLI also imports the orchestrator.
+    """
+    global _console_instance
+    if _console_instance is not None:
+        return _console_instance
+
     try:
-        from rich.console import Console
-        genesis_console = Console()
-    except ImportError:
-        # Fallback básico
-        class BasicConsole:
-            def print(self, *args, **kwargs):
-                print(*args)
-        genesis_console = BasicConsole()
+        from genesis_engine.cli.ui.console import genesis_console as console
+        _console_instance = console
+    except Exception as e:  # pragma: no cover - fallback path
+        print(f"Warning: Could not import genesis_console: {e}")
+        try:
+            from rich.console import Console
+            _console_instance = Console()
+        except Exception:
+            class BasicConsole:
+                def print(self, *args, **kwargs):  # type: ignore[return-type]
+                    print(*args)
+
+            _console_instance = BasicConsole()
+
+    return _console_instance
 
 
 class WorkflowStatus(str, Enum):
@@ -868,7 +883,7 @@ class GenesisOrchestrator:
         """Ejecutar flujo de trabajo con retry logic y circuit breakers"""
         self.workflow_steps = {step.id: step for step in steps}
         
-        genesis_console.print(f"📋 Ejecutando {len(steps)} pasos del workflow")
+        get_genesis_console().print(f"📋 Ejecutando {len(steps)} pasos del workflow")
         
         completed_steps = set()
         all_generated_files = []
@@ -926,7 +941,7 @@ class GenesisOrchestrator:
                         # Actualizar métricas
                         self.metrics["tasks_executed"] += 1
                         
-                        genesis_console.print(f"✅ {step.name} completado")
+                        get_genesis_console().print(f"✅ {step.name} completado")
                         
                     else:
                         step.status = WorkflowStatus.FAILED
@@ -939,7 +954,7 @@ class GenesisOrchestrator:
                         # Actualizar métricas
                         self.metrics["tasks_failed"] += 1
                         
-                        genesis_console.print(f"❌ {step.name} falló: {result.error}")
+                        get_genesis_console().print(f"❌ {step.name} falló: {result.error}")
                         
                         # Decidir si continuar o abortar
                         if step.priority == TaskPriority.CRITICAL:
@@ -1026,7 +1041,9 @@ class GenesisOrchestrator:
                             import random
                             delay *= (0.5 + random.random() * 0.5)
                         
-                        genesis_console.print(f"🔄 Reintentando {step.name} (intento {attempt + 1}/{max_attempts})")
+                        get_genesis_console().print(
+                            f"🔄 Reintentando {step.name} (intento {attempt + 1}/{max_attempts})"
+                        )
                         await asyncio.sleep(delay)
                         
                         # Actualizar métricas
@@ -1346,7 +1363,7 @@ Generado con ❤️ por Genesis Engine
 
             self.workflow_results[step_id] = step.result.result
 
-            genesis_console.print(f"✅ {step.name} completado")
+            get_genesis_console().print(f"✅ {step.name} completado")
             self.logger.info(f"✅ Paso {step.name} completado")
         except Exception as exc:
             self._handle_orchestrator_error(exc, "handle_task_completed")
@@ -1374,7 +1391,7 @@ Generado con ❤️ por Genesis Engine
 
             self.workflow_results[step_id] = {"error": step.result.error}
 
-            genesis_console.print(f"❌ {step.name} falló: {step.result.error}")
+            get_genesis_console().print(f"❌ {step.name} falló: {step.result.error}")
             self.logger.error(f"❌ Paso {step.name} falló: {step.result.error}")
         except Exception as exc:
             self._handle_orchestrator_error(exc, "handle_task_failed")
@@ -1430,5 +1447,4 @@ Generado con ❤️ por Genesis Engine
         self.logger.info("🛑 Orchestrator detenido")
 
 
-# Backwards compatibility alias
-Orchestrator = GenesisOrchestrator
+# Backwards compatibility aliasOrchestrator = GenesisOrchestrator
