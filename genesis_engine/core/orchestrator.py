@@ -249,6 +249,14 @@ class GenesisOrchestrator:
             "circuit_breaker_trips": 0,
             "average_execution_time": 0.0
         }
+
+    async def start(self):
+        """Wrapper asincrónico para inicializar el orquestador"""
+        await self.initialize()
+
+    async def stop(self):
+        """Wrapper asincrónico para detener el orquestador"""
+        await self.shutdown()
     
     async def initialize(self):
         """Inicializar el orquestador"""
