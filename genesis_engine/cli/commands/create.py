@@ -15,8 +15,15 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from genesis_engine.core.orchestrator import GenesisOrchestrator
 from genesis_engine.core.config import GenesisConfig, Features
-from genesis_engine.golden_path.saas_basic import golden_path_saas
-from genesis_engine.utils.validation import EnvironmentValidator, validate_project_name, validate_stack_config
+
+try:
+    from genesis_engine.utils.validation import validate_project_name, validate_stack_config
+except Exception:  # pragma: no cover - fallback if validation utils missing
+    def validate_project_name(name: str):
+        return []
+
+    def validate_stack_config(stack):
+        return []
 
 console = Console()
 

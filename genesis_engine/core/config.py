@@ -14,6 +14,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass, field
+from enum import Enum
 
 try:
     from rich.logging import RichHandler
@@ -21,6 +22,21 @@ try:
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
+
+
+class Features(str, Enum):
+    """Available optional project features."""
+
+    AUTHENTICATION = "authentication"
+    AUTHORIZATION = "authorization"
+    BILLING = "billing"
+    NOTIFICATIONS = "notifications"
+    FILE_UPLOAD = "file_upload"
+    SEARCH = "search"
+    ANALYTICS = "analytics"
+    ADMIN_PANEL = "admin_panel"
+    AI_CHAT = "ai_chat"
+    MONITORING = "monitoring"
 
 @dataclass
 class GenesisConfig:
