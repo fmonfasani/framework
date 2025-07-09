@@ -18,7 +18,7 @@ import fnmatch
 from datetime import datetime
 import asyncio
 from genesis_engine.core.logging import get_logger
-from genesis_engine.core.config import GenesisConfig
+from genesis_engine.core.config import get_config
 
 from jinja2 import Environment, FileSystemLoader, Template, TemplateError
 from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
@@ -69,7 +69,7 @@ class TemplateEngine:
     def __init__(self, templates_dir: Optional[Path] = None, strict_validation: Optional[bool] = None):
         self.templates_dir = templates_dir or self._get_default_templates_dir()
         if strict_validation is None:
-            strict_validation = GenesisConfig.get("strict_template_validation", True)
+            strict_validation = get_config().__dict__.get("strict_template_validation", True)
         self.strict_validation = strict_validation
         self.env = self._setup_jinja_environment()
         self.logger = get_logger("genesis.template_engine")

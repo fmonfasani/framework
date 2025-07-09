@@ -90,6 +90,7 @@ class GenesisAgent(ABC):
         self.handlers: Dict[str, Callable] = {}
         self.version = "1.0.0"
         self.logger = logging.getLogger(f"agent.{self.agent_id}")
+        self.metadata: Dict[str, Any] = {}
         
         # Registrar handlers básicos requeridos por MCP
         self._register_core_handlers()
@@ -284,7 +285,15 @@ class GenesisAgent(ABC):
     def has_capability(self, capability: str) -> bool:
         """Verificar si el agente tiene una capacidad específica"""
         return capability in self.capabilities
-    
+
+    def set_metadata(self, key: str, value: Any) -> None:
+        """Guardar información arbitraria sobre el agente."""
+        self.metadata[key] = value
+
+    def get_metadata(self, key: str, default=None) -> Any:
+        """Obtener un valor de metadata almacenada."""
+        return self.metadata.get(key, default)
+
     def get_info(self) -> Dict[str, Any]:
         """Obtener información completa del agente"""
         return {
@@ -294,7 +303,8 @@ class GenesisAgent(ABC):
             "status": self.status,
             "version": self.version,
             "capabilities": self.capabilities,
-            "handlers": list(self.handlers.keys())
+            "handlers": list(self.handlers.keys()),
+            "metadata": self.metadata,
         }
 
 
