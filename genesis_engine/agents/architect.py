@@ -1,702 +1,1063 @@
+# genesis_engine/agents/architect.py
 """
-Architect Agent - Diseño de arquitectura y entidades del proyecto
-
-Este agente es responsable de:
-- Analizar requisitos del proyecto
-- Diseñar arquitectura general
-- Definir entidades y relaciones
-- Generar project_schema.json
-- Validar coherencia del diseño
+ArchitectAgent corregido - Agente especializado en diseño de arquitectura
+Implementa todos los handlers necesarios para comunicación MCP
 """
-
-import json
-import uuid
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-from dataclasses import dataclass
-from enum import Enum
-
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
-from genesis_engine.core.config import GenesisConfig
+from typing import Dict, Any, List, Optional
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
 
-class ArchitecturePattern(str, Enum):
-    """Patrones de arquitectura soportados"""
-    LAYERED = "layered"
-    CLEAN_ARCHITECTURE = "clean_architecture"
-    HEXAGONAL = "hexagonal"
-    MICROSERVICES = "microservices"
-    MONOLITH = "monolith"
-    JAMSTACK = "jamstack"
+logger = logging.getLogger(__name__)
 
-class DatabaseType(str, Enum):
-    """Tipos de base de datos"""
-    POSTGRESQL = "postgresql"
-    MYSQL = "mysql"
-    MONGODB = "mongodb"
-    SQLITE = "sqlite"
-    REDIS = "redis"
-
-@dataclass
-class Entity:
-    """Definición de una entidad del dominio"""
-    name: str
-    description: str
-    attributes: Dict[str, str]  # nombre: tipo
-    relationships: List[Dict[str, str]]
-    constraints: List[str]
-    metadata: Dict[str, Any]
-
-@dataclass
-class ProjectSchema:
-    """Schema completo del proyecto"""
-    project_name: str
-    description: str
-    architecture_pattern: ArchitecturePattern
-    stack: Dict[str, str]
-    entities: List[Entity]
-    relationships: List[Dict[str, Any]]
-    endpoints: List[Dict[str, Any]]
-    business_rules: List[str]
-    security_requirements: List[str]
-    performance_requirements: Dict[str, Any]
-    deployment_config: Dict[str, Any]
-    metadata: Dict[str, Any]
 
 class ArchitectAgent(GenesisAgent):
     """
-    Agente Arquitecto - Diseñador de sistemas
-    
-    Responsable del diseño de arquitectura, análisis de requisitos
-    y generación del schema del proyecto.
+    Agente especializado en diseño de arquitectura y análisis de requisitos
+    Responsable de:
+    - Analizar requisitos del proyecto
+    - Diseñar arquitectura técnica
+    - Generar schema del proyecto
+    - Validar coherencia entre componentes
     """
     
     def __init__(self):
         super().__init__(
             agent_id="architect_agent",
-            name="ArchitectAgent", 
+            name="ArchitectAgent",
             agent_type="architect"
         )
         
-        # Capacidades del agente
-        self.add_capability("architecture_design")
-        self.add_capability("entity_modeling")
-        self.add_capability("schema_generation")
-        self.add_capability("requirement_analysis")
-        self.add_capability("pattern_recommendation")
+        # Agregar capacidades específicas
+        self._setup_capabilities()
         
-        # Registrar handlers específicos
+        # Registrar handlers específicos del arquitecto
+        self._register_architect_handlers()
+        
+        # Plantillas de arquitectura disponibles
+        self.architecture_patterns = {
+            "layered": "Arquitectura en capas (Presentation, Business, Data)",
+            "microservices": "Arquitectura de microservicios",
+            "serverless": "Arquitectura serverless",
+            "event_driven": "Arquitectura dirigida por eventos"
+        }
+        
+        # Stacks tecnológicos soportados
+        self.tech_stacks = {
+            "python_fullstack": {
+                "backend": "FastAPI + SQLAlchemy + PostgreSQL",
+                "frontend": "Next.js + TypeScript + Tailwind",
+                "deployment": "Docker + Docker Compose"
+            },
+            "node_fullstack": {
+                "backend": "NestJS + TypeORM + PostgreSQL", 
+                "frontend": "React + TypeScript + Redux",
+                "deployment": "Docker + Kubernetes"
+            },
+            "minimal_api": {
+                "backend": "FastAPI + SQLite",
+                "frontend": "Static HTML/CSS/JS",
+                "deployment": "Single Docker container"
+            }
+        }
+    
+    def _setup_capabilities(self):
+        """Configurar capacidades del agente"""
+        capabilities = [
+            "analyze_requirements",
+            "design_architecture", 
+            "generate_schema",
+            "validate_architecture",
+            "suggest_technologies",
+            "estimate_complexity",
+            "create_project_structure"
+        ]
+        
+        for capability in capabilities:
+            self.add_capability(capability)
+    
+    def _register_architect_handlers(self):
+        """Registrar handlers específicos del arquitecto"""
         self.register_handler("analyze_requirements", self._handle_analyze_requirements)
         self.register_handler("design_architecture", self._handle_design_architecture)
         self.register_handler("generate_schema", self._handle_generate_schema)
-        self.register_handler("validate_design", self._handle_validate_design)
-        self.register_handler("recommend_stack", self._handle_recommend_stack)
-        
-        # Templates y patrones
-        self.architecture_templates = self._load_architecture_templates()
-        self.design_patterns = self._load_design_patterns()
-        
-    async def initialize(self):
-        """Inicialización del agente arquitecto"""
-        self.logger.info("🏗️ Inicializando Architect Agent")
-        
-        # Cargar configuraciones y templates
-        await self._load_best_practices()
-        await self._initialize_ai_models()
-        
-        self.set_metadata("version", "1.0.0")
-        self.set_metadata("specialization", "full_stack_architecture")
-        
-        self.logger.info("✅ Architect Agent inicializado")
+        self.register_handler("validate_architecture", self._handle_validate_architecture)
+        self.register_handler("suggest_technologies", self._handle_suggest_technologies)
     
-    async def execute_task(self, task: AgentTask) -> Any:
-        """Ejecutar tarea específica del arquitecto"""
-        task_name = task.name.lower()
-        
-        if "analyze_requirements" in task_name:
-            return await self._analyze_requirements(task.params)
-        elif "design_architecture" in task_name:
-            return await self._design_architecture(task.params)
-        elif "generate_schema" in task_name:
-            return await self._generate_project_schema(task.params)
-        elif "validate_design" in task_name:
-            return await self._validate_design(task.params)
-        elif "recommend_stack" in task_name:
-            return await self._recommend_technology_stack(task.params)
-        else:
-            raise ValueError(f"Tarea no reconocida: {task.name}")
+    async def execute_task(self, task: AgentTask) -> TaskResult:
+        """
+        Ejecutar tarea específica del arquitecto
+        Este es el método principal que maneja todas las tareas
+        """
+        try:
+            self.logger.info(f"🏗️ Ejecutando tarea de arquitectura: {task.name}")
+            
+            # Routing de tareas por nombre
+            if task.name == "analyze_requirements":
+                result = await self._analyze_requirements(task.params)
+            elif task.name == "design_architecture":
+                result = await self._design_architecture(task.params)
+            elif task.name == "generate_schema":
+                result = await self._generate_project_schema(task.params)
+            elif task.name == "validate_architecture":
+                result = await self._validate_architecture(task.params)
+            elif task.name == "suggest_technologies":
+                result = await self._suggest_technologies(task.params)
+            elif task.name == "estimate_complexity":
+                result = await self._estimate_complexity(task.params)
+            else:
+                # Tarea genérica o no reconocida
+                result = await self._handle_generic_task(task)
+            
+            self.logger.info(f"✅ Tarea {task.name} completada exitosamente")
+            
+            return TaskResult(
+                task_id=task.id,
+                success=True,
+                result=result,
+                metadata={
+                    "agent": self.name,
+                    "task_type": task.name,
+                    "complexity": self._assess_task_complexity(task)
+                }
+            )
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error ejecutando tarea {task.name}: {str(e)}")
+            
+            return TaskResult(
+                task_id=task.id,
+                success=False,
+                error=str(e),
+                metadata={
+                    "agent": self.name,
+                    "task_type": task.name,
+                    "error_type": type(e).__name__
+                }
+            )
+    
+    async def _handle_analyze_requirements(self, request) -> Dict[str, Any]:
+        """Handler directo para analyze_requirements"""
+        data = getattr(request, 'data', {})
+        return await self._analyze_requirements(data)
+    
+    async def _handle_design_architecture(self, request) -> Dict[str, Any]:
+        """Handler directo para design_architecture"""
+        data = getattr(request, 'data', {})
+        return await self._design_architecture(data)
+    
+    async def _handle_generate_schema(self, request) -> Dict[str, Any]:
+        """Handler directo para generate_schema"""
+        data = getattr(request, 'data', {})
+        return await self._generate_project_schema(data)
+    
+    async def _handle_validate_architecture(self, request) -> Dict[str, Any]:
+        """Handler directo para validate_architecture"""
+        data = getattr(request, 'data', {})
+        return await self._validate_architecture(data)
+    
+    async def _handle_suggest_technologies(self, request) -> Dict[str, Any]:
+        """Handler directo para suggest_technologies"""
+        data = getattr(request, 'data', {})
+        return await self._suggest_technologies(data)
     
     async def _analyze_requirements(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Analizar requisitos del proyecto"""
-        self.logger.info("🔍 Analizando requisitos del proyecto")
+        """
+        Analizar requisitos del proyecto y categorizarlos
+        Esta es la función que está fallando en el error actual
+        """
+        self.logger.info("🔍 Iniciando análisis de requisitos...")
         
-        project_description = params.get("description", "")
+        # Extraer parámetros
+        description = params.get("description", "")
         project_type = params.get("type", "web_app")
         features = params.get("features", [])
-        constraints = params.get("constraints", {})
+        constraints = params.get("constraints", [])
         
-        # Análisis de requisitos funcionales
-        functional_requirements = self._extract_functional_requirements(
-            project_description, features
-        )
+        # Análisis de descripción
+        description_analysis = self._analyze_description(description)
         
-        # Análisis de requisitos no funcionales
-        non_functional_requirements = self._extract_non_functional_requirements(
-            constraints
-        )
-        
-        # Identificar entidades principales
-        entities = self._identify_entities(project_description, features)
-        
-        # Recomendar patrones de arquitectura
-        recommended_patterns = self._recommend_architecture_patterns(
-            project_type, functional_requirements, non_functional_requirements
-        )
-        
-        analysis_result = {
-            "functional_requirements": functional_requirements,
-            "non_functional_requirements": non_functional_requirements,
-            "identified_entities": entities,
-            "recommended_patterns": recommended_patterns,
-            "complexity_score": self._calculate_complexity_score(
-                functional_requirements, entities
-            ),
-            "estimated_timeline": self._estimate_development_timeline(
-                functional_requirements, entities
-            )
+        # Categorizar requisitos
+        requirements = {
+            "functional": [],
+            "non_functional": [],
+            "technical": [],
+            "business": [],
+            "constraints": constraints
         }
         
-        self.logger.info(f"✅ Análisis completado - {len(entities)} entidades identificadas")
-        return analysis_result
+        # Requisitos funcionales basados en features
+        for feature in features:
+            functional_reqs = self._get_functional_requirements(feature)
+            requirements["functional"].extend(functional_reqs)
+        
+        # Requisitos técnicos
+        requirements["technical"] = self._get_technical_requirements(features, project_type)
+        
+        # Requisitos no funcionales
+        requirements["non_functional"] = self._get_non_functional_requirements(project_type)
+        
+        # Requisitos de negocio
+        requirements["business"] = self._get_business_requirements(description_analysis, features)
+        
+        # Estimación de complejidad
+        complexity = self._estimate_project_complexity(features, requirements)
+        
+        result = {
+            "project_type": project_type,
+            "description": description,
+            "description_analysis": description_analysis,
+            "features": features,
+            "requirements": requirements,
+            "complexity": complexity,
+            "estimated_timeline": self._estimate_timeline(complexity),
+            "recommended_team_size": self._estimate_team_size(complexity),
+            "analysis_metadata": {
+                "analyzed_at": datetime.utcnow().isoformat(),
+                "analyzer": self.name,
+                "version": self.version
+            }
+        }
+        
+        self.logger.info(f"✅ Análisis de requisitos completado. Complejidad: {complexity}")
+        return result
     
     async def _design_architecture(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Diseñar arquitectura del sistema"""
-        self.logger.info("🎨 Diseñando arquitectura del sistema")
+        """Diseñar arquitectura técnica del proyecto"""
+        self.logger.info("🎨 Diseñando arquitectura...")
         
         requirements = params.get("requirements", {})
-        selected_pattern = params.get("pattern", ArchitecturePattern.LAYERED)
-        project_type = params.get("type", "web_app")
+        features = params.get("features", [])
+        complexity = params.get("complexity", "medium")
         
-        # Diseñar capas de la arquitectura
-        layers = self._design_layers(selected_pattern, requirements)
+        # Seleccionar patrón de arquitectura
+        architecture_pattern = self._select_architecture_pattern(complexity, features)
         
-        # Diseñar componentes principales
-        components = self._design_components(requirements, layers)
+        # Diseñar capas
+        layers = self._design_layers(architecture_pattern, features)
         
-        # Diseñar flujos de datos
-        data_flows = self._design_data_flows(components, requirements)
+        # Diseñar componentes
+        components = self._design_components(features, requirements)
         
-        # Diseñar API endpoints
-        api_design = self._design_api_endpoints(requirements)
+        # Seleccionar tecnologías
+        technologies = self._select_technologies(complexity, features)
         
-        # Considerar aspectos de seguridad
-        security_design = self._design_security_architecture(requirements)
+        # Diseñar comunicación entre componentes
+        communication = self._design_communication(components, architecture_pattern)
         
-        architecture_design = {
-            "pattern": selected_pattern,
+        architecture = {
+            "pattern": architecture_pattern,
             "layers": layers,
             "components": components,
-            "data_flows": data_flows,
-            "api_design": api_design,
-            "security_design": security_design,
-            "deployment_architecture": self._design_deployment_architecture(
-                requirements, components
-            )
+            "technologies": technologies,
+            "communication": communication,
+            "data_flow": self._design_data_flow(components),
+            "security_considerations": self._design_security(features),
+            "scalability_considerations": self._design_scalability(complexity),
+            "design_metadata": {
+                "designed_at": datetime.utcnow().isoformat(),
+                "designer": self.name,
+                "pattern_rationale": f"Seleccionado por complejidad {complexity} y features {features}"
+            }
         }
         
-        self.logger.info(f"✅ Arquitectura diseñada con patrón {selected_pattern}")
-        return architecture_design
+        self.logger.info(f"✅ Arquitectura diseñada con patrón: {architecture_pattern}")
+        return architecture
     
-    async def _generate_project_schema(self, params: Dict[str, Any]) -> ProjectSchema:
+    async def _generate_project_schema(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generar schema completo del proyecto"""
-        self.logger.info("📋 Generando schema del proyecto")
+        self.logger.info("📋 Generando schema del proyecto...")
         
-        project_name = params.get("name", "genesis_project")
+        # Extraer datos de entrada
+        name = params.get("name", "genesis_project")
         description = params.get("description", "")
         requirements = params.get("requirements", {})
         architecture = params.get("architecture", {})
-        stack = params.get("stack", {})
+        features = params.get("features", [])
         
-        # Generar entidades detalladas
-        entities = self._generate_detailed_entities(
-            requirements.get("identified_entities", [])
-        )
-        
-        # Generar relaciones entre entidades
-        relationships = self._generate_entity_relationships(entities)
-        
-        # Generar endpoints de la API
-        endpoints = self._generate_api_endpoints(entities, requirements)
-        
-        # Generar reglas de negocio
-        business_rules = self._generate_business_rules(entities, requirements)
-        
-        # Configuración de despliegue
-        deployment_config = self._generate_deployment_config(architecture, stack)
-        
-        schema = ProjectSchema(
-            project_name=project_name,
-            description=description,
-            architecture_pattern=ArchitecturePattern(
-                architecture.get("pattern", "layered")
-            ),
-            stack=stack,
-            entities=entities,
-            relationships=relationships,
-            endpoints=endpoints,
-            business_rules=business_rules,
-            security_requirements=self._generate_security_requirements(requirements),
-            performance_requirements=self._generate_performance_requirements(requirements),
-            deployment_config=deployment_config,
-            metadata={
+        # Generar esquema completo
+        schema = {
+            "project": {
+                "name": name,
+                "description": description,
+                "version": "1.0.0",
+                "created_at": datetime.utcnow().isoformat(),
+                "generator": "Genesis Engine",
+                "generator_version": self.version
+            },
+            "requirements": requirements,
+            "architecture": architecture,
+            "features": features,
+            "structure": {
+                "backend": self._generate_backend_structure(requirements, features, architecture),
+                "frontend": self._generate_frontend_structure(requirements, features, architecture),
+                "database": self._generate_database_structure(requirements, features),
+                "deployment": self._generate_deployment_structure(architecture),
+                "documentation": self._generate_documentation_structure()
+            },
+            "entities": self._generate_entities(requirements, features),
+            "apis": self._generate_api_endpoints(requirements, features),
+            "workflows": self._generate_workflows(features),
+            "dependencies": self._generate_dependencies(architecture),
+            "configuration": self._generate_configuration(architecture, features),
+            "generated_files": [],  # Se llenará durante la generación
+            "schema_metadata": {
                 "generated_at": datetime.utcnow().isoformat(),
-                "generator": "ArchitectAgent",
-                "version": "1.0",
-                "schema_id": str(uuid.uuid4())
+                "generator": self.name,
+                "schema_version": "1.0.0"
             }
-        )
+        }
         
-        self.logger.info(f"✅ Schema generado para {project_name}")
+        self.logger.info(f"✅ Schema generado para proyecto: {name}")
         return schema
     
-    def _extract_functional_requirements(
-        self, description: str, features: List[str]
-    ) -> List[Dict[str, Any]]:
-        """Extraer requisitos funcionales"""
-        requirements = []
+    async def _validate_architecture(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Validar coherencia de la arquitectura"""
+        architecture = params.get("architecture", {})
+        requirements = params.get("requirements", {})
         
-        # Análisis básico de características
-        for feature in features:
-            requirements.append({
-                "id": f"req_{len(requirements) + 1}",
-                "name": feature,
-                "description": f"Sistema debe soportar {feature}",
-                "priority": "high",
-                "category": self._categorize_feature(feature)
-            })
+        validation_result = {
+            "valid": True,
+            "warnings": [],
+            "errors": [],
+            "suggestions": []
+        }
         
-        # Análisis de descripción con IA/NLP (simplificado)
-        if "autenticación" in description.lower() or "login" in description.lower():
-            requirements.append({
-                "id": f"req_{len(requirements) + 1}",
-                "name": "User Authentication",
-                "description": "Sistema de autenticación de usuarios",
-                "priority": "high",
-                "category": "authentication"
-            })
+        # Validaciones específicas
+        self._validate_layer_consistency(architecture, validation_result)
+        self._validate_component_dependencies(architecture, validation_result)
+        self._validate_technology_compatibility(architecture, validation_result)
+        self._validate_security_requirements(architecture, requirements, validation_result)
         
-        if "pago" in description.lower() or "payment" in description.lower():
-            requirements.append({
-                "id": f"req_{len(requirements) + 1}",
-                "name": "Payment Processing",
-                "description": "Procesamiento de pagos",
-                "priority": "high",
-                "category": "payment"
-            })
+        return validation_result
+    
+    async def _suggest_technologies(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Sugerir tecnologías basadas en requisitos"""
+        features = params.get("features", [])
+        complexity = params.get("complexity", "medium")
+        constraints = params.get("constraints", [])
+        
+        suggestions = {}
+        
+        for stack_name, stack_config in self.tech_stacks.items():
+            score = self._score_technology_stack(stack_config, features, complexity, constraints)
+            suggestions[stack_name] = {
+                "config": stack_config,
+                "score": score,
+                "pros": self._get_stack_pros(stack_name, features),
+                "cons": self._get_stack_cons(stack_name, features)
+            }
+        
+        # Ordenar por score
+        sorted_suggestions = dict(sorted(suggestions.items(), key=lambda x: x[1]["score"], reverse=True))
+        
+        return {
+            "suggestions": sorted_suggestions,
+            "recommended": list(sorted_suggestions.keys())[0] if sorted_suggestions else None
+        }
+    
+    async def _estimate_complexity(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Estimar complejidad del proyecto"""
+        features = params.get("features", [])
+        requirements = params.get("requirements", {})
+        
+        complexity_score = 0
+        factors = {}
+        
+        # Factores de complejidad
+        factors["feature_count"] = len(features)
+        factors["auth_complexity"] = 2 if "authentication" in features else 0
+        factors["db_complexity"] = 2 if "database" in features else 0
+        factors["api_complexity"] = 1 if "api" in features else 0
+        factors["ui_complexity"] = 3 if "frontend" in features else 0
+        
+        # Calcular score total
+        complexity_score = sum(factors.values())
+        
+        # Determinar nivel de complejidad
+        if complexity_score <= 3:
+            level = "low"
+        elif complexity_score <= 8:
+            level = "medium"
+        else:
+            level = "high"
+        
+        return {
+            "level": level,
+            "score": complexity_score,
+            "factors": factors,
+            "estimated_dev_time": self._estimate_development_time(level),
+            "recommended_approach": self._recommend_approach(level)
+        }
+    
+    async def _handle_generic_task(self, task: AgentTask) -> Dict[str, Any]:
+        """Manejar tareas genéricas no específicas"""
+        return {
+            "message": f"Tarea genérica {task.name} procesada por ArchitectAgent",
+            "task_id": task.id,
+            "params": task.params,
+            "agent": self.name
+        }
+    
+    # Métodos auxiliares para análisis
+    
+    def _analyze_description(self, description: str) -> Dict[str, Any]:
+        """Analizar descripción del proyecto"""
+        words = description.lower().split()
+        
+        # Keywords que indican tipo de aplicación
+        web_keywords = ["web", "website", "portal", "dashboard"]
+        api_keywords = ["api", "service", "microservice", "backend"]
+        mobile_keywords = ["mobile", "app", "ios", "android"]
+        
+        analysis = {
+            "type_indicators": {
+                "web": any(keyword in words for keyword in web_keywords),
+                "api": any(keyword in words for keyword in api_keywords),
+                "mobile": any(keyword in words for keyword in mobile_keywords)
+            },
+            "complexity_indicators": {
+                "enterprise": any(word in words for word in ["enterprise", "corporate", "business"]),
+                "saas": any(word in words for word in ["saas", "subscription", "tenant"]),
+                "ecommerce": any(word in words for word in ["shop", "store", "ecommerce", "payment"])
+            },
+            "word_count": len(words),
+            "technical_terms": [word for word in words if word in ["database", "api", "authentication", "payment"]]
+        }
+        
+        return analysis
+    
+    def _get_functional_requirements(self, feature: str) -> List[str]:
+        """Obtener requisitos funcionales para una feature"""
+        feature_requirements = {
+            "authentication": [
+                "Usuario puede registrarse en el sistema",
+                "Usuario puede iniciar sesión",
+                "Usuario puede cerrar sesión",
+                "Sistema puede validar credenciales"
+            ],
+            "database": [
+                "Sistema puede almacenar datos persistentemente",
+                "Sistema puede consultar datos eficientemente",
+                "Sistema mantiene integridad de datos"
+            ],
+            "api": [
+                "Sistema expone endpoints REST",
+                "API puede manejar múltiples formatos",
+                "API retorna respuestas estructuradas"
+            ],
+            "frontend": [
+                "Usuario puede interactuar con interfaz gráfica",
+                "Interfaz es responsive y accesible",
+                "Sistema muestra feedback visual"
+            ]
+        }
+        
+        return feature_requirements.get(feature, [f"Funcionalidad básica de {feature}"])
+    
+    def _get_technical_requirements(self, features: List[str], project_type: str) -> List[str]:
+        """Obtener requisitos técnicos"""
+        requirements = [
+            "Código debe ser mantenible y documentado",
+            "Sistema debe usar control de versiones",
+            "Aplicación debe ser containerizable"
+        ]
+        
+        if "database" in features:
+            requirements.append("Base de datos debe ser ACID compliant")
+        
+        if "api" in features:
+            requirements.append("API debe seguir estándares REST")
+        
+        if "frontend" in features:
+            requirements.append("Frontend debe ser compatible con navegadores modernos")
         
         return requirements
     
-    def _extract_non_functional_requirements(
-        self, constraints: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Extraer requisitos no funcionales"""
+    def _get_non_functional_requirements(self, project_type: str) -> List[str]:
+        """Obtener requisitos no funcionales"""
+        return [
+            "Sistema debe ser seguro contra ataques comunes",
+            "Aplicación debe tener tiempo de respuesta < 2 segundos",
+            "Sistema debe ser escalable horizontalmente",
+            "Código debe tener cobertura de tests > 80%",
+            "Aplicación debe tener logging estructurado"
+        ]
+    
+    def _get_business_requirements(self, description_analysis: Dict[str, Any], features: List[str]) -> List[str]:
+        """Obtener requisitos de negocio"""
+        requirements = [
+            "Sistema debe ser fácil de usar",
+            "Aplicación debe reducir carga de trabajo manual"
+        ]
+        
+        if description_analysis["complexity_indicators"]["saas"]:
+            requirements.extend([
+                "Sistema debe soportar multi-tenancy",
+                "Aplicación debe tener modelo de subscripción"
+            ])
+        
+        if "authentication" in features:
+            requirements.append("Sistema debe proteger datos de usuarios")
+        
+        return requirements
+    
+    def _estimate_project_complexity(self, features: List[str], requirements: Dict[str, Any]) -> str:
+        """Estimar complejidad del proyecto"""
+        score = 0
+        
+        # Puntos por features
+        score += len(features) * 2
+        
+        # Puntos por requisitos
+        score += len(requirements.get("functional", [])) * 1
+        score += len(requirements.get("technical", [])) * 1.5
+        
+        # Features complejas
+        complex_features = ["authentication", "payment", "ai", "real_time"]
+        score += sum(3 for feature in features if feature in complex_features)
+        
+        if score <= 10:
+            return "low"
+        elif score <= 25:
+            return "medium"
+        else:
+            return "high"
+    
+    def _estimate_timeline(self, complexity: str) -> str:
+        """Estimar timeline basado en complejidad"""
+        timelines = {
+            "low": "1-2 semanas",
+            "medium": "1-2 meses", 
+            "high": "3-6 meses"
+        }
+        return timelines.get(complexity, "2-4 semanas")
+    
+    def _estimate_team_size(self, complexity: str) -> str:
+        """Estimar tamaño de equipo"""
+        team_sizes = {
+            "low": "1-2 desarrolladores",
+            "medium": "2-4 desarrolladores",
+            "high": "4-8 desarrolladores"
+        }
+        return team_sizes.get(complexity, "2-3 desarrolladores")
+    
+    def _select_architecture_pattern(self, complexity: str, features: List[str]) -> str:
+        """Seleccionar patrón de arquitectura apropiado"""
+        if complexity == "low":
+            return "layered"
+        elif len(features) > 8 or "microservices" in features:
+            return "microservices"
+        elif "real_time" in features:
+            return "event_driven"
+        else:
+            return "layered"
+    
+    def _design_layers(self, pattern: str, features: List[str]) -> List[Dict[str, Any]]:
+        """Diseñar capas de la arquitectura"""
+        if pattern == "layered":
+            return [
+                {
+                    "name": "presentation",
+                    "description": "User interface and user experience",
+                    "technologies": ["React", "Next.js", "HTML/CSS"],
+                    "responsibilities": ["UI Components", "State Management", "User Interactions"]
+                },
+                {
+                    "name": "business",
+                    "description": "Business logic and application services",
+                    "technologies": ["FastAPI", "Python", "Business Logic"],
+                    "responsibilities": ["API Endpoints", "Business Rules", "Data Validation"]
+                },
+                {
+                    "name": "data",
+                    "description": "Data access and persistence",
+                    "technologies": ["SQLAlchemy", "PostgreSQL", "Redis"],
+                    "responsibilities": ["Data Models", "Database Operations", "Caching"]
+                }
+            ]
+        else:
+            return [{"name": pattern, "description": f"Architecture pattern: {pattern}"}]
+    
+    def _design_components(self, features: List[str], requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Diseñar componentes principales"""
+        components = []
+        
+        # Componente web frontend
+        if "frontend" in features:
+            components.append({
+                "name": "web_frontend",
+                "type": "frontend",
+                "technology": "Next.js",
+                "responsibilities": ["UI", "State Management", "API Integration"],
+                "dependencies": ["api_server"]
+            })
+        
+        # Componente API server
+        if "api" in features or "backend" in features:
+            components.append({
+                "name": "api_server",
+                "type": "backend",
+                "technology": "FastAPI",
+                "responsibilities": ["Business Logic", "API Endpoints", "Authentication"],
+                "dependencies": ["database"] if "database" in features else []
+            })
+        
+        # Componente base de datos
+        if "database" in features:
+            components.append({
+                "name": "database",
+                "type": "data",
+                "technology": "PostgreSQL",
+                "responsibilities": ["Data Storage", "Data Integrity", "Querying"],
+                "dependencies": []
+            })
+        
+        return components
+    
+    def _select_technologies(self, complexity: str, features: List[str]) -> Dict[str, str]:
+        """Seleccionar stack tecnológico"""
+        # Por ahora, usar stack Python por defecto
+        tech_stack = {
+            "backend_framework": "FastAPI",
+            "backend_language": "Python",
+            "frontend_framework": "Next.js",
+            "frontend_language": "TypeScript",
+            "database": "PostgreSQL",
+            "deployment": "Docker",
+            "ci_cd": "GitHub Actions"
+        }
+        
+        # Ajustes basados en complejidad
+        if complexity == "low":
+            tech_stack["database"] = "SQLite"
+            tech_stack["deployment"] = "Single Container"
+        
+        if "authentication" in features:
+            tech_stack["auth"] = "JWT + OAuth2"
+        
+        return tech_stack
+    
+    def _design_communication(self, components: List[Dict[str, Any]], pattern: str) -> Dict[str, Any]:
+        """Diseñar comunicación entre componentes"""
         return {
-            "performance": {
-                "response_time": constraints.get("max_response_time", "< 2s"),
-                "throughput": constraints.get("min_throughput", "1000 req/min"),
-                "concurrent_users": constraints.get("max_users", 1000)
-            },
-            "scalability": {
-                "horizontal_scaling": constraints.get("auto_scaling", True),
-                "database_scaling": constraints.get("db_scaling", "read_replicas")
-            },
-            "security": {
-                "encryption": constraints.get("encryption", "TLS 1.3"),
-                "authentication": constraints.get("auth_method", "JWT"),
-                "data_protection": constraints.get("gdpr_compliance", True)
-            },
-            "availability": {
-                "uptime": constraints.get("target_uptime", "99.9%"),
-                "disaster_recovery": constraints.get("dr_required", True)
-            }
+            "type": "REST API",
+            "protocol": "HTTP/HTTPS",
+            "format": "JSON",
+            "authentication": "JWT tokens",
+            "error_handling": "HTTP status codes + structured responses"
         }
     
-    def _identify_entities(
-        self, description: str, features: List[str]
-    ) -> List[Dict[str, Any]]:
-        """Identificar entidades principales del dominio"""
+    def _design_data_flow(self, components: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Diseñar flujo de datos"""
+        flows = []
+        
+        # Si hay frontend y backend, crear flujo típico
+        frontend = next((c for c in components if c["type"] == "frontend"), None)
+        backend = next((c for c in components if c["type"] == "backend"), None)
+        database = next((c for c in components if c["type"] == "data"), None)
+        
+        if frontend and backend:
+            flows.append({
+                "from": frontend["name"],
+                "to": backend["name"],
+                "type": "HTTP Request",
+                "description": "User actions and data requests"
+            })
+        
+        if backend and database:
+            flows.append({
+                "from": backend["name"],
+                "to": database["name"],
+                "type": "SQL Query",
+                "description": "Data persistence and retrieval"
+            })
+        
+        return flows
+    
+    def _design_security(self, features: List[str]) -> List[str]:
+        """Diseñar consideraciones de seguridad"""
+        security_measures = [
+            "HTTPS enforcement",
+            "CORS configuration",
+            "Input validation and sanitization",
+            "SQL injection prevention"
+        ]
+        
+        if "authentication" in features:
+            security_measures.extend([
+                "Password hashing with bcrypt",
+                "JWT token validation",
+                "Session management"
+            ])
+        
+        return security_measures
+    
+    def _design_scalability(self, complexity: str) -> List[str]:
+        """Diseñar consideraciones de escalabilidad"""
+        measures = [
+            "Database connection pooling",
+            "Containerized deployment",
+            "Load balancer ready"
+        ]
+        
+        if complexity == "high":
+            measures.extend([
+                "Horizontal scaling support",
+                "Caching layer implementation",
+                "Database read replicas"
+            ])
+        
+        return measures
+    
+    def _generate_backend_structure(self, requirements: Dict[str, Any], features: List[str], architecture: Dict[str, Any]) -> Dict[str, Any]:
+        """Generar estructura del backend"""
+        return {
+            "framework": "FastAPI",
+            "language": "Python",
+            "models": self._generate_data_models(features),
+            "endpoints": self._generate_api_endpoints(requirements, features),
+            "services": self._generate_services(features),
+            "middlewares": ["CORS", "Authentication", "Logging", "Error Handling"]
+        }
+    
+    def _generate_frontend_structure(self, requirements: Dict[str, Any], features: List[str], architecture: Dict[str, Any]) -> Dict[str, Any]:
+        """Generar estructura del frontend"""
+        return {
+            "framework": "Next.js",
+            "language": "TypeScript",
+            "pages": self._generate_pages(features),
+            "components": self._generate_ui_components(features),
+            "state_management": "Redux Toolkit",
+            "styling": "Tailwind CSS"
+        }
+    
+    def _generate_database_structure(self, requirements: Dict[str, Any], features: List[str]) -> Dict[str, Any]:
+        """Generar estructura de base de datos"""
+        return {
+            "type": "PostgreSQL",
+            "tables": self._generate_database_tables(features),
+            "relationships": self._generate_relationships(features),
+            "indexes": self._generate_indexes(features),
+            "migrations": "Alembic"
+        }
+    
+    def _generate_deployment_structure(self, architecture: Dict[str, Any]) -> Dict[str, Any]:
+        """Generar estructura de deployment"""
+        return {
+            "containerization": "Docker",
+            "orchestration": "Docker Compose",
+            "ci_cd": "GitHub Actions",
+            "environments": ["development", "staging", "production"],
+            "monitoring": "Prometheus + Grafana"
+        }
+    
+    def _generate_documentation_structure(self) -> Dict[str, Any]:
+        """Generar estructura de documentación"""
+        return {
+            "api_docs": "OpenAPI/Swagger",
+            "readme": "Project overview and setup",
+            "contributing": "Development guidelines",
+            "deployment": "Deployment instructions"
+        }
+    
+    def _generate_entities(self, requirements: Dict[str, Any], features: List[str]) -> List[Dict[str, Any]]:
+        """Generar entidades del dominio"""
         entities = []
         
-        # Entidades comunes en aplicaciones web
-        common_entities = {
-            "user": ["usuario", "user", "cliente", "customer"],
-            "product": ["producto", "product", "item", "artículo"],
-            "order": ["orden", "order", "pedido", "compra"],
-            "payment": ["pago", "payment", "transacción"],
-            "category": ["categoría", "category", "tipo"]
-        }
+        if "authentication" in features:
+            entities.append({
+                "name": "User",
+                "description": "System user entity",
+                "attributes": ["id", "email", "password_hash", "created_at", "updated_at"],
+                "relationships": []
+            })
         
-        description_lower = description.lower()
-        
-        for entity_type, keywords in common_entities.items():
-            if any(keyword in description_lower for keyword in keywords):
-                entities.append({
-                    "name": entity_type.capitalize(),
-                    "confidence": 0.8,
-                    "attributes": self._get_default_attributes(entity_type)
-                })
-        
-        # Análisis de features
-        for feature in features:
-            feature_lower = feature.lower()
-            if "blog" in feature_lower:
-                entities.append({
-                    "name": "Post",
-                    "confidence": 0.9,
-                    "attributes": ["title", "content", "author", "created_at"]
-                })
-            elif "comentario" in feature_lower or "comment" in feature_lower:
-                entities.append({
-                    "name": "Comment",
-                    "confidence": 0.9,
-                    "attributes": ["content", "author", "post_id", "created_at"]
-                })
-        
+        # Agregar más entidades basadas en features
         return entities
     
-    def _recommend_architecture_patterns(
-        self, 
-        project_type: str, 
-        functional_req: List[Dict[str, Any]], 
-        non_functional_req: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """Recomendar patrones de arquitectura"""
-        recommendations = []
+    def _generate_data_models(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar modelos de datos"""
+        models = []
         
-        # Análisis basado en complejidad
-        high_complexity = len(functional_req) > 20
-        high_scalability = non_functional_req.get("scalability", {}).get("horizontal_scaling", False)
-        
-        if project_type == "saas" or high_complexity:
-            recommendations.append({
-                "pattern": ArchitecturePattern.CLEAN_ARCHITECTURE,
-                "score": 0.9,
-                "reasoning": "Ideal para aplicaciones SaaS complejas con múltiples dominios"
+        if "authentication" in features:
+            models.append({
+                "name": "User",
+                "table": "users",
+                "fields": [
+                    {"name": "id", "type": "UUID", "primary_key": True},
+                    {"name": "email", "type": "String", "unique": True, "nullable": False},
+                    {"name": "password_hash", "type": "String", "nullable": False},
+                    {"name": "is_active", "type": "Boolean", "default": True},
+                    {"name": "created_at", "type": "DateTime", "default": "now"},
+                    {"name": "updated_at", "type": "DateTime", "default": "now", "onupdate": "now"}
+                ]
             })
         
-        if high_scalability:
-            recommendations.append({
-                "pattern": ArchitecturePattern.MICROSERVICES,
-                "score": 0.8,
-                "reasoning": "Recomendado para alta escalabilidad y equipos distribuidos"
-            })
-        
-        # Por defecto, arquitectura en capas
-        recommendations.append({
-            "pattern": ArchitecturePattern.LAYERED,
-            "score": 0.7,
-            "reasoning": "Patrón estándar, fácil de implementar y mantener"
-        })
-        
-        return sorted(recommendations, key=lambda x: x["score"], reverse=True)
+        return models
     
-    def _design_layers(
-        self, pattern: ArchitecturePattern, requirements: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Diseñar capas de la arquitectura"""
-        if pattern == ArchitecturePattern.CLEAN_ARCHITECTURE:
-            return {
-                "presentation": {
-                    "components": ["controllers", "views", "middleware"],
-                    "description": "Capa de presentación y controladores"
-                },
-                "application": {
-                    "components": ["use_cases", "services", "dto"],
-                    "description": "Lógica de aplicación y casos de uso"
-                },
-                "domain": {
-                    "components": ["entities", "repositories", "domain_services"],
-                    "description": "Lógica de dominio y entidades"
-                },
-                "infrastructure": {
-                    "components": ["database", "external_apis", "file_system"],
-                    "description": "Infraestructura y servicios externos"
-                }
-            }
-        
-        elif pattern == ArchitecturePattern.LAYERED:
-            return {
-                "presentation": {
-                    "components": ["controllers", "routes", "middleware"],
-                    "description": "Capa de presentación web"
-                },
-                "business": {
-                    "components": ["services", "business_logic"],
-                    "description": "Lógica de negocio"
-                },
-                "data": {
-                    "components": ["models", "repositories", "database"],
-                    "description": "Acceso a datos"
-                }
-            }
-        
-        return {}
-    
-    def _generate_detailed_entities(self, entities: List[Dict[str, Any]]) -> List[Entity]:
-        """Generar entidades detalladas"""
-        detailed_entities = []
-        
-        for entity_data in entities:
-            name = entity_data.get("name", "Unknown")
-            attributes = entity_data.get("attributes", [])
-            
-            # Generar atributos tipados
-            typed_attributes = {}
-            for attr in attributes:
-                if isinstance(attr, str):
-                    typed_attributes[attr] = self._infer_attribute_type(attr)
-                elif isinstance(attr, dict):
-                    typed_attributes[attr["name"]] = attr.get("type", "string")
-            
-            # Agregar atributos comunes
-            typed_attributes.update({
-                "id": "uuid",
-                "created_at": "datetime",
-                "updated_at": "datetime"
-            })
-            
-            entity = Entity(
-                name=name,
-                description=f"Entidad {name} del dominio",
-                attributes=typed_attributes,
-                relationships=[],
-                constraints=self._generate_entity_constraints(name, typed_attributes),
-                metadata={
-                    "table_name": name.lower() + "s",
-                    "primary_key": "id",
-                    "soft_delete": True
-                }
-            )
-            
-            detailed_entities.append(entity)
-        
-        return detailed_entities
-    
-    def _infer_attribute_type(self, attribute_name: str) -> str:
-        """Inferir tipo de atributo basado en el nombre"""
-        attribute_lower = attribute_name.lower()
-        
-        if attribute_lower in ["id", "user_id", "product_id"]:
-            return "uuid"
-        elif "email" in attribute_lower:
-            return "email"
-        elif "password" in attribute_lower:
-            return "password_hash"
-        elif attribute_lower in ["created_at", "updated_at", "date"]:
-            return "datetime"
-        elif attribute_lower in ["price", "amount", "cost"]:
-            return "decimal"
-        elif attribute_lower in ["quantity", "count", "number"]:
-            return "integer"
-        elif attribute_lower in ["active", "enabled", "verified"]:
-            return "boolean"
-        elif "description" in attribute_lower or "content" in attribute_lower:
-            return "text"
-        else:
-            return "string"
-    
-    async def _handle_analyze_requirements(self, request) -> Dict[str, Any]:
-        """Handler para análisis de requisitos"""
-        params = request.params
-        return await self._analyze_requirements(params)
-    
-    async def _handle_design_architecture(self, request) -> Dict[str, Any]:
-        """Handler para diseño de arquitectura"""
-        params = request.params
-        return await self._design_architecture(params)
-    
-    async def _handle_generate_schema(self, request) -> Dict[str, Any]:
-        """Handler para generación de schema"""
-        params = request.params
-        schema = await self._generate_project_schema(params)
-        # Convertir a dict para serialización
-        return {
-            "project_name": schema.project_name,
-            "description": schema.description,
-            "architecture_pattern": schema.architecture_pattern.value,
-            "stack": schema.stack,
-            "entities": [
-                {
-                    "name": entity.name,
-                    "description": entity.description,
-                    "attributes": entity.attributes,
-                    "relationships": entity.relationships,
-                    "constraints": entity.constraints,
-                    "metadata": entity.metadata
-                }
-                for entity in schema.entities
-            ],
-            "relationships": schema.relationships,
-            "endpoints": schema.endpoints,
-            "business_rules": schema.business_rules,
-            "security_requirements": schema.security_requirements,
-            "performance_requirements": schema.performance_requirements,
-            "deployment_config": schema.deployment_config,
-            "metadata": schema.metadata
-        }
-    
-    def _load_architecture_templates(self) -> Dict[str, Any]:
-        """Cargar templates de arquitectura"""
-        return {
-            "saas_basic": {
-                "entities": ["User", "Organization", "Subscription", "Payment"],
-                "features": ["authentication", "billing", "multi_tenancy"],
-                "patterns": [ArchitecturePattern.CLEAN_ARCHITECTURE]
-            },
-            "ecommerce": {
-                "entities": ["User", "Product", "Order", "Payment", "Category"],
-                "features": ["catalog", "cart", "checkout", "inventory"],
-                "patterns": [ArchitecturePattern.LAYERED]
-            }
-        }
-    
-    def _load_design_patterns(self) -> Dict[str, Any]:
-        """Cargar patrones de diseño"""
-        return {
-            "repository": "Abstracción del acceso a datos",
-            "service": "Encapsulación de lógica de negocio",
-            "factory": "Creación de objetos complejos",
-            "observer": "Notificación de eventos"
-        }
-    
-    async def _load_best_practices(self):
-        """Cargar mejores prácticas"""
-        pass
-    
-    async def _initialize_ai_models(self):
-        """Inicializar modelos de IA para análisis"""
-        pass
-    
-    def _categorize_feature(self, feature: str) -> str:
-        """Categorizar una característica"""
-        feature_lower = feature.lower()
-        
-        if any(word in feature_lower for word in ["auth", "login", "signup"]):
-            return "authentication"
-        elif any(word in feature_lower for word in ["pay", "bill", "subscription"]):
-            return "payment"
-        elif any(word in feature_lower for word in ["search", "filter", "browse"]):
-            return "search"
-        elif any(word in feature_lower for word in ["chat", "message", "notification"]):
-            return "communication"
-        else:
-            return "business_logic"
-    
-    def _get_default_attributes(self, entity_type: str) -> List[str]:
-        """Obtener atributos por defecto para un tipo de entidad"""
-        defaults = {
-            "user": ["email", "password", "name", "active"],
-            "product": ["name", "description", "price", "category_id"],
-            "order": ["user_id", "total", "status", "ordered_at"],
-            "payment": ["order_id", "amount", "method", "status"],
-            "category": ["name", "description", "parent_id"]
-        }
-        return defaults.get(entity_type, ["name", "description"])
-    
-    def _calculate_complexity_score(
-        self, requirements: List[Dict[str, Any]], entities: List[Dict[str, Any]]
-    ) -> int:
-        """Calcular puntuación de complejidad"""
-        base_score = len(requirements) * 2 + len(entities) * 3
-        
-        # Ajustes por tipo de requisitos
-        for req in requirements:
-            if req.get("priority") == "high":
-                base_score += 2
-            if req.get("category") in ["payment", "authentication"]:
-                base_score += 5
-        
-        return min(base_score, 100)
-    
-    def _estimate_development_timeline(
-        self, requirements: List[Dict[str, Any]], entities: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Estimar timeline de desarrollo"""
-        base_weeks = len(entities) * 1.5 + len(requirements) * 0.5
-        
-        return {
-            "backend_weeks": base_weeks * 0.6,
-            "frontend_weeks": base_weeks * 0.4,
-            "testing_weeks": base_weeks * 0.3,
-            "deployment_weeks": 1,
-            "total_weeks": base_weeks + 1.3
-        }
-    
-    def _design_components(self, requirements: Dict[str, Any], layers: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Diseñar componentes del sistema"""
-        return []
-    
-    def _design_data_flows(self, components: List[Dict[str, Any]], requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Diseñar flujos de datos"""
-        return []
-    
-    def _design_api_endpoints(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
-        """Diseñar endpoints de la API"""
-        return {}
-    
-    def _design_security_architecture(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
-        """Diseñar arquitectura de seguridad"""
-        return {}
-    
-    def _design_deployment_architecture(self, requirements: Dict[str, Any], components: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Diseñar arquitectura de despliegue"""
-        return {}
-    
-    def _generate_entity_relationships(self, entities: List[Entity]) -> List[Dict[str, Any]]:
-        """Generar relaciones entre entidades"""
-        return []
-    
-    def _generate_api_endpoints(self, entities: List[Entity], requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _generate_api_endpoints(self, requirements: Dict[str, Any], features: List[str]) -> List[Dict[str, Any]]:
         """Generar endpoints de la API"""
-        return []
+        endpoints = [
+            {"method": "GET", "path": "/", "description": "Health check endpoint"},
+            {"method": "GET", "path": "/health", "description": "Application health status"}
+        ]
+        
+        if "authentication" in features:
+            endpoints.extend([
+                {"method": "POST", "path": "/api/v1/auth/register", "description": "User registration"},
+                {"method": "POST", "path": "/api/v1/auth/login", "description": "User login"},
+                {"method": "POST", "path": "/api/v1/auth/logout", "description": "User logout"},
+                {"method": "GET", "path": "/api/v1/auth/me", "description": "Get current user"}
+            ])
+        
+        return endpoints
     
-    def _generate_business_rules(self, entities: List[Entity], requirements: Dict[str, Any]) -> List[str]:
-        """Generar reglas de negocio"""
-        return []
+    def _generate_services(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar servicios del backend"""
+        services = []
+        
+        if "authentication" in features:
+            services.append({
+                "name": "AuthService",
+                "description": "Handle user authentication and authorization",
+                "methods": ["register", "login", "logout", "validate_token"]
+            })
+        
+        return services
     
-    def _generate_security_requirements(self, requirements: Dict[str, Any]) -> List[str]:
-        """Generar requisitos de seguridad"""
-        return []
+    def _generate_pages(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar páginas del frontend"""
+        pages = [
+            {"name": "Home", "path": "/", "description": "Landing page"},
+            {"name": "About", "path": "/about", "description": "About page"}
+        ]
+        
+        if "authentication" in features:
+            pages.extend([
+                {"name": "Login", "path": "/login", "description": "User login page"},
+                {"name": "Register", "path": "/register", "description": "User registration page"},
+                {"name": "Dashboard", "path": "/dashboard", "description": "User dashboard", "protected": True}
+            ])
+        
+        return pages
     
-    def _generate_performance_requirements(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
-        """Generar requisitos de rendimiento"""
-        return {}
+    def _generate_ui_components(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar componentes UI"""
+        components = [
+            {"name": "Layout", "type": "layout", "description": "Main application layout"},
+            {"name": "Header", "type": "navigation", "description": "Navigation header"},
+            {"name": "Footer", "type": "layout", "description": "Application footer"}
+        ]
+        
+        if "authentication" in features:
+            components.extend([
+                {"name": "LoginForm", "type": "form", "description": "User login form"},
+                {"name": "RegisterForm", "type": "form", "description": "User registration form"},
+                {"name": "UserProfile", "type": "display", "description": "User profile display"}
+            ])
+        
+        return components
     
-    def _generate_deployment_config(self, architecture: Dict[str, Any], stack: Dict[str, str]) -> Dict[str, Any]:
-        """Generar configuración de despliegue"""
-        return {}
+    def _generate_database_tables(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar tablas de base de datos"""
+        tables = []
+        
+        if "authentication" in features:
+            tables.append({
+                "name": "users",
+                "columns": [
+                    {"name": "id", "type": "UUID", "constraints": ["PRIMARY KEY"]},
+                    {"name": "email", "type": "VARCHAR(255)", "constraints": ["UNIQUE", "NOT NULL"]},
+                    {"name": "password_hash", "type": "VARCHAR(255)", "constraints": ["NOT NULL"]},
+                    {"name": "is_active", "type": "BOOLEAN", "constraints": ["DEFAULT TRUE"]},
+                    {"name": "created_at", "type": "TIMESTAMP", "constraints": ["DEFAULT CURRENT_TIMESTAMP"]},
+                    {"name": "updated_at", "type": "TIMESTAMP", "constraints": ["DEFAULT CURRENT_TIMESTAMP"]}
+                ]
+            })
+        
+        return tables
     
-    def _generate_entity_constraints(self, entity_name: str, attributes: Dict[str, str]) -> List[str]:
-        """Generar restricciones para una entidad"""
-        return []
-
-    async def _handle_validate_design(self, request) -> Dict[str, Any]:
-        """Handler para validar el diseño generado"""
-        params = request.params
-        return await self._validate_design(params)
-
-    async def _validate_design(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Validar coherencia del diseño"""
-        return {"valid": True, "issues": []}
-
-    async def _handle_recommend_stack(self, request) -> Dict[str, Any]:
-        """Handler para recomendación de stack tecnológico"""
-        params = request.params
-        return await self._recommend_technology_stack(params)
-
-    async def _recommend_technology_stack(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Recomendar stack tecnológico basado en configuración por defecto"""
-        stack_name = params.get("template", "golden-path")
-        recommended = GenesisConfig.get_stack_config(stack_name)
-        if not recommended:
-            recommended = GenesisConfig.get_stack_config("golden-path")
-        return {"recommended_stack": recommended}
+    def _generate_relationships(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar relaciones entre tablas"""
+        relationships = []
+        # Por ahora retornar lista vacía, se expandirá según necesidades
+        return relationships
+    
+    def _generate_indexes(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar índices de base de datos"""
+        indexes = []
+        
+        if "authentication" in features:
+            indexes.append({
+                "table": "users",
+                "columns": ["email"],
+                "type": "unique",
+                "name": "idx_users_email"
+            })
+        
+        return indexes
+    
+    def _generate_workflows(self, features: List[str]) -> List[Dict[str, Any]]:
+        """Generar workflows de la aplicación"""
+        workflows = []
+        
+        if "authentication" in features:
+            workflows.append({
+                "name": "user_registration",
+                "steps": [
+                    "User fills registration form",
+                    "System validates input",
+                    "System creates user account", 
+                    "System sends confirmation email",
+                    "User confirms account"
+                ]
+            })
+        
+        return workflows
+    
+    def _generate_dependencies(self, architecture: Dict[str, Any]) -> Dict[str, List[str]]:
+        """Generar dependencias del proyecto"""
+        return {
+            "backend": [
+                "fastapi>=0.68.0",
+                "uvicorn[standard]>=0.15.0",
+                "sqlalchemy>=1.4.0",
+                "alembic>=1.7.0",
+                "psycopg2-binary>=2.9.0",
+                "python-jose[cryptography]>=3.3.0",
+                "passlib[bcrypt]>=1.7.4",
+                "python-multipart>=0.0.5"
+            ],
+            "frontend": [
+                "next@latest",
+                "react@^18.0.0",
+                "typescript@^4.0.0",
+                "@reduxjs/toolkit@^1.8.0",
+                "tailwindcss@^3.0.0"
+            ]
+        }
+    
+    def _generate_configuration(self, architecture: Dict[str, Any], features: List[str]) -> Dict[str, Any]:
+        """Generar configuración del proyecto"""
+        config = {
+            "environment_variables": {
+                "DATABASE_URL": "Connection string for the database",
+                "SECRET_KEY": "Secret key for JWT token signing"
+            },
+            "docker": {
+                "base_images": {
+                    "backend": "python:3.11-slim",
+                    "frontend": "node:18-alpine"
+                }
+            }
+        }
+        
+        if "authentication" in features:
+            config["environment_variables"].update({
+                "JWT_SECRET_KEY": "JWT secret key",
+                "JWT_ALGORITHM": "HS256",
+                "ACCESS_TOKEN_EXPIRE_MINUTES": "30"
+            })
+        
+        return config
+    
+    # Métodos auxiliares adicionales
+    
+    def _assess_task_complexity(self, task: AgentTask) -> str:
+        """Evaluar complejidad de una tarea"""
+        param_count = len(task.params) if task.params else 0
+        
+        if param_count <= 2:
+            return "low"
+        elif param_count <= 5:
+            return "medium"
+        else:
+            return "high"
+    
+    def _validate_layer_consistency(self, architecture: Dict[str, Any], result: Dict[str, Any]):
+        """Validar consistencia entre capas"""
+        layers = architecture.get("layers", [])
+        if len(layers) < 2:
+            result["warnings"].append("Arquitectura tiene pocas capas definidas")
+    
+    def _validate_component_dependencies(self, architecture: Dict[str, Any], result: Dict[str, Any]):
+        """Validar dependencias entre componentes"""
+        components = architecture.get("components", [])
+        for component in components:
+            deps = component.get("dependencies", [])
+            for dep in deps:
+                if not any(c["name"] == dep for c in components):
+                    result["errors"].append(f"Componente {component['name']} depende de {dep} que no existe")
+    
+    def _validate_technology_compatibility(self, architecture: Dict[str, Any], result: Dict[str, Any]):
+        """Validar compatibilidad de tecnologías"""
+        technologies = architecture.get("technologies", {})
+        
+        # Validaciones básicas de compatibilidad
+        if technologies.get("frontend_framework") == "React" and technologies.get("backend_framework") == "Django":
+            result["suggestions"].append("Considerar usar Django REST Framework para mejor integración con React")
+    
+    def _validate_security_requirements(self, architecture: Dict[str, Any], requirements: Dict[str, Any], result: Dict[str, Any]):
+        """Validar requisitos de seguridad"""
+        security = architecture.get("security_considerations", [])
+        
+        if not security:
+            result["warnings"].append("No se encontraron consideraciones de seguridad definidas")
+        
+        if "authentication" in str(requirements) and "JWT" not in str(security):
+            result["suggestions"].append("Considerar implementar autenticación JWT")
+    
+    def _score_technology_stack(self, stack_config: Dict[str, str], features: List[str], complexity: str, constraints: List[str]) -> float:
+        """Puntuar stack tecnológico"""
+        score = 5.0  # Score base
+        
+        # Ajustar score basado en features
+        if "authentication" in features and "FastAPI" in stack_config.get("backend", ""):
+            score += 1.0
+        
+        # Ajustar por complejidad
+        if complexity == "high" and "microservices" in str(stack_config).lower():
+            score += 1.5
+        
+        # Ajustar por constraints
+        for constraint in constraints:
+            if constraint.lower() in str(stack_config).lower():
+                score -= 0.5
+        
+        return min(10.0, max(0.0, score))
+    
+    def _get_stack_pros(self, stack_name: str, features: List[str]) -> List[str]:
+        """Obtener ventajas de un stack"""
+        return [
+            "Bien documentado",
+            "Comunidad activa",
+            "Buena performance"
+        ]
+    
+    def _get_stack_cons(self, stack_name: str, features: List[str]) -> List[str]:
+        """Obtener desventajas de un stack"""
+        return [
+            "Curva de aprendizaje",
+            "Dependencias externas"
+        ]
+    
+    def _estimate_development_time(self, complexity_level: str) -> str:
+        """Estimar tiempo de desarrollo"""
+        times = {
+            "low": "1-2 semanas",
+            "medium": "1-2 meses",
+            "high": "3-6 meses"
+        }
+        return times.get(complexity_level, "2-4 semanas")
+    
+    def _recommend_approach(self, complexity_level: str) -> str:
+        """Recomendar enfoque de desarrollo"""
+        approaches = {
+            "low": "Desarrollo iterativo con MVP rápido",
+            "medium": "Desarrollo ágil con sprints de 2 semanas",
+            "high": "Arquitectura modular con equipos especializados"
+        }
+        return approaches.get(complexity_level, "Desarrollo iterativo")
