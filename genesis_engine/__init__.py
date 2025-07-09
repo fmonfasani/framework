@@ -22,7 +22,7 @@ try:
     from genesis_engine.core.project_manager import ProjectManager
     from genesis_engine.mcp.protocol import MCPProtocol
     from genesis_engine.mcp.agent_base import GenesisAgent
-except ImportError as e:  # pragma: no cover - graceful fallback if deps fail
+except Exception as e:  # pragma: no cover - graceful fallback if deps fail
     logger.error(f"Failed to import core dependencies: {e}", exc_info=True)
     GenesisOrchestrator = None
     ProjectManager = None
@@ -36,5 +36,4 @@ __all__ = [
     "GenesisAgent",
     "__version__",
     "__author__",
-    "__email__"
-]
+    "__email__"]
