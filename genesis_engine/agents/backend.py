@@ -13,53 +13,6 @@ from datetime import datetime
 from pathlib import Path
 import json
 import asyncio
-from enum import Enum
-from dataclasses import dataclass
-
-__all__ = [
-    "BackendAgent",
-    "BackendFramework",
-    "DatabaseType",
-    "AuthMethod",
-    "BackendConfig",
-]
-
-
-class BackendFramework(str, Enum):
-    """Supported backend frameworks."""
-
-    FASTAPI = "fastapi"
-    DJANGO = "django"
-    NESTJS = "nestjs"
-
-
-class DatabaseType(str, Enum):
-    """Supported database engines."""
-
-    POSTGRESQL = "postgresql"
-    MYSQL = "mysql"
-    SQLITE = "sqlite"
-
-
-class AuthMethod(str, Enum):
-    """Authentication mechanisms."""
-
-    JWT = "jwt"
-    SESSION = "session"
-    NONE = "none"
-
-
-@dataclass
-class BackendConfig:
-    """Configuration parameters for backend generation."""
-
-    framework: BackendFramework
-    database: DatabaseType
-    auth_method: AuthMethod
-    features: List[str]
-    dependencies: List[str]
-    environment_vars: Dict[str, Any]
-
 logger = logging.getLogger(__name__)
 
 
