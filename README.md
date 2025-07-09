@@ -119,6 +119,16 @@ genesis doctor
 # 🎉 Todas las verificaciones pasaron (8/8)
 ```
 
+### Dependencias de desarrollo y pruebas
+
+Para preparar un entorno de contribución instala las dependencias con los
+extras de desarrollo y ejecuta la batería de tests:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
 ## 🎯 Uso Básico
 
 ### Mostrar Ayuda

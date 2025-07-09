@@ -1,9 +1,3 @@
-"""
-Módulo de logging para Genesis Engine - CORREGIDO
-
-Proporciona funciones centralizadas para configuración de logging
-SIN imports circulares
-"""
 
 import logging
 from typing import Optional
