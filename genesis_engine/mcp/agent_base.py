@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """Base classes and dataclasses for Genesis agents used by the MCP protocol."""
 
 from dataclasses import dataclass, field
@@ -9,32 +10,42 @@ import uuid
 from genesis_engine.mcp.message_types import MCPRequest
 from genesis_engine.agents.base_agent import BaseAgent
 
+
 @dataclass
 class AgentTask:
     """Representation of a task assigned to an agent."""
+
     id: str
     name: str
     description: str = ""
     params: Dict[str, Any] = field(default_factory=dict)
     priority: int = 0
 
+
 @dataclass
 class TaskResult:
     """Result returned by an agent after executing a task."""
+
     task_id: str
     success: bool
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
+
 class GenesisAgent(BaseAgent):
     """Base class for all Genesis Engine agents."""
 
-    def __init__(self, agent_id: str, name: str, agent_type: str, version: str = "1.0.0"):
+    def __init__(
+        self, agent_id: str, name: str, agent_type: str, version: str = "1.0.0"
+    ):
         super().__init__(name=name, version=version)
         self.agent_id = agent_id or f"{agent_type}_{uuid.uuid4().hex[:8]}"
         self.agent_type = agent_type
         self.handlers: Dict[str, Callable] = {}
         self.metadata: Dict[str, Any] = {}
+
+        # Register default handler for task execution
+        self.register_handler("task.execute", self._handle_task_execute)
 
     async def start(self):
         """Initialize the agent."""
@@ -51,7 +62,7 @@ class GenesisAgent(BaseAgent):
     def get_capabilities(self) -> list:
         """Retornar capacidades del agente"""
         return list(self.capabilities)
-      
+
     def register_handler(self, action: str, handler: Callable):
         self.handlers[action] = handler
 
@@ -63,13 +74,11 @@ class GenesisAgent(BaseAgent):
 
 
     async def handle_request(self, request: MCPRequest) -> Dict[str, Any]:
-
         """Dispatch a request to a registered handler."""
 
         handler = self.handlers.get(request.action)
         if not handler:
             raise ValueError(f"Handler not found for action '{request.action}'")
-
 
         if asyncio.iscoroutinefunction(handler):
             return await handler(request.data)
@@ -80,5 +89,21 @@ class GenesisAgent(BaseAgent):
             # declared as async, await it using the current loop
             return await result
 
+        return result
+
+    async def _handle_task_execute(self, data: Dict[str, Any]) -> Any:
+        """Execute a task using the agent's ``execute_task`` method."""
+
+        task = AgentTask(
+            id=data.get("task_id") or data.get("id", str(uuid.uuid4())),
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            params=data.get("params", {}),
+            priority=data.get("priority", 0),
+        )
+
+        result = self.execute_task(task)
+        if asyncio.iscoroutine(result):
+            result = await result
 
         return result
