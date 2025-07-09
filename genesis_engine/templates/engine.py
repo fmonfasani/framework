@@ -175,12 +175,17 @@ class TemplateEngine:
 
         missing = set()
 
+        optional_non_strict = {"styling", "state_management"}
+
         # Reglas específicas por patrón de template
         for pattern, required in self.REQUIRED_VARIABLES.items():
             if fnmatch.fnmatch(template_name, pattern):
                 for name in required:
                     if name not in variables:
-                        missing.add(name)
+                        if not self.strict_validation and name in optional_non_strict:
+                            variables[name] = ""
+                        else:
+                            missing.add(name)
 
         # Validación genérica basada en variables esperadas dentro del template
         expected = set(self.get_template_variables(template_name))
