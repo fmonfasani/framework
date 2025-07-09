@@ -1,33 +1,12 @@
 from pathlib import Path
 import sys
-import types
-import importlib.util
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-# Minimal genesis_engine package stub
-pkg = sys.modules.setdefault('genesis_engine', types.ModuleType('genesis_engine'))
-pkg.__path__ = [str(ROOT / 'genesis_engine')]
-
-# Load required submodules directly
-spec_logging = importlib.util.spec_from_file_location(
-    'genesis_engine.core.logging',
-    ROOT / 'genesis_engine' / 'core' / 'logging.py'
-)
-logging_mod = importlib.util.module_from_spec(spec_logging)
-sys.modules['genesis_engine.core.logging'] = logging_mod
-spec_logging.loader.exec_module(logging_mod)
-
-spec_validation = importlib.util.spec_from_file_location(
-    'genesis_engine.utils.validation',
-    ROOT / 'genesis_engine' / 'utils' / 'validation.py'
-)
-validation_mod = importlib.util.module_from_spec(spec_validation)
-sys.modules['genesis_engine.utils.validation'] = validation_mod
-spec_validation.loader.exec_module(validation_mod)
-
-EnvironmentValidator = validation_mod.EnvironmentValidator
+from genesis_engine.utils.validation import EnvironmentValidator
+import genesis_engine.utils.validation as validation_mod
+import types
 
 
 def test_multiple_package_managers(monkeypatch):
