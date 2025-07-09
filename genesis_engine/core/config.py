@@ -370,5 +370,4 @@ def initialize(
     return config
 
 # Configuración por defecto al importar el módulo
-
 if _config_instance is None:    _config_instance = load_user_config()
