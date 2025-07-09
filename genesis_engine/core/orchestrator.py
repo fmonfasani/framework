@@ -1345,7 +1345,7 @@ Generado con ❤️ por Genesis Engine
         
         # Limpiar persistence
         await self._cleanup_persistence()
-                self.logger.info("🛑 Orchestrator detenido")
+        self.logger.info("🛑 Orchestrator detenido")
 
 
 # Backwards compatibility alias
