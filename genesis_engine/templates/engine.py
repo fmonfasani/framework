@@ -192,7 +192,7 @@ class TemplateEngine:
         if missing:
             message = f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
             if self.strict_validation:
-                raise KeyError(message)
+                raise ValueError(message)
             else:
                 self.logger.warning(message)
                 # Agregar variables por defecto para evitar errores
@@ -228,7 +228,7 @@ class TemplateEngine:
         # Validar variables requeridas (flexible para compatibilidad)
         try:
             self.validate_required_variables(template_name, vars_clean)
-        except KeyError as e:
+        except ValueError as e:
             if self.strict_validation:
                 raise ValueError(str(e))
             else:
@@ -368,7 +368,7 @@ class TemplateEngine:
                     # Validar variables requeridas (flexible para compatibilidad)
                     try:
                         self.validate_required_variables(relative_template.as_posix(), context)
-                    except KeyError as e:
+                    except ValueError as e:
                         self.logger.warning(f"Missing variables for {relative_template}, using defaults")
                         # Agregar variables por defecto para evitar errores
                         if 'project_name' not in context:
