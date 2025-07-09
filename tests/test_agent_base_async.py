@@ -1,20 +1,22 @@
 import asyncio
 import sys
 from pathlib import Path
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from genesis_engine.mcp.agent_base import GenesisAgent
+from genesis_engine.mcp.agent_base import create_simple_agent
 from genesis_engine.mcp.message_types import MCPRequest
 
 
-def test_async_handler_runs_in_running_loop():
-    agent = GenesisAgent(agent_id="a1", name="Agent", agent_type="test")
+@pytest.mark.asyncio
+async def test_async_handler_runs_in_running_loop():
+    agent = create_simple_agent("a1", "Agent")
 
-    async def handler(data):
+    async def handler(request):
         await asyncio.sleep(0)
-        return data["x"]
+        return request.data["x"]
 
     agent.register_handler("act", handler)
     req = MCPRequest(
@@ -25,9 +27,6 @@ def test_async_handler_runs_in_running_loop():
         timeout=1,
     )
 
-    async def run():
-        result = await agent.handle_request(req)
-        assert result == 123
-
-    asyncio.run(run())
+    result = await agent.handle_request(req)
+    assert result == 123
 
