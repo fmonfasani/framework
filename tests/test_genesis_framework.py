@@ -219,8 +219,13 @@ class GenesisFrameworkTester:
             
             # Detener protocolo
             await protocol.stop()
+            assert protocol.worker_task.done()
+            assert protocol.metrics_task.done()
+            assert protocol.circuit_task.done()
             
         except Exception as e:
+            if 'protocol' in locals() and protocol.running:
+                await protocol.stop()
             self.add_result(TestResult(
                 name="MCP Protocol Test",
                 success=False,

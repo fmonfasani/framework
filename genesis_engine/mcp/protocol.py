@@ -482,6 +482,8 @@ class MCPProtocol:
         self.broadcast_handlers: Dict[str, List[Callable]] = defaultdict(list)
         self.running = False
         self.worker_task: Optional[asyncio.Task] = None
+        self.metrics_task: Optional[asyncio.Task] = None
+        self.circuit_task: Optional[asyncio.Task] = None
         self.message_handlers: Dict[str, Callable] = {}
         self.event_loop: Optional[asyncio.AbstractEventLoop] = None       
 
@@ -575,10 +577,10 @@ class MCPProtocol:
         self.event_loop = asyncio.get_event_loop()
         self.logger.info("MCP Protocol iniciado")
         self.worker_task = asyncio.create_task(self._message_worker())
-        
-        # Iniciar tareas de mantenimiento
-        asyncio.create_task(self._metrics_collector())
-        asyncio.create_task(self._circuit_breaker_monitor())
+
+        # Iniciar tareas de mantenimiento y almacenarlas
+        self.metrics_task = asyncio.create_task(self._metrics_collector())
+        self.circuit_task = asyncio.create_task(self._circuit_breaker_monitor())
         
         self.logger.info("Protocolo MCP iniciado")
 
@@ -595,7 +597,15 @@ class MCPProtocol:
                 await self.worker_task
             except asyncio.CancelledError:
                 pass
-        
+
+        for task in (self.metrics_task, self.circuit_task):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
         await self.connection_manager.cleanup()
         self.logger.info("Protocolo MCP detenido")
     
