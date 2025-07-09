@@ -482,7 +482,9 @@ class MCPProtocol:
         self.broadcast_handlers: Dict[str, List[Callable]] = defaultdict(list)
         self.running = False
         self.worker_task: Optional[asyncio.Task] = None
-        
+        self.message_handlers: Dict[str, Callable] = {}
+        self.event_loop: Optional[asyncio.AbstractEventLoop] = None       
+
         # Componentes mejorados
         self.validator = MCPMessageValidator()
         self.serializer = MCPMessageSerializer()
@@ -570,6 +572,8 @@ class MCPProtocol:
             return
 
         self.running = True
+        self.event_loop = asyncio.get_event_loop()
+        self.logger.info("MCP Protocol iniciado")
         self.worker_task = asyncio.create_task(self._message_worker())
         
         # Iniciar tareas de mantenimiento
@@ -580,6 +584,9 @@ class MCPProtocol:
 
     async def stop(self):
         """Detener el protocolo MCP"""
+
+        if not self.running:
+            return
         self.running = False
         
         if self.worker_task:
@@ -616,7 +623,44 @@ class MCPProtocol:
         self.stats["rate_limit_hits"] += 1
         return False
     
+    # MÉTODO CORREGIDO: Compatibilidad con tests
     async def send_request(
+        self,
+        sender: str,
+        recipient: str,
+        action: str,
+        data: Optional[Dict[str, Any]] = None,
+        timeout: int = 30,
+        priority: Priority = Priority.NORMAL,
+        retry_config: Optional[RetryConfig] = None
+    ) -> MCPResponse:
+        """
+        Método de compatibilidad para tests.
+        Enviar una solicitud a un agente específico.
+        
+        Args:
+            sender: ID del agente remitente
+            recipient: ID del agente destinatario
+            action: Acción a ejecutar
+            data: Datos opcionales
+            timeout: Timeout en segundos
+            priority: Prioridad del mensaje
+            retry_config: Configuración de retry
+            
+        Returns:
+            Respuesta del agente
+        """
+        return await self.send_request_advanced(
+            sender_id=sender,
+            target_id=recipient,
+            action=action,
+            data=data or {},
+            timeout=timeout,
+            priority=priority,
+            retry_config=retry_config
+        )
+    
+    async def send_request_advanced(
         self,
         sender_id: str,
         target_id: str,

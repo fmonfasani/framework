@@ -27,7 +27,10 @@ from collections import defaultdict
 # Imports de Genesis Engine
 from genesis_engine.core.logging import get_logger
 from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
-from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol
+
+# CORRECCIÓN: Import corregido del protocolo MCP
+from genesis_engine.mcp.protocol import MCPProtocol
+from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
 from genesis_engine.mcp.agent_base import AgentTask, TaskResult
 
 # Imports de agentes - con manejo de errores
@@ -208,7 +211,8 @@ class GenesisOrchestrator:
     """
     
     def __init__(self):
-        self.mcp = mcp_protocol
+        # CORRECCIÓN: Crear instancia propia del protocolo MCP
+        self.mcp = MCPProtocol()
         
         # Inicializar ProjectManager solo si está disponible
         if ProjectManager is not None:
@@ -249,6 +253,11 @@ class GenesisOrchestrator:
             "circuit_breaker_trips": 0,
             "average_execution_time": 0.0
         }
+
+    @property
+    def protocol(self) -> MCPProtocol:
+        """CORRECCIÓN: Alias para compatibilidad con tests"""
+        return self.mcp
 
     async def start(self):
         """Wrapper asincrónico para inicializar el orquestador"""
@@ -448,6 +457,71 @@ class GenesisOrchestrator:
         except Exception as e:
             self.logger.error(f"Error executing task {action} on {agent_key}: {e}")
             return {"success": False, "error": str(e)}
+    
+    # MÉTODO CORREGIDO: Para compatibilidad con tests
+    async def send_message(self, 
+                          recipient: str, 
+                          action: str, 
+                          data: Dict[str, Any]) -> MCPResponse:
+        """
+        Enviar mensaje a un agente específico.
+        COMPATIBILIDAD: Para mantener compatibilidad con tests.
+        
+        Args:
+            recipient: ID del agente destinatario
+            action: Acción a ejecutar
+            data: Datos del mensaje
+            
+        Returns:
+            Respuesta del agente
+        """
+        return await self.mcp.send_request(
+            sender="orchestrator",
+            recipient=recipient,
+            action=action,
+            data=data
+        )
+    
+    # MÉTODO AGREGADO: Para compatibilidad con el orchestrator original
+    async def execute_project_creation(self, 
+                                     project_name: str,
+                                     project_path: Path,
+                                     template: str = "saas-basic",
+                                     features: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Ejecutar creación completa de proyecto.
+        COMPATIBILIDAD: Para mantener compatibilidad con tests.
+        
+        Args:
+            project_name: Nombre del proyecto
+            project_path: Ruta donde crear el proyecto
+            template: Template a usar
+            features: Características adicionales
+            
+        Returns:
+            Resultado de la creación
+        """
+        config = {
+            "name": project_name,
+            "template": template,
+            "features": features or [],
+            "output_path": str(project_path.parent)
+        }
+        
+        result = await self.create_project(config)
+        
+        return {
+            "success": result.success,
+            "project_name": project_name,
+            "project_path": str(project_path),
+            "error": result.error,
+            "metadata": result.metadata
+        }
+    
+    # MÉTODO AGREGADO: Para compatibilidad con tests
+    def get_available_templates(self) -> List[str]:
+        """Obtener lista de templates disponibles."""
+        return ["saas-basic", "microservices", "ai-ready"]
     
     async def create_project(self, config: Dict[str, Any]) -> ProjectCreationResult:
         """
@@ -1001,11 +1075,11 @@ class GenesisOrchestrator:
                 priority=step.priority.value
             )
             
-            # Enviar solicitud al agente con timeout
+            # CORRECCIÓN: Usar el método corregido de send_request
             response = await asyncio.wait_for(
                 self.mcp.send_request(
-                    sender_id="orchestrator",
-                    target_id=step.agent_id,
+                    sender="orchestrator",
+                    recipient=step.agent_id,
                     action="task.execute",
                     data={
                         "task_id": task.id,
@@ -1028,7 +1102,7 @@ class GenesisOrchestrator:
                 return TaskResult(
                     task_id=step.id,
                     success=False,
-                    error=response.error_message
+                    error=response.error_message or response.error
                 )
                 
         except asyncio.TimeoutError:

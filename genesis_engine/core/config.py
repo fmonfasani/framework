@@ -6,13 +6,17 @@ Este módulo maneja toda la configuración del sistema, incluyendo:
 - Variables de entorno
 - Rutas y directorios
 - Configuraciones por defecto
+- Validación de entorno de desarrollo
 """
 
 import os
 import json
 import logging
+import sys
+import shutil
+import subprocess
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -76,6 +80,9 @@ class GenesisConfig:
     # Configuración de red
     timeout: int = 30
     max_retries: int = 3
+    
+    # Configuración de templates
+    strict_template_validation: bool = True
     
     def __post_init__(self):
         """Inicialización posterior"""
@@ -181,6 +188,314 @@ class GenesisConfig:
     def get_default_port(self, service: str) -> int:
         """Obtener puerto por defecto para un servicio"""
         return self.default_ports.get(service, 8080)
+
+
+class EnvironmentValidator:
+    """Validador del entorno de desarrollo."""
+    
+    @staticmethod
+    def check_python_version() -> Tuple[bool, str]:
+        """Verificar versión de Python."""
+        version = sys.version_info
+        required_major, required_minor = 3, 9
+        
+        if version.major >= required_major and version.minor >= required_minor:
+            return True, f"Python {version.major}.{version.minor}.{version.micro} ✓"
+        else:
+            return False, f"Python {version.major}.{version.minor}.{version.micro} (se requiere 3.9+)"
+    
+    @staticmethod
+    def check_node_version() -> Tuple[bool, str]:
+        """Verificar versión de Node.js."""
+        try:
+            result = subprocess.run(
+                ["node", "--version"], 
+                capture_output=True, 
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                # Extraer número de versión
+                version_num = version.lstrip('v')
+                major = int(version_num.split('.')[0])
+                
+                if major >= 18:
+                    return True, f"Node.js {version} ✓"
+                else:
+                    return False, f"Node.js {version} (se requiere v18+)"
+            else:
+                return False, "Node.js no encontrado"
+        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+            return False, "Node.js no encontrado o inaccesible"
+    
+    @staticmethod
+    def check_git() -> Tuple[bool, str]:
+        """Verificar instalación de Git."""
+        try:
+            result = subprocess.run(
+                ["git", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"{version} ✓"
+            else:
+                return False, "Git no encontrado"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False, "Git no encontrado o inaccesible"
+    
+    @staticmethod
+    def check_docker() -> Tuple[bool, str]:
+        """Verificar instalación de Docker."""
+        try:
+            result = subprocess.run(
+                ["docker", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"{version} ✓"
+            else:
+                return False, "Docker no encontrado"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False, "Docker no encontrado o inaccesible"
+    
+    @staticmethod
+    def check_docker_compose() -> Tuple[bool, str]:
+        """Verificar instalación de Docker Compose."""
+        try:
+            # Probar docker compose (nuevo)
+            result = subprocess.run(
+                ["docker", "compose", "version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"Docker Compose {version} ✓"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        try:
+            # Probar docker-compose (legacy)
+            result = subprocess.run(
+                ["docker-compose", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"{version} ✓"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        return False, "Docker Compose no encontrado"
+    
+    @staticmethod
+    def check_npm() -> Tuple[bool, str]:
+        """Verificar instalación de npm."""
+        try:
+            result = subprocess.run(
+                ["npm", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"npm {version} ✓"
+            else:
+                return False, "npm no encontrado"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False, "npm no encontrado o inaccesible"
+    
+    @staticmethod
+    def check_yarn() -> Tuple[bool, str]:
+        """Verificar instalación de Yarn (opcional)."""
+        try:
+            result = subprocess.run(
+                ["yarn", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"Yarn {version} ✓"
+            else:
+                return False, "Yarn no encontrado"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False, "Yarn no encontrado (opcional)"
+    
+    @staticmethod
+    def check_postgresql() -> Tuple[bool, str]:
+        """Verificar instalación de PostgreSQL (opcional)."""
+        try:
+            result = subprocess.run(
+                ["psql", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return True, f"{version} ✓"
+            else:
+                return False, "PostgreSQL no encontrado (opcional)"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False, "PostgreSQL no encontrado (opcional)"
+
+
+def validate_environment() -> Dict[str, Any]:
+    """
+    FUNCIÓN CORREGIDA: Validar el entorno de desarrollo completo.
+    
+    Returns:
+        Diccionario con resultados de validación
+    """
+    validator = EnvironmentValidator()
+    
+    checks = [
+        ("Python Version", validator.check_python_version),
+        ("Node.js Version", validator.check_node_version),
+        ("Git Installation", validator.check_git),
+        ("Docker Installation", validator.check_docker),
+        ("Docker Compose", validator.check_docker_compose),
+        ("npm Installation", validator.check_npm),
+        ("Yarn Installation", validator.check_yarn),
+        ("PostgreSQL", validator.check_postgresql),
+    ]
+    
+    results = {}
+    passed = 0
+    failed = 0
+    
+    for check_name, check_func in checks:
+        try:
+            success, message = check_func()
+            results[check_name] = {
+                "success": success,
+                "message": message
+            }
+            
+            if success:
+                passed += 1
+            else:
+                failed += 1
+                
+        except Exception as e:
+            results[check_name] = {
+                "success": False,
+                "message": f"Error durante verificación: {e}"
+            }
+            failed += 1
+    
+    # Determinar estado general
+    required_checks = ["Python Version", "Node.js Version", "Git Installation"]
+    required_passed = all(
+        results[check]["success"] for check in required_checks 
+        if check in results
+    )
+    
+    return {
+        "overall_success": required_passed,
+        "total_checks": len(checks),
+        "passed": passed,
+        "failed": failed,
+        "required_passed": required_passed,
+        "checks": results,
+        "summary": f"✅ {passed}/{len(checks)} verificaciones pasaron" if required_passed else f"❌ Faltan dependencias requeridas"
+    }
+
+
+def get_system_info() -> Dict[str, Any]:
+    """Obtener información del sistema."""
+    return {
+        "platform": sys.platform,
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "python_executable": sys.executable,
+        "working_directory": str(Path.cwd()),
+        "home_directory": str(Path.home()),
+        "genesis_config_dir": str(Path.home() / ".genesis"),
+    }
+
+
+def load_config_from_file(config_path: Path) -> Dict[str, Any]:
+    """
+    Cargar configuración desde archivo.
+    
+    Args:
+        config_path: Ruta al archivo de configuración
+        
+    Returns:
+        Diccionario con configuración
+    """
+    import json
+    try:
+        import yaml
+        HAS_YAML = True
+    except ImportError:
+        HAS_YAML = False
+    
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            if config_path.suffix.lower() in ['.yml', '.yaml'] and HAS_YAML:
+                return yaml.safe_load(f)
+            elif config_path.suffix.lower() == '.json':
+                return json.load(f)
+            else:
+                raise ValueError(f"Unsupported config file format: {config_path.suffix}")
+    except Exception as e:
+        raise ValueError(f"Error loading config from {config_path}: {e}")
+
+
+def create_default_config(config_path: Path) -> GenesisConfig:
+    """
+    Crear configuración por defecto.
+    
+    Args:
+        config_path: Ruta donde crear el archivo de configuración
+        
+    Returns:
+        Configuración creada
+    """
+    config = GenesisConfig()
+    
+    # Crear archivo de configuración ejemplo
+    config_data = {
+        "templates_dir": str(config.templates_dir),
+        "config_dir": str(config.config_dir),
+        "cache_dir": str(config.cache_dir),
+        "log_dir": str(config.log_dir),
+        "log_level": config.log_level,
+        "enable_rich_logging": config.enable_rich_logging,
+        "default_template": config.default_template,
+        "supported_backends": config.supported_backends,
+        "supported_frontends": config.supported_frontends,
+        "supported_databases": config.supported_databases,
+        "default_ports": config.default_ports,
+        "timeout": config.timeout,
+        "max_retries": config.max_retries,
+        "strict_template_validation": config.strict_template_validation
+    }
+    
+    import json
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(config_data, f, indent=2)
+    
+    logging.info(f"Default config created: {config_path}")
+    return config
+
 
 # Instancia global de configuración
 _config_instance: Optional[GenesisConfig] = None
@@ -354,32 +669,6 @@ def load_user_config(config_file: Optional[Union[str, Path]] = None) -> GenesisC
 
     return config
 
-def initialize(
-    config_file: Optional[Union[str, Path]] = None,
-    level: Optional[str] = None,
-    log_file: Optional[Union[str, Path]] = None,
-    enable_rich: Optional[bool] = None,
-) -> GenesisConfig:
-    """Inicializar configuración global y logging.
-
-    Esta función carga la configuración de usuario y establece el entorno y
-    el sistema de logging de Genesis Engine.
-
-    Args:
-        config_file: Ruta alternativa al archivo de configuración de usuario.
-        level: Nivel de logging a utilizar.
-        log_file: Archivo de log a emplear.
-        enable_rich: Habilitar salida enriquecida mediante Rich.
-
-    Returns:
-        Instancia de :class:`GenesisConfig` cargada.
-    """
-
-    config = load_user_config(config_file)
-    setup_logging(level=level, log_file=log_file, enable_rich=enable_rich)
-    configure_environment()
-    return config
-
 def save_user_config(config: Optional[GenesisConfig] = None, config_file: Optional[Union[str, Path]] = None):
     """
     Guardar configuración de usuario
@@ -414,4 +703,5 @@ def initialize(
     return config
 
 # Configuración por defecto al importar el módulo
-if _config_instance is None:    _config_instance = load_user_config()
+if _config_instance is None:
+    _config_instance = load_user_config()
