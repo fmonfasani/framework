@@ -253,7 +253,13 @@ class TemplateEngine:
                 template = self.env.get_template(template_name)
                 if use_cache:
                     self._template_cache[template_name] = template
-            
+
+            # Preparar variables
+            render_vars = variables or {}
+
+            # Validar variables requeridas
+            self.validate_required_variables(template_name, render_vars)
+
             # Agregar variables globales útiles
             render_vars.update({
                 'generated_at': datetime.utcnow().isoformat(),
@@ -270,6 +276,12 @@ class TemplateEngine:
         except TemplateNotFound as e:
             self.logger.error(f"❌ Template no encontrado: {template_name}")
             raise FileNotFoundError(f"Template no encontrado: {template_name}") from e
+
+
+        except ValueError:
+            raise
+
+
         except TemplateSyntaxError as e:
             self.logger.error(f"❌ Error de sintaxis en template {template_name}: {e}")
             raise ValueError(f"Error de sintaxis en template: {e}") from e
@@ -388,11 +400,11 @@ class TemplateEngine:
             Lista de variables
         """
         try:
-            template = self.env.get_template(template_name)
-            
+            source, _, _ = self.env.loader.get_source(self.env, template_name)
+
             # Analizar AST del template para encontrar variables
             from jinja2 import meta
-            ast = self.env.parse(template.source)
+            ast = self.env.parse(source)
             variables = meta.find_undeclared_variables(ast)
             
             return sorted(list(variables))
@@ -402,7 +414,17 @@ class TemplateEngine:
             return []
 
 
-    def _generate_project_sync(
+    def validate_required_variables(self, template_name: str, variables: Dict[str, Any]) -> None:
+        """Validar que existan variables críticas en el contexto."""
+        expected = set(self.get_template_variables(template_name))
+        required_keys = {"project_name", "description"}
+        missing = [k for k in required_keys if k in expected and k not in variables]
+        if missing:
+            raise ValueError(
+                f"Faltan variables requeridas para {template_name}: {', '.join(missing)}"
+            )
+
+    async def generate_project(
 
         self,
         template_name: str,
@@ -429,12 +451,16 @@ class TemplateEngine:
 
                 if fname.endswith(".j2"):
 
-                    rendered = self.render_template(
-                        relative_template.as_posix(),
-                        context or {},
-                        use_cache=True,
+                    self.validate_required_variables(relative_template.as_posix(), context or {})
+                    if in_event_loop:
+                        rendered = await self.render_template(
+                            relative_template.as_posix(), context or {}
+                        )
+                    else:
+                        rendered = asyncio.run(
+                            self.render_template(relative_template.as_posix(), context or {})
+                        )
 
-                    )
                     dest = output_path / dest_rel.with_suffix("")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_text(rendered, encoding="utf-8")

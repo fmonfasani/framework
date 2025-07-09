@@ -79,27 +79,27 @@ def test_generate_project_in_event_loop(tmp_path: Path):
     assert (out_dir / "static.txt").read_text() == "STATIC"
 
 
-def test_missing_required_vars(tmp_path: Path):
+
+def test_missing_required_variables_render(tmp_path: Path):
     templates_dir = tmp_path / "templates"
-    templates_dir.mkdir(parents=True, exist_ok=True)
-    (templates_dir / "file.j2").write_text("{{ project_name }}")
+    templates_dir.mkdir(parents=True)
+    (templates_dir / "file.txt.j2").write_text("{{ project_name }} {{ description }}")
 
-    engine_strict = TemplateEngine(templates_dir, strict_validation=True)
-    engine_lenient = TemplateEngine(templates_dir, strict_validation=False)
+    engine = TemplateEngine(templates_dir)
 
-    original = TemplateEngine.REQUIRED_VARIABLES.copy()
-    TemplateEngine.REQUIRED_VARIABLES["file.j2"] = ["project_name"]
+    with pytest.raises(ValueError):
+        asyncio.run(engine.render_template("file.txt.j2", {"description": "test"}))
 
-    try:
-        with pytest.raises(KeyError):
-            engine_strict.render_template("file.j2", {})
 
-        result = engine_lenient.render_template("file.j2", {})
-        assert result == ""
+def test_missing_required_variables_generate(tmp_path: Path):
+    templates_dir = tmp_path / "templates"
+    template_root = templates_dir / "sample"
+    template_root.mkdir(parents=True)
+    (template_root / "file.txt.j2").write_text("{{ project_name }} {{ description }}")
 
-        result = engine_lenient.render_template("file.j2", {"project_name": "Demo"})
-        assert result == "Demo"
-    finally:
-        TemplateEngine.REQUIRED_VARIABLES.clear()
-        TemplateEngine.REQUIRED_VARIABLES.update(original)
+    engine = TemplateEngine(templates_dir)
+    out_dir = tmp_path / "out"
+
+    with pytest.raises(ValueError):
+        asyncio.run(engine.generate_project("sample", out_dir, {"project_name": "demo"}))
 
