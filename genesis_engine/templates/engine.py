@@ -434,6 +434,11 @@ class TemplateEngine:
         context: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
         """Lógica interna para generar un proyecto de forma síncrona."""
+        try:
+            asyncio.get_running_loop()
+            in_event_loop = True
+        except RuntimeError:
+            in_event_loop = False
         template_path = self.templates_dir / template_name
         if not template_path.exists() or not template_path.is_dir():
             raise FileNotFoundError(
