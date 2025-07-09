@@ -57,8 +57,10 @@ Genesis Engine aún está en una fase temprana de desarrollo. Algunas
 funcionalidades se encuentran disponibles de forma **experimental** o todavía
 no han sido implementadas por completo:
 
-- `genesis deploy` — el comando de despliegue actualmente solo muestra un
-  mensaje de "Función en desarrollo".
+- `genesis deploy` — el comando ya ejecuta un despliegue local con
+  Docker&nbsp;Compose si se ejecuta dentro de un proyecto válido. El soporte
+  para otros targets (Docker standalone, Kubernetes y proveedores cloud como
+  AWS, Heroku o Vercel) está incompleto y puede fallar.
 - `genesis generate` — la generación de componentes individuales está en
   construcción.
 
