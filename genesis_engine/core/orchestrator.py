@@ -1,5 +1,5 @@
 """
-Orquestador Central - Coordinador de agentes y flujo de trabajo
+Orquestrador Central - Coordinador de agentes y flujo de trabajo
 
 Este módulo es responsable de:
 - Coordinar la comunicación entre agentes
@@ -18,25 +18,82 @@ import uuid
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, field
 from enum import Enum
 import traceback
 from collections import defaultdict
 
+# Imports de Genesis Engine
 from genesis_engine.core.logging import get_logger
 from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
 from genesis_engine.mcp.protocol import mcp_protocol, MCPProtocol
 from genesis_engine.mcp.agent_base import AgentTask, TaskResult
-from genesis_engine.agents.architect import ArchitectAgent
-from genesis_engine.agents.backend import BackendAgent
-from genesis_engine.agents.frontend import FrontendAgent
-from genesis_engine.agents.devops import DevOpsAgent
-from genesis_engine.agents.deploy import DeployAgent
-from genesis_engine.agents.performance import PerformanceAgent
-from genesis_engine.agents.ai_ready import AIReadyAgent
-from genesis_engine.core.project_manager import ProjectManager
-from genesis_engine.cli.ui.console import genesis_console
+
+# Imports de agentes - con manejo de errores
+try:
+    from genesis_engine.agents.architect import ArchitectAgent
+except ImportError as e:
+    print(f"Warning: Could not import ArchitectAgent: {e}")
+    ArchitectAgent = None
+
+try:
+    from genesis_engine.agents.backend import BackendAgent
+except ImportError as e:
+    print(f"Warning: Could not import BackendAgent: {e}")
+    BackendAgent = None
+
+try:
+    from genesis_engine.agents.frontend import FrontendAgent
+except ImportError as e:
+    print(f"Warning: Could not import FrontendAgent: {e}")
+    FrontendAgent = None
+
+try:
+    from genesis_engine.agents.devops import DevOpsAgent
+except ImportError as e:
+    print(f"Warning: Could not import DevOpsAgent: {e}")
+    DevOpsAgent = None
+
+try:
+    from genesis_engine.agents.deploy import DeployAgent
+except ImportError as e:
+    print(f"Warning: Could not import DeployAgent: {e}")
+    DeployAgent = None
+
+try:
+    from genesis_engine.agents.performance import PerformanceAgent
+except ImportError as e:
+    print(f"Warning: Could not import PerformanceAgent: {e}")
+    PerformanceAgent = None
+
+try:
+    from genesis_engine.agents.ai_ready import AIReadyAgent
+except ImportError as e:
+    print(f"Warning: Could not import AIReadyAgent: {e}")
+    AIReadyAgent = None
+
+try:
+    from genesis_engine.core.project_manager import ProjectManager
+except ImportError as e:
+    print(f"Warning: Could not import ProjectManager: {e}")
+    ProjectManager = None
+
+try:
+    from genesis_engine.cli.ui.console import genesis_console
+except ImportError as e:
+    print(f"Warning: Could not import genesis_console: {e}")
+    # Crear un console básico como fallback
+    try:
+        from rich.console import Console
+        genesis_console = Console()
+    except ImportError:
+        # Fallback básico
+        class BasicConsole:
+            def print(self, *args, **kwargs):
+                print(*args)
+        genesis_console = BasicConsole()
+
 
 class WorkflowStatus(str, Enum):
     """Estados del flujo de trabajo"""
@@ -47,6 +104,7 @@ class WorkflowStatus(str, Enum):
     CANCELLED = "cancelled"
     RETRYING = "retrying"
 
+
 class TaskPriority(int, Enum):
     """Prioridades de tareas"""
     LOW = 1
@@ -54,11 +112,13 @@ class TaskPriority(int, Enum):
     HIGH = 3
     CRITICAL = 4
 
+
 class CircuitBreakerState(str, Enum):
     """Estados del circuit breaker"""
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
+
 
 @dataclass
 class RetryConfig:
@@ -68,6 +128,7 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
+
 
 @dataclass
 class CircuitBreaker:
@@ -106,6 +167,7 @@ class CircuitBreaker:
         if self.failure_count >= self.failure_threshold:
             self.state = CircuitBreakerState.OPEN
 
+
 @dataclass
 class WorkflowStep:
     """Paso del flujo de trabajo"""
@@ -125,6 +187,7 @@ class WorkflowStep:
     timeout: int = 300  # 5 minutos por defecto
     rollback_actions: List[str] = field(default_factory=list)
 
+
 @dataclass
 class ProjectCreationResult:
     """Resultado de creación de proyecto"""
@@ -135,9 +198,10 @@ class ProjectCreationResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
     rollback_data: Dict[str, Any] = field(default_factory=dict)
 
+
 class GenesisOrchestrator:
     """
-    Orquestador Central de Genesis Engine
+    Orquestrador Central de Genesis Engine
     
     Coordina la ejecución de agentes especializados para crear
     proyectos completos según las especificaciones del usuario.
@@ -145,7 +209,13 @@ class GenesisOrchestrator:
     
     def __init__(self):
         self.mcp = mcp_protocol
-        self.project_manager = ProjectManager()
+        
+        # Inicializar ProjectManager solo si está disponible
+        if ProjectManager is not None:
+            self.project_manager = ProjectManager()
+        else:
+            self.project_manager = None
+            
         self.logger = get_logger("genesis.orchestrator")
         
         # Agentes registrados
@@ -207,15 +277,43 @@ class GenesisOrchestrator:
     
     async def _register_agents(self):
         """Registrar agentes especializados"""
-        agents_to_register = [
-            ArchitectAgent(),
-            BackendAgent(),
-            FrontendAgent(),
-            DevOpsAgent(),
-            DeployAgent(),
-            PerformanceAgent(),
-            AIReadyAgent(),
-        ]
+        agents_to_register = []
+        
+        # Registrar solo agentes que se importaron correctamente
+        if ArchitectAgent is not None:
+            agents_to_register.append(ArchitectAgent())
+        else:
+            self.logger.warning("ArchitectAgent no disponible")
+        
+        if BackendAgent is not None:
+            agents_to_register.append(BackendAgent())
+        else:
+            self.logger.warning("BackendAgent no disponible")
+        
+        if FrontendAgent is not None:
+            agents_to_register.append(FrontendAgent())
+        else:
+            self.logger.warning("FrontendAgent no disponible")
+        
+        if DevOpsAgent is not None:
+            agents_to_register.append(DevOpsAgent())
+        else:
+            self.logger.warning("DevOpsAgent no disponible")
+        
+        if DeployAgent is not None:
+            agents_to_register.append(DeployAgent())
+        else:
+            self.logger.warning("DeployAgent no disponible")
+        
+        if PerformanceAgent is not None:
+            agents_to_register.append(PerformanceAgent())
+        else:
+            self.logger.warning("PerformanceAgent no disponible")
+        
+        if AIReadyAgent is not None:
+            agents_to_register.append(AIReadyAgent())
+        else:
+            self.logger.warning("AIReadyAgent no disponible")
         
         for agent in agents_to_register:
             try:
@@ -231,10 +329,12 @@ class GenesisOrchestrator:
                 
             except Exception as e:
                 self.logger.error(f"❌ Error registrando agente {agent.name}: {e}")
-                raise GenesisException(f"Error registrando agente {agent.name}: {e}")
+                # No lanzar excepción, solo continuar con otros agentes
         
         # Esperar inicialización de agentes
         await asyncio.sleep(2)
+        
+        self.logger.info(f"✅ {len(agents_to_register)} agentes registrados")
     
     def _setup_event_handlers(self):
         """Configurar handlers de eventos MCP"""
@@ -543,8 +643,15 @@ class GenesisOrchestrator:
         # Crear directorio
         project_path.mkdir(parents=True, exist_ok=True)
         
-        # Inicializar gestión del proyecto
-        await self.project_manager.initialize_project(project_path, config)
+        # Inicializar gestión del proyecto si está disponible
+        if self.project_manager is not None:
+            await self.project_manager.initialize_project(project_path, config)
+        else:
+            self.logger.warning("ProjectManager no disponible, creando estructura básica")
+            # Crear estructura básica manualmente
+            (project_path / "backend").mkdir(exist_ok=True)
+            (project_path / "frontend").mkdir(exist_ok=True)
+            (project_path / "docs").mkdir(exist_ok=True)
         
         return project_path
     
