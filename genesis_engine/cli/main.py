@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import typer
+from typer.main import get_command
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -756,7 +757,9 @@ def agents(
 def help_cmd():
     """Mostrar la ayuda completa de la CLI"""
     show_banner()
-    console.print(app.get_help())
+    command = get_command(app)
+    ctx = typer.Context(command)
+    console.print(command.get_help(ctx))
 
 # Punto de entrada principal
 def main_entry():
@@ -775,5 +778,4 @@ def main_entry():
         sys.exit(1)
 
 # Para compatibilidad con python -m
-if __name__ == "__main__":
-    main_entry()
+if __name__ == "__main__":    main_entry()
