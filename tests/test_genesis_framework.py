@@ -3,14 +3,12 @@
 Test Runner Final para validar todas las correcciones de Genesis Engine
 Ejecuta tests críticos para asegurar que el framework funciona correctamente
 """
-import asyncio
 import logging
-import sys
-import traceback
-from pathlib import Path
 from typing import Dict, Any, List
 import json
 from datetime import datetime
+
+import pytest
 
 # Configurar logging para tests
 logging.basicConfig(
@@ -23,6 +21,7 @@ logger = logging.getLogger("genesis.tests")
 
 class TestResult:
     """Resultado de un test"""
+    __test__ = False
     
     def __init__(self, name: str, success: bool, error: str = None, details: Any = None):
         self.name = name
@@ -557,39 +556,50 @@ class GenesisFrameworkTester:
         print("=" * 60)
 
 
-async def main():
-    """Función principal del test runner"""
-    
-    print("🧪 GENESIS ENGINE - TEST RUNNER FINAL")
-    print("Validando todas las correcciones implementadas...")
-    print()
-    
-    tester = GenesisFrameworkTester()
-    
-    try:
-        # Ejecutar todos los tests
-        report = await tester.run_all_tests()
-        
-        # Mostrar reporte final
-        tester.print_final_report(report)
-        
-        # Guardar reporte en archivo
-        with open("genesis_test_report.json", "w") as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
-        
-        print(f"\n📄 Reporte detallado guardado en: genesis_test_report.json")
-        
-        # Exit code basado en resultado
-        if report["summary"]["status"] == "PASS":
-            sys.exit(0)
-        else:
-            sys.exit(1)
-            
-    except Exception as e:
-        print(f"\n❌ Error ejecutando tests: {e}")
-        traceback.print_exc()
-        sys.exit(2)
+# ------------------------- Pytest integration -------------------------
+
+@pytest.fixture()
+def tester():
+    """Provide a fresh tester instance for each test."""
+    return GenesisFrameworkTester()
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+@pytest.mark.asyncio
+async def test_imports(tester):
+    await tester._test_imports()
+    assert tester.failed_tests == 0, tester.results
+
+
+@pytest.mark.asyncio
+async def test_base_classes(tester):
+    await tester._test_base_classes()
+    assert tester.failed_tests == 0, tester.results
+
+
+@pytest.mark.asyncio
+async def test_mcp_protocol(tester):
+    await tester._test_mcp_protocol()
+    assert tester.failed_tests == 0, tester.results
+
+
+@pytest.mark.asyncio
+async def test_agents(tester):
+    await tester._test_agents()
+    assert tester.failed_tests == 0, tester.results
+
+
+@pytest.mark.asyncio
+async def test_orchestrator(tester):
+    await tester._test_orchestrator()
+    assert tester.failed_tests == 0, tester.results
+
+
+@pytest.mark.asyncio
+async def test_cli(tester):
+    await tester._test_cli()
+    assert tester.failed_tests == 0, tester.results
+
+@pytest.mark.asyncio
+async def test_end_to_end(tester):
+    await tester._test_end_to_end()
+    assert tester.failed_tests == 0, tester.results

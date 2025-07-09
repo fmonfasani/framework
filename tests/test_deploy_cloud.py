@@ -1,6 +1,6 @@
-import asyncio
 import sys
 from pathlib import Path
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -14,7 +14,8 @@ from genesis_engine.agents.deploy import (
 )
 
 
-def test_deploy_to_heroku(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_deploy_to_heroku(monkeypatch, tmp_path):
     agent = DeployAgent()
     calls = []
 
@@ -24,14 +25,15 @@ def test_deploy_to_heroku(monkeypatch, tmp_path):
 
     monkeypatch.setattr(agent, "_run_command", dummy)
     config = DeploymentConfig(target=DeploymentTarget.HEROKU, environment=DeploymentEnvironment.DEVELOPMENT, custom_config={"app_name": "demo"})
-    result = asyncio.run(agent._deploy_to_heroku(tmp_path, config))
+    result = await agent._deploy_to_heroku(tmp_path, config)
 
     assert result.success
     assert result.target == DeploymentTarget.HEROKU
     assert calls
 
 
-def test_deploy_to_vercel(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_deploy_to_vercel(monkeypatch, tmp_path):
     agent = DeployAgent()
     calls = []
 
@@ -41,14 +43,15 @@ def test_deploy_to_vercel(monkeypatch, tmp_path):
 
     monkeypatch.setattr(agent, "_run_command", dummy)
     config = DeploymentConfig(target=DeploymentTarget.VERCEL, environment=DeploymentEnvironment.DEVELOPMENT)
-    result = asyncio.run(agent._deploy_to_vercel(tmp_path, config))
+    result = await agent._deploy_to_vercel(tmp_path, config)
 
     assert result.success
     assert result.target == DeploymentTarget.VERCEL
     assert calls
 
 
-def test_deploy_to_aws(monkeypatch, tmp_path):
+@pytest.mark.asyncio
+async def test_deploy_to_aws(monkeypatch, tmp_path):
     agent = DeployAgent()
     (tmp_path / "file.txt").write_text("data")
     calls = []
@@ -66,7 +69,7 @@ def test_deploy_to_aws(monkeypatch, tmp_path):
     monkeypatch.setattr(deploy_mod.shutil, "make_archive", fake_make_archive)
 
     config = DeploymentConfig(target=DeploymentTarget.AWS, environment=DeploymentEnvironment.DEVELOPMENT, custom_config={"app_name": "demo", "bucket": "bkt"})
-    result = asyncio.run(agent._deploy_to_aws(tmp_path, config))
+    result = await agent._deploy_to_aws(tmp_path, config)
 
     assert result.success
     assert result.target == DeploymentTarget.AWS
