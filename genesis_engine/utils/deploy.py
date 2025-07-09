@@ -21,7 +21,9 @@ def run_system_command(command: List[str], timeout: int = 30) -> Dict[str, Any]:
         }
     except TimeoutExpired:
         return {"success": False, "error": f"Command timed out after {timeout} seconds"}
-    except Exception as e:  # pragma: no cover - unforeseen errors
+    except FileNotFoundError as e:  # pragma: no cover - command missing
+        return {"success": False, "error": f"Command not found: {e}"}
+    except OSError as e:  # pragma: no cover - unforeseen OS errors
         return {"success": False, "error": str(e)}
 
 
