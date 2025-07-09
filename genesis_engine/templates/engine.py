@@ -194,7 +194,7 @@ class TemplateEngine:
                 for name in missing:
                     variables.setdefault(name, "")
     
-    async def render_template(
+    def render_template(
         self,
         template_name: str,
         variables: Dict[str, Any] = None,
@@ -234,7 +234,7 @@ class TemplateEngine:
             
             # Renderizar template
             content = template.render(**render_vars)
-            
+
             self.logger.debug(f"✅ Template renderizado: {template_name}")
             return content
             
@@ -250,9 +250,9 @@ class TemplateEngine:
             self.logger.error(f"❌ Error renderizando template {template_name}: {e}")
             raise RuntimeError(f"Error renderizando template: {e}") from e
     
-    async def render_string_template(
-        self, 
-        template_string: str, 
+    def render_string_template(
+        self,
+        template_string: str,
         variables: Dict[str, Any] = None
     ) -> str:
         """
@@ -374,7 +374,7 @@ class TemplateEngine:
             self.logger.error(f"❌ Error analizando variables del template {template_name}: {e}")
             return []
 
-    async def generate_project(
+    def generate_project(
         self,
         template_name: str,
         output_dir: Union[str, Path],
@@ -397,7 +397,7 @@ class TemplateEngine:
                 dest_rel = rel_root / fname
 
                 if fname.endswith(".j2"):
-                    rendered = await self.render_template(
+                    rendered = self.render_template(
                         relative_template.as_posix(), context or {}
                     )
                     dest = output_path / dest_rel.with_suffix("")

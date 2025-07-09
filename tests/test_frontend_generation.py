@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 import sys
 
@@ -22,7 +21,7 @@ def test_generate_react_frontend(tmp_path):
     agent = make_agent()
     schema = {"project_name": "DemoApp", "description": "Demo"}
     params = {"schema": schema, "framework": "react", "output_path": tmp_path}
-    result = asyncio.run(agent._generate_complete_frontend(params))
+    result = agent._generate_complete_frontend(params)
 
     expected = {
         tmp_path / "package.json",

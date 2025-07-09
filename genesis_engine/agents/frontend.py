@@ -44,7 +44,7 @@ class FrontendAgent(GenesisAgent):
 
         self.template_engine = TemplateEngine()
 
-    async def initialize(self):
+    def initialize(self):
         """Inicialización del agente frontend"""
         self.logger.info("🎨 Inicializando Frontend Agent")
 
@@ -53,20 +53,20 @@ class FrontendAgent(GenesisAgent):
 
         self.logger.info("✅ Frontend Agent inicializado")
 
-    async def execute_task(self, task: AgentTask) -> Any:
+    def execute_task(self, task: AgentTask) -> Any:
         """Ejecutar tarea específica del frontend"""
         task_name = task.name.lower()
 
         if "generate_frontend" in task_name:
-            return await self._generate_complete_frontend(task.params)
+            return self._generate_complete_frontend(task.params)
 
         raise ValueError(f"Tarea no reconocida: {task.name}")
 
-    async def _handle_generate_frontend(self, request) -> Dict[str, Any]:
+    def _handle_generate_frontend(self, request) -> Dict[str, Any]:
         """Handler para generación de frontend"""
-        return await self._generate_complete_frontend(request.params)
+        return self._generate_complete_frontend(request.params)
 
-    async def _generate_complete_frontend(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_complete_frontend(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generate a frontend project for the selected framework."""
         framework = params.get("framework", "nextjs").lower()
         if framework not in {"nextjs", "react"}:
@@ -97,7 +97,7 @@ class FrontendAgent(GenesisAgent):
         prefix = f"frontend/{framework}/"
 
         for tpl in templates:
-            content = await self.template_engine.render_template(tpl, template_vars)
+            content = self.template_engine.render_template(tpl, template_vars)
 
             rel_path = Path(tpl[len(prefix):]).with_suffix("")
             out_file = output_path / rel_path

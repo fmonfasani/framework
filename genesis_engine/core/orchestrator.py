@@ -198,7 +198,9 @@ class GenesisOrchestrator:
 
         task = AgentTask(id=str(uuid.uuid4()), name=action, params=data)
         try:
-            result = asyncio.run(agent.execute_task(task))
+            result = agent.execute_task(task)
+            if asyncio.iscoroutine(result):
+                result = asyncio.run(result)
             return {"success": True, "result": result}
         except Exception as e:
             return {"success": False, "error": str(e)}
