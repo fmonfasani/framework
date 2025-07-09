@@ -397,16 +397,19 @@ class TemplateEngine:
             return []
 
 
-    def generate_project(
+    def _generate_project_sync(
 
         self,
         template_name: str,
         output_dir: Union[str, Path],
-        context: Optional[Dict[str, Any]],
+        context: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
+        """Lógica interna para generar un proyecto de forma síncrona."""
         template_path = self.templates_dir / template_name
         if not template_path.exists() or not template_path.is_dir():
-            raise FileNotFoundError(f"Directorio de template no encontrado: {template_path}")
+            raise FileNotFoundError(
+                f"Directorio de template no encontrado: {template_path}"
+            )
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -436,6 +439,18 @@ class TemplateEngine:
                     generated_files.append(str(dest))
 
         return generated_files
+
+
+    def generate_project(
+
+        self,
+        template_name: str,
+        output_dir: Union[str, Path],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generar todas las plantillas dentro de un directorio de forma síncrona."""
+        return self._generate_project_sync(template_name, output_dir, context)
+
 
     async def generate_project_async(
         self,
