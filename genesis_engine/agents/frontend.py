@@ -235,12 +235,19 @@ class FrontendAgent(GenesisAgent):
     def _extract_frontend_config(self, params: Dict[str, Any]) -> FrontendConfig:
         """Extraer configuración del frontend"""
         stack = params.get("stack", {})
-        
+
+        framework_val = params.get("framework", stack.get("frontend", "nextjs"))
+        state_management_val = params.get("state_management", stack.get("state_management", "redux_toolkit"))
+        ui_library_val = params.get("ui_library", stack.get("ui_library", "tailwindcss"))
+
+        typescript_default = False if framework_val == FrontendFramework.REACT.value else True
+        typescript_val = params.get("typescript", typescript_default)
+
         return FrontendConfig(
-            framework=FrontendFramework(stack.get("frontend", "nextjs")),
-            state_management=StateManagement(stack.get("state_management", "redux_toolkit")),
-            ui_library=UILibrary(stack.get("ui_library", "tailwindcss")),
-            typescript=params.get("typescript", True),
+            framework=FrontendFramework(framework_val),
+            state_management=StateManagement(state_management_val),
+            ui_library=UILibrary(ui_library_val),
+            typescript=typescript_val,
             testing_framework=params.get("testing_framework", "jest"),
             pwa_enabled=params.get("pwa_enabled", False),
             ssr_enabled=params.get("ssr_enabled", True),
@@ -499,19 +506,35 @@ class FrontendAgent(GenesisAgent):
         """Generar aplicación principal"""
         # Implementación simplificada para los tests
         generated_files = []
-        
+
         if config.framework == FrontendFramework.NEXTJS:
             # app/layout.tsx
             layout_file = output_path / "app/layout.tsx"
             layout_file.parent.mkdir(parents=True, exist_ok=True)
             layout_file.write_text("// Next.js Layout")
             generated_files.append(str(layout_file))
-            
+
             # app/page.tsx
             page_file = output_path / "app/page.tsx"
             page_file.write_text("// Next.js Page")
             generated_files.append(str(page_file))
-        
+
+        elif config.framework == FrontendFramework.REACT:
+            index_file = output_path / "index.html"
+            index_file.write_text("<!DOCTYPE html>\n<html><body><div id='root'></div></body></html>")
+            generated_files.append(str(index_file))
+
+            app_file = output_path / "src/App.tsx"
+            app_file.parent.mkdir(parents=True, exist_ok=True)
+            app_content = f"export const App = () => <h1>{schema.get('project_name', 'App')}</h1>;"
+            app_file.write_text(app_content)
+            generated_files.append(str(app_file))
+
+            main_file = output_path / "src/main.tsx"
+            main_content = "import { createRoot } from 'react-dom/client';\nimport { App } from './App';\ncreateRoot(document.getElementById('root')!).render(<App />);"
+            main_file.write_text(main_content)
+            generated_files.append(str(main_file))
+
         return generated_files
 
     def _generate_base_components(self, output_path: Path, config: FrontendConfig, schema: Dict[str, Any]) -> List[str]:
