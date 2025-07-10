@@ -56,38 +56,36 @@ class MCPMessage:
 
 @dataclass
 class MCPResponse:
-    """Respuesta del protocolo MCP - VERSIÓN COMPLETA"""
+    """Respuesta del protocolo MCP"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    message_id: str = ""  # ID del mensaje original
+    type: MessageType = MessageType.RESPONSE
     success: bool = True
     result: Any = None
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
-    # Campos usados en llamadas internas (algunos opcionales)
-    sender_agent: Optional[str] = None
-    target_agent: Optional[str] = None
-    correlation_id: Optional[str] = None
-    execution_time: Optional[float] = None
+    sender_agent: str = ""
+    target_agent: str = ""
+    correlation_id: str = ""
     error_message: Optional[str] = None
-    data: Any = None  # <- Nuevo campo que faltaba
+    execution_time: Optional[float] = None
+    data: Dict[str, Any] = field(default_factory=dict)
+    priority: Priority = Priority.NORMAL
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
-            "message_id": self.message_id,
+            "type": self.type.value,
             "success": self.success,
             "result": self.result,
-            "error": self.error,
-            "metadata": self.metadata,
             "timestamp": self.timestamp.isoformat(),
             "sender_agent": self.sender_agent,
             "target_agent": self.target_agent,
             "correlation_id": self.correlation_id,
-            "execution_time": self.execution_time,
             "error_message": self.error_message,
+            "execution_time": self.execution_time,
             "data": self.data,
+            "priority": self.priority,
         }
 
 class MCPRequest(BaseModel):
