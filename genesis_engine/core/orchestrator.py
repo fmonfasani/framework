@@ -1447,4 +1447,5 @@ Generado con ❤️ por Genesis Engine
         self.logger.info("🛑 Orchestrator detenido")
 
 
-# Backwards compatibility aliasOrchestrator = GenesisOrchestrator
+# Backwards compatibility alias
+Orchestrator = GenesisOrchestrator
