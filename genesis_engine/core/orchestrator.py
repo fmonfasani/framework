@@ -537,6 +537,21 @@ class GenesisOrchestrator:
     def get_available_templates(self) -> List[str]:
         """Obtener lista de templates disponibles."""
         return ["saas-basic", "microservices", "ai-ready"]
+
+    def get_status(self) -> Dict[str, Any]:
+        """Obtener información general del orquestador.
+
+        Returns:
+            dict: Datos clave del estado actual, incluyendo si el
+            orquestador está corriendo, cuántos agentes hay registrados,
+            el workflow activo y el estado del protocolo MCP.
+        """
+        return {
+            "running": self.running,
+            "agents_registered": len(self.agents),
+            "current_workflow": self.current_workflow,
+            "mcp_running": getattr(self.mcp, "running", False),
+        }
     
     async def create_project(self, config: Dict[str, Any]) -> ProjectCreationResult:
         """
