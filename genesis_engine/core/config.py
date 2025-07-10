@@ -83,6 +83,77 @@ class GenesisConfig:
     
     # Configuración de templates
     strict_template_validation: bool = True
+
+    # Internal dictionary mirroring public attributes
+    _config: Dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+
+    def _sync_config(self):
+        """Synchronize internal config dict with current attributes."""
+        self._config = {
+            key: getattr(self, key)
+            for key in self.__dataclass_fields__
+            if key != "_config"
+        }
+
+    def _setup_logging(
+        self,
+        level: Optional[str] = None,
+        log_file: Optional[Union[str, Path]] = None,
+        enable_rich: Optional[bool] = None,
+    ) -> logging.Logger:
+        """Configure logging using current configuration."""
+        if level is None:
+            level = self._config.get("log_level", "INFO")
+        if enable_rich is None:
+            enable_rich = self._config.get("enable_rich_logging", True) and HAS_RICH
+
+        log_level = getattr(logging, str(level).upper(), logging.INFO)
+
+        root_logger = logging.getLogger()
+
+        # Remove previous handlers added by this setup
+        for handler in root_logger.handlers[:]:
+            if getattr(handler, "_genesis_handler", False):
+                root_logger.removeHandler(handler)
+
+        # Console handler
+        if enable_rich and HAS_RICH:
+            console_handler = RichHandler(
+                console=Console(),
+                show_time=True,
+                show_path=True,
+                rich_tracebacks=True,
+                markup=True,
+            )
+            formatter = logging.Formatter("%(message)s")
+        else:
+            console_handler = logging.StreamHandler()
+            formatter = logging.Formatter(self._config.get("log_format"))
+
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(log_level)
+        console_handler._genesis_handler = True
+
+        root_logger.setLevel(log_level)
+        root_logger.addHandler(console_handler)
+
+        # File handler
+        log_path = Path(log_file) if log_file else Path(self._config.get("log_dir")) / "genesis.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter(self._config.get("log_format")))
+        file_handler.setLevel(log_level)
+        file_handler._genesis_handler = True
+        root_logger.addHandler(file_handler)
+
+        genesis_logger = logging.getLogger("genesis_engine")
+        genesis_logger.setLevel(log_level)
+        genesis_logger.propagate = True
+
+        genesis_logger.info("Genesis Engine logging configurado")
+
+        return genesis_logger
     
     def __post_init__(self):
         """Inicialización posterior"""
@@ -95,11 +166,14 @@ class GenesisConfig:
         
         if self.log_dir is None:
             self.log_dir = self.config_dir / "logs"
-        
+
         # Crear directorios si no existen
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Sync internal config dictionary with current attributes
+        self._sync_config()
 
     @classmethod
     def get(cls, key: str, default: Any = None) -> Any:
@@ -126,8 +200,10 @@ class GenesisConfig:
                 }
                 if subkey in mapping:
                     setattr(cfg, mapping[subkey], value)
+                    cfg._sync_config()
                     return
         setattr(cfg, key, value)
+        cfg._sync_config()
     
     @classmethod
     def from_file(cls, config_file: Union[str, Path]) -> 'GenesisConfig':
@@ -534,86 +610,8 @@ def setup_logging(
     """
     config = get_config()
     
-    # Usar valores de configuración si no se proporcionan
-    if level is None:
-        level = config.log_level
-    if enable_rich is None:
-        enable_rich = config.enable_rich_logging and HAS_RICH
-    
-    # Configurar nivel de logging
-    log_level = getattr(logging, level.upper(), logging.INFO)
-    
-    # Limpiar handlers existentes para evitar duplicados
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # Configurar formato de logging
-    if enable_rich and HAS_RICH:
-        # Usar Rich handler para output colorizado
-        console_handler = RichHandler(
-            console=Console(),
-            show_time=True,
-            show_path=True,
-            rich_tracebacks=True,
-            markup=True
-        )
-        console_handler.setLevel(log_level)
-        
-        # Formato más simple para Rich
-        formatter = logging.Formatter("%(message)s")
-        console_handler.setFormatter(formatter)
-    else:
-        # Handler estándar
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(log_level)
-        
-        formatter = logging.Formatter(config.log_format)
-        console_handler.setFormatter(formatter)
-    
-    # Configurar logger raíz
-    root_logger.setLevel(log_level)
-    root_logger.addHandler(console_handler)
-    
-    # Configurar file handler si se especifica
-    if log_file:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        file_handler = logging.FileHandler(log_path, encoding='utf-8')
-        file_handler.setLevel(log_level)
-        
-        file_formatter = logging.Formatter(config.log_format)
-        file_handler.setFormatter(file_formatter)
-        
-        root_logger.addHandler(file_handler)
-    else:
-        # Usar archivo de log por defecto
-        default_log_file = config.log_dir / "genesis.log"
-        
-        file_handler = logging.FileHandler(default_log_file, encoding='utf-8')
-        file_handler.setLevel(log_level)
-        
-        file_formatter = logging.Formatter(config.log_format)
-        file_handler.setFormatter(file_formatter)
-        
-        root_logger.addHandler(file_handler)
-    
-    # Configurar logger específico para Genesis
-    genesis_logger = logging.getLogger("genesis_engine")
-    genesis_logger.setLevel(log_level)
-    
-    # Evitar propagación duplicada al root logger
-    genesis_logger.propagate = True
-    
-    # Log de inicialización
-    genesis_logger.info("Genesis Engine logging configurado")
-    genesis_logger.debug(f"Nivel de logging: {level}")
-    genesis_logger.debug(f"Rich logging: {enable_rich}")
-    if log_file:
-        genesis_logger.debug(f"Archivo de log: {log_file}")
-    
-    return genesis_logger
+    # Delegate to instance method for configuration
+    return config._setup_logging(level=level, log_file=log_file, enable_rich=enable_rich)
 
 def get_logger(name: str = "genesis_engine") -> logging.Logger:
     """

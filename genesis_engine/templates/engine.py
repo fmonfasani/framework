@@ -50,14 +50,12 @@ class TemplateEngine:
             "project_name",
             "description",
             "typescript",
-            "styling",
             "state_management",
         ],
         "frontend/react/*": [
             "project_name",
             "description",
             "typescript",
-            "styling",
             "state_management",
         ],
         "saas-basic/*": [
@@ -175,12 +173,17 @@ class TemplateEngine:
 
         missing = set()
 
+        optional_non_strict = {"styling", "state_management"}
+
         # Reglas específicas por patrón de template
         for pattern, required in self.REQUIRED_VARIABLES.items():
             if fnmatch.fnmatch(template_name, pattern):
                 for name in required:
                     if name not in variables:
-                        missing.add(name)
+                        if not self.strict_validation and name in optional_non_strict:
+                            variables[name] = ""
+                        else:
+                            missing.add(name)
 
         # Validación genérica basada en variables esperadas dentro del template
         expected = set(self.get_template_variables(template_name))
@@ -192,7 +195,7 @@ class TemplateEngine:
         if missing:
             message = f"Variables faltantes para {template_name}: {', '.join(sorted(missing))}"
             if self.strict_validation:
-                raise KeyError(message)
+                raise ValueError(message)
             else:
                 self.logger.warning(message)
                 # Agregar variables por defecto para evitar errores
@@ -228,7 +231,7 @@ class TemplateEngine:
         # Validar variables requeridas (flexible para compatibilidad)
         try:
             self.validate_required_variables(template_name, vars_clean)
-        except KeyError as e:
+        except ValueError as e:
             if self.strict_validation:
                 raise ValueError(str(e))
             else:
@@ -368,7 +371,7 @@ class TemplateEngine:
                     # Validar variables requeridas (flexible para compatibilidad)
                     try:
                         self.validate_required_variables(relative_template.as_posix(), context)
-                    except KeyError as e:
+                    except ValueError as e:
                         self.logger.warning(f"Missing variables for {relative_template}, using defaults")
                         # Agregar variables por defecto para evitar errores
                         if 'project_name' not in context:

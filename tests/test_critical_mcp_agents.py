@@ -79,6 +79,9 @@ class TestMCPProtocolCriticalFixed:
             
         finally:
             await protocol.stop()
+            assert protocol.worker_task.done()
+            assert protocol.metrics_task.done()
+            assert protocol.circuit_task.done()
 
 
 class TestAgentBaseCriticalFixed:
