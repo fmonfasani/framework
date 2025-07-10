@@ -596,19 +596,19 @@ class MyCustomAgent(GenesisAgent):
 
 ## 🛣️ Roadmap
 
-### v1.1 (Q2 2024)
+### v1.1 (Q3 2025)
 - [ ] Soporte para más frameworks (Django, Spring Boot)
 - [ ] Integración con más clouds (Azure, Vercel)
 - [ ] Templates para Microservices
 - [ ] AI-powered code optimization
 
-### v1.2 (Q3 2024)
+### v1.2 (Q3 2025)
 - [ ] Genesis Cloud (hosting gestionado)
 - [ ] Marketplace de templates y agentes
 - [ ] Preview deployments automáticos
 - [ ] Monitoring avanzado con IA
 
-### v2.0 (Q4 2024)
+### v2.0 (Q4 2025)
 - [ ] Visual project builder
 - [ ] Real-time collaboration
 - [ ] Advanced AI agents (code review, optimization)
