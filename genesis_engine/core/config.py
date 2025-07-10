@@ -87,6 +87,10 @@ class GenesisConfig:
     # Internal dictionary mirroring public attributes
     _config: Dict[str, Any] = field(default_factory=dict, init=False, repr=False)
 
+    @staticmethod
+    def get_version():
+        return "1.0.0"  # o leer de pyproject.toml / config.json
+
     def _sync_config(self):
         """Synchronize internal config dict with current attributes."""
         self._config = {
@@ -268,6 +272,9 @@ class GenesisConfig:
 
 class EnvironmentValidator:
     """Validador del entorno de desarrollo."""
+
+
+
     
     @staticmethod
     def check_python_version() -> Tuple[bool, str]:

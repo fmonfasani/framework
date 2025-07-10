@@ -54,9 +54,9 @@ class MCPMessage:
             "correlation_id": self.correlation_id
         }
 
-@dataclass 
+@dataclass
 class MCPResponse:
-    """Respuesta del protocolo MCP - ESTRUCTURA CORREGIDA"""
+    """Respuesta del protocolo MCP - VERSIÓN COMPLETA"""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     message_id: str = ""  # ID del mensaje original
     success: bool = True
@@ -64,9 +64,16 @@ class MCPResponse:
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
+    # Campos usados en llamadas internas (algunos opcionales)
+    sender_agent: Optional[str] = None
+    target_agent: Optional[str] = None
+    correlation_id: Optional[str] = None
+    execution_time: Optional[float] = None
+    error_message: Optional[str] = None
+    data: Any = None  # <- Nuevo campo que faltaba
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convertir a diccionario para serialización"""
         return {
             "id": self.id,
             "message_id": self.message_id,
@@ -74,7 +81,13 @@ class MCPResponse:
             "result": self.result,
             "error": self.error,
             "metadata": self.metadata,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
+            "sender_agent": self.sender_agent,
+            "target_agent": self.target_agent,
+            "correlation_id": self.correlation_id,
+            "execution_time": self.execution_time,
+            "error_message": self.error_message,
+            "data": self.data,
         }
 
 class MCPRequest(BaseModel):
