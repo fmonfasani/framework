@@ -159,7 +159,7 @@ class TemplateEngine:
             Lista de variables
         """
         try:
-            template_source = self.env.get_template(template_name).source
+            template_source = self.env.loader.get_source(self.env, template_name)[0]
             from jinja2 import meta
             ast = self.env.parse(template_source)
             variables = meta.find_undeclared_variables(ast)
@@ -228,14 +228,20 @@ class TemplateEngine:
         """
         vars_clean = variables or {}
         
-        # Validar variables requeridas (flexible para compatibilidad)
-        try:
+        # Validar variables requeridas
+        if self.strict_validation:
+            # En modo estricto, cualquier falta produce excepción
             self.validate_required_variables(template_name, vars_clean)
-        except ValueError as e:
-            if self.strict_validation:
-                raise ValueError(str(e))
-            else:
-                self.logger.warning(f"Missing variables for {template_name}, using defaults")
+        else:
+            # En modo no estricto sólo se advierte y no se insertan valores por defecto
+            original = self.strict_validation
+            try:
+                self.strict_validation = True
+                self.validate_required_variables(template_name, vars_clean)
+            except ValueError:
+                self.logger.warning(f"Missing variables for {template_name}")
+            finally:
+                self.strict_validation = original
         
         try:
             # Obtener template (con cache si está habilitado)
@@ -335,6 +341,8 @@ class TemplateEngine:
         template_name: str,
         output_dir: Union[str, Path],
         context: Optional[Dict[str, Any]] = None,
+        *,
+        raise_on_missing: bool = True,
     ) -> List[Path]:
         """
         Generar proyecto completo desde template de forma síncrona.
@@ -368,16 +376,27 @@ class TemplateEngine:
 
                 if fname.endswith(".j2"):
                     # Template file - renderizar
-                    # Validar variables requeridas (flexible para compatibilidad)
-                    try:
-                        self.validate_required_variables(relative_template.as_posix(), context)
-                    except ValueError as e:
-                        self.logger.warning(f"Missing variables for {relative_template}, using defaults")
-                        # Agregar variables por defecto para evitar errores
-                        if 'project_name' not in context:
-                            context['project_name'] = 'my_project'
-                        if 'description' not in context:
-                            context['description'] = 'Generated project'
+                    if raise_on_missing:
+                        # Forzar validación estricta independientemente de la configuración global
+                        original = self.strict_validation
+                        try:
+                            self.strict_validation = True
+                            self.validate_required_variables(relative_template.as_posix(), context)
+                        finally:
+                            self.strict_validation = original
+                    else:
+                        # Validación estándar respetando strict_validation
+                        try:
+                            self.validate_required_variables(relative_template.as_posix(), context)
+                        except ValueError:
+                            # Convertir error en advertencia y usar valores por defecto
+                            self.logger.warning(
+                                f"Missing variables for {relative_template}, using defaults"
+                            )
+                            if 'project_name' not in context:
+                                context['project_name'] = 'my_project'
+                            if 'description' not in context:
+                                context['description'] = 'Generated project'
                     
                     try:
                         content = self.render_template_sync(relative_template.as_posix(), context)
@@ -408,10 +427,16 @@ class TemplateEngine:
         template_name: str,
         output_dir: Union[str, Path],
         context: Optional[Dict[str, Any]] = None,
+        *,
+        raise_on_missing: bool = True,
     ) -> List[Path]:
         """Generar proyecto de forma asíncrona."""
         return await asyncio.to_thread(
-            self.generate_project_sync, template_name, output_dir, context
+            self.generate_project_sync,
+            template_name,
+            output_dir,
+            context,
+            raise_on_missing=raise_on_missing,
         )
 
     def generate_project(
@@ -419,10 +444,17 @@ class TemplateEngine:
         template_name: str,
         output_dir: Union[str, Path],
         context: Optional[Dict[str, Any]] = None,
+        *,
+        raise_on_missing: bool = True,
     ) -> List[Path]:
         """Generar proyecto de forma síncrona."""
         return asyncio.run(
-            self.generate_project_async(template_name, output_dir, context)
+            self.generate_project_async(
+                template_name,
+                output_dir,
+                context,
+                raise_on_missing=raise_on_missing,
+            )
         )
     
     def validate_template(self, template_name: str) -> Dict[str, Any]:
