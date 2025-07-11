@@ -1,8 +1,4 @@
 from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from genesis_engine.agents.frontend import FrontendAgent
 from genesis_engine.templates.engine import TemplateEngine
@@ -11,14 +7,14 @@ async def run_async(coro):
     return await coro
 
 
-def make_agent():
+def make_agent(genesis_root):
     agent = FrontendAgent()
-    agent.template_engine = TemplateEngine(ROOT / 'genesis_engine' / 'templates')
+    agent.template_engine = TemplateEngine(genesis_root / 'genesis_engine' / 'templates')
     return agent
 
 
-def test_generate_react_frontend(tmp_path):
-    agent = make_agent()
+def test_generate_react_frontend(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
     schema = {"project_name": "DemoApp", "description": "Demo"}
     params = {"schema": schema, "framework": "react", "output_path": tmp_path}
     result = agent._generate_complete_frontend(params)

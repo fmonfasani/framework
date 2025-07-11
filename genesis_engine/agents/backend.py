@@ -888,7 +888,9 @@ class TokenData(BaseModel):
             "uvicorn[standard]>=0.35.0",
             "pydantic>=2.5.0",
             "python-dotenv>=1.0.0",
-            "python-multipart>=0.0.6"
+
+            "python-multipart>=0.0.6", 
+            "httpx>=0.24.0"
         ]
         
         if "database" in features:
