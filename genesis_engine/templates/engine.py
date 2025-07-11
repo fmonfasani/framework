@@ -449,12 +449,9 @@ class TemplateEngine:
     ) -> List[Path]:
         """Generar proyecto de forma síncrona."""
         return asyncio.run(
-            self.generate_project_async(
-                template_name,
-                output_dir,
-                context,
-                raise_on_missing=raise_on_missing,
-            )
+
+            self.generate_project_async(template_name, output_dir, context)
+
         )
     
     def validate_template(self, template_name: str) -> Dict[str, Any]:

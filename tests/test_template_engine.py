@@ -101,5 +101,9 @@ async def test_missing_required_variables_generate(tmp_path: Path):
 
 
     with pytest.raises(ValueError):
-        await engine.generate_project_async("sample", out_dir, {"project_name": "demo"})
+
+        asyncio.run(
+            engine.generate_project_async("sample", out_dir, {"project_name": "demo"})
+        )
+
 
