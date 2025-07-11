@@ -403,7 +403,7 @@ class FrontendAgent(GenesisAgent):
             
             # next.config.js (solo para Next.js)
             if config.framework == FrontendFramework.NEXTJS:
-                nextconfig_file = self._generate_next_config(output_path, config)
+                nextconfig_file = self._generate_next_config(output_path, config, schema)
                 generated_files.append(nextconfig_file)
         
         elif config.framework == FrontendFramework.VUE:
@@ -456,12 +456,15 @@ class FrontendAgent(GenesisAgent):
             # app/layout.tsx
             layout_file = output_path / "app/layout.tsx"
             layout_file.parent.mkdir(parents=True, exist_ok=True)
+            template_vars = {
+                "project_name": schema.get("project_name", "Genesis App"),
+                "description": schema.get("description", "Generated with Genesis Engine"),
+                "typescript": config.typescript,
+                "state_management": config.state_management.value,
+            }
             layout_content = self.template_engine.render_template(
                 "frontend/nextjs/app/layout.tsx.j2",
-                {
-                    "project_name": schema.get("project_name", "Genesis App"),
-                    "description": schema.get("description", "Generated with Genesis Engine")
-                }
+                template_vars
             )
             layout_file.write_text(layout_content)
             generated_files.append(str(layout_file))
@@ -470,10 +473,7 @@ class FrontendAgent(GenesisAgent):
             page_file = output_path / "app/page.tsx"
             page_content = self.template_engine.render_template(
                 "frontend/nextjs/app/page.tsx.j2",
-                {
-                    "project_name": schema.get("project_name", "Genesis App"),
-                    "description": schema.get("description", "Generated with Genesis Engine")
-                }
+                template_vars
             )
             page_file.write_text(page_content)
             generated_files.append(str(page_file))
@@ -482,7 +482,12 @@ class FrontendAgent(GenesisAgent):
             index_file = output_path / "index.html"
             index_content = self.template_engine.render_template(
                 "frontend/react/index.html.j2",
-                {"project_name": schema.get("project_name", "Genesis App")}
+                {
+                    "project_name": schema.get("project_name", "Genesis App"),
+                    "description": schema.get("description", "Generated with Genesis Engine"),
+                    "typescript": config.typescript,
+                    "state_management": config.state_management.value,
+                }
             )
             index_file.write_text(index_content)
             generated_files.append(str(index_file))
@@ -493,7 +498,9 @@ class FrontendAgent(GenesisAgent):
                 "frontend/react/src/App.tsx.j2",
                 {
                     "project_name": schema.get("project_name", "Genesis App"),
-                    "description": schema.get("description", "Generated with Genesis Engine")
+                    "description": schema.get("description", "Generated with Genesis Engine"),
+                    "typescript": config.typescript,
+                    "state_management": config.state_management.value,
                 }
             )
             app_file.write_text(app_content)
@@ -501,7 +508,13 @@ class FrontendAgent(GenesisAgent):
 
             main_file = output_path / "src/main.tsx"
             main_content = self.template_engine.render_template(
-                "frontend/react/src/main.tsx.j2", {}
+                "frontend/react/src/main.tsx.j2",
+                {
+                    "project_name": schema.get("project_name", "Genesis App"),
+                    "description": schema.get("description", "Generated with Genesis Engine"),
+                    "typescript": config.typescript,
+                    "state_management": config.state_management.value,
+                }
             )
             main_file.write_text(main_content)
             generated_files.append(str(main_file))
@@ -605,10 +618,16 @@ class FrontendAgent(GenesisAgent):
         output_file.write_text(content)
         return str(output_file)
 
-    def _generate_next_config(self, output_path: Path, config: FrontendConfig) -> str:
+    def _generate_next_config(self, output_path: Path, config: FrontendConfig, schema: Dict[str, Any]) -> str:
         """Generar next.config.js"""
         output_file = output_path / "next.config.js"
-        content = self.template_engine.render_template("frontend/nextjs/next.config.js.j2", {})
+        template_vars = {
+            "project_name": schema.get("project_name", "Genesis App"),
+            "description": schema.get("description", "Generated with Genesis Engine"),
+            "typescript": config.typescript,
+            "state_management": config.state_management.value,
+        }
+        content = self.template_engine.render_template("frontend/nextjs/next.config.js.j2", template_vars)
         output_file.write_text(content)
         return str(output_file)
 
