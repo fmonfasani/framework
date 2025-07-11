@@ -1,5 +1,6 @@
 from pathlib import Path
 import asyncio
+import pytest
 
 from genesis_engine.agents.backend import (
     BackendAgent,
@@ -169,8 +170,10 @@ def test_generate_typeorm_config(genesis_root, tmp_path):
     assert 'DataSource' in file.read_text()
 
 
+
 def test_generate_fastapi_jwt_auth(genesis_root, tmp_path):
     agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -179,14 +182,16 @@ def test_generate_fastapi_jwt_auth(genesis_root, tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
+    paths = await agent._generate_fastapi_jwt_auth(tmp_path, config)
     file = tmp_path / 'jwt.py'
     assert list(map(Path, paths)) == [file]
     assert 'SECRET_KEY' in file.read_text()
 
 
+
 def test_generate_nestjs_jwt_auth(genesis_root, tmp_path):
     agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.NESTJS,
         database=DatabaseType.POSTGRESQL,
@@ -195,7 +200,7 @@ def test_generate_nestjs_jwt_auth(genesis_root, tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
+    paths = await agent._generate_nestjs_jwt_auth(tmp_path, config)
     file = tmp_path / 'jwt.ts'
     assert list(map(Path, paths)) == [file]
     assert 'jwtConstants' in file.read_text()
@@ -217,8 +222,10 @@ def test_generate_dockerfile_python(genesis_root, tmp_path):
     assert 'FROM python' in file.read_text()
 
 
+
 def test_generate_api_documentation(genesis_root, tmp_path):
     agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -228,7 +235,7 @@ def test_generate_api_documentation(genesis_root, tmp_path):
         environment_vars={},
     )
     params = {'schema': {}, 'config': config, 'output_path': tmp_path}
-    paths = asyncio.run(agent._generate_api_documentation(params))
+    paths = await agent._generate_api_documentation(params)
     file = tmp_path / 'api.md'
     assert list(map(Path, paths)) == [file]
     assert 'API Documentation' in file.read_text()
