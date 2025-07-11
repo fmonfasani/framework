@@ -1,10 +1,5 @@
 import asyncio
-import sys
-from pathlib import Path
 import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from genesis_engine.mcp.agent_base import create_simple_agent
 from genesis_engine.mcp.message_types import MCPRequest

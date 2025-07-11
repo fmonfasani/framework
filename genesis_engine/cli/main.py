@@ -6,6 +6,7 @@ Genesis Engine CLI - Entry Point Principal
 import sys
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import typer
@@ -39,9 +40,9 @@ def show_banner():
     """Mostrar banner de Genesis Engine"""
     banner = """
     ██████╗ ███████╗███╗   ██╗███████╗███████╗██╗███████╗
-    ██╔══██╗██╔════╝████╗  ██║██╔════╝██╔════╝██║██╔════╝
-    ██║  ██║█████╗  ██╔██╗ ██║█████╗  ███████╗██║███████╗
-    ██║  ██║██╔══╝  ██║╚██╗██║██╔══╝  ╚════██║██║╚════██║
+    ██╔══╗  ██╔════╝████╗  ██║██╔════╝██╔════╝██║██╔════╝
+    ██║███║ █████╗  ██╔██╗ ██║█████╗  ███████╗██║███████╗
+    ██║ ██║ ██╔══╝  ██║╚██╗██║██╔══╝  ╚════██║██║╚════██║
     ██████╔╝███████╗██║ ╚████║███████╗███████║██║███████║
     ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝╚══════╝
     """
@@ -130,6 +131,13 @@ def main(
         False,
         "--verbose",
         help="Mostrar información detallada"
+    ),
+    skip_project_check: bool = typer.Option(
+        False,
+        "--skip-project-check",
+        help="Omitir verificación de genesis.json (solo pruebas)",
+        envvar="GENESIS_SKIP_PROJECT_CHECK",
+        hidden=True,
     )
 ):
     """
@@ -151,6 +159,8 @@ def main(
     except Exception as e:
         console.print(f"[red]❌ Error inicializando configuración: {e}[/red]")
         raise typer.Exit(1)
+
+    ctx.obj = {"skip_project_check": skip_project_check}
 
 @app.command("init")
 def init(
@@ -385,6 +395,7 @@ def doctor():
 
 @app.command("deploy")
 def deploy(
+    ctx: typer.Context,
     environment: str = typer.Option(
         "local",
         "--env",
@@ -414,8 +425,9 @@ def deploy(
     • Configura monitoring y logs
     """
     try:
+        skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
         # Verificar que estamos en un proyecto Genesis
-        if not Path("genesis.json").exists():
+        if not skip_check and not Path("genesis.json").exists():
             console.print("[red]❌ No estás en un proyecto Genesis[/red]")
             console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
@@ -496,6 +508,7 @@ async def _deploy_async(config: Dict[str, Any]) -> Dict[str, Any]:
 
 @app.command("generate")
 def generate(
+    ctx: typer.Context,
     component: str = typer.Argument(
         help="Tipo de componente a generar (model, endpoint, page, component)"
     ),
@@ -526,8 +539,9 @@ def generate(
     • Documentación
     """
     try:
+        skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
         # Verificar que estamos en un proyecto Genesis
-        if not Path("genesis.json").exists():
+        if not skip_check and not Path("genesis.json").exists():
             console.print("[red]❌ No estás en un proyecto Genesis[/red]")
             console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
@@ -612,7 +626,7 @@ async def _generate_async(config: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning(f"Error cerrando orquestador: {e}")
 
 @app.command("status")
-def status():
+def status(ctx: typer.Context):
     """
     📊 Mostrar estado del proyecto actual
     """
@@ -621,7 +635,8 @@ def status():
         
         # Verificar si estamos en un proyecto Genesis
         project_file = Path("genesis.json")
-        if not project_file.exists():
+        skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
+        if not skip_check and not project_file.exists():
             console.print("[red]❌ No estás en un proyecto Genesis[/red]")
             console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
