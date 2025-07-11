@@ -203,10 +203,11 @@ class FrontendAgent(GenesisAgent):
         app_files = self._generate_main_application(output_path, config, schema)
         generated_files.extend(app_files)
         
-        # 3. Dockerfile - CRÍTICO: Ahora se genera siempre
-        dockerfile = self._generate_dockerfile(output_path, config)
-        if dockerfile:
-            generated_files.append(dockerfile)
+        # 3. Dockerfile - generado solo para ciertos frameworks
+        if config.framework != FrontendFramework.REACT:
+            dockerfile = self._generate_dockerfile(output_path, config)
+            if dockerfile:
+                generated_files.append(dockerfile)
         
         # 4. Componentes base
         component_files = self._generate_base_components(output_path, config, schema)
