@@ -1,10 +1,5 @@
-from pathlib import Path
-import sys
 import types
 from typer.testing import CliRunner
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import yaml
 
