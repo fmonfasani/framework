@@ -1,8 +1,11 @@
 from pathlib import Path
-import sys
+import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+
+@pytest.fixture(scope="session")
+def genesis_root():
+    """Return repository root directory."""
+    return Path(__file__).resolve().parents[1]
 
 import yaml
 import genesis_engine

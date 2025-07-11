@@ -6,13 +6,10 @@ CORRECCIÓN: Capabilities esperadas actualizadas con las reales del ArchitectAge
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
-import sys
 import os
+import sys
 import tempfile
 from pathlib import Path
-
-# Agregar el directorio raíz al path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # CORRECCIÓN: Imports actualizados con estructura corregida
 from genesis_engine.mcp.protocol import MCPProtocol
