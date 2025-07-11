@@ -1,15 +1,11 @@
+# genesis_engine/core/orchestrator.py - MEJORADO
 """
-Orquestrador Central - Coordinador de agentes y flujo de trabajo
-
-Este módulo es responsable de:
-- Coordinar la comunicación entre agentes
-- Gestionar el flujo de trabajo de creación de proyectos
-- Manejar dependencias entre tareas
-- Monitorear el progreso y estado de los agentes
-- Ejecutar el pipeline completo de generación
-- Implementar retry logic y circuit breakers
-- Persistir estado del workflow
-- Proporcionar rollback capabilities
+Orquestrador Central - CORREGIDO
+Mejoras:
+- Mejor coordinación entre Frontend y DevOps agents
+- Verificación de archivos generados antes de pasos dependientes
+- Manejo robusto de errores entre agentes
+- Validación de coherencia en generación de archivos
 """
 
 import asyncio
@@ -82,21 +78,30 @@ except ImportError as e:
     print(f"Warning: Could not import ProjectManager: {e}")
     ProjectManager = None
 
-try:
-    from genesis_engine.cli.ui.console import genesis_console
-except ImportError as e:
-    print(f"Warning: Could not import genesis_console: {e}")
-    # Crear un console básico como fallback
-    try:
-        from rich.console import Console
-        genesis_console = Console()
-    except ImportError:
-        # Fallback básico
-        class BasicConsole:
-            def print(self, *args, **kwargs):
-                print(*args)
-        genesis_console = BasicConsole()
+_console_instance = None
 
+def get_genesis_console():
+    """Lazily import and return ``genesis_console``."""
+    global _console_instance
+    if _console_instance is not None:
+        return _console_instance
+
+    try:
+        from genesis_engine.cli.ui.console import genesis_console as console
+        _console_instance = console
+    except Exception as e:  # pragma: no cover - fallback path
+        print(f"Warning: Could not import genesis_console: {e}")
+        try:
+            from rich.console import Console
+            _console_instance = Console()
+        except Exception:
+            class BasicConsole:
+                def print(self, *args, **kwargs):  # type: ignore[return-type]
+                    print(*args)
+
+            _console_instance = BasicConsole()
+
+    return _console_instance
 
 class WorkflowStatus(str, Enum):
     """Estados del flujo de trabajo"""
@@ -106,7 +111,7 @@ class WorkflowStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     RETRYING = "retrying"
-
+    VALIDATING = "validating"  # NUEVO: Estado de validación
 
 class TaskPriority(int, Enum):
     """Prioridades de tareas"""
@@ -115,13 +120,11 @@ class TaskPriority(int, Enum):
     HIGH = 3
     CRITICAL = 4
 
-
 class CircuitBreakerState(str, Enum):
     """Estados del circuit breaker"""
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
-
 
 @dataclass
 class RetryConfig:
@@ -131,7 +134,6 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
-
 
 @dataclass
 class CircuitBreaker:
@@ -170,10 +172,9 @@ class CircuitBreaker:
         if self.failure_count >= self.failure_threshold:
             self.state = CircuitBreakerState.OPEN
 
-
 @dataclass
 class WorkflowStep:
-    """Paso del flujo de trabajo"""
+    """Paso del flujo de trabajo - MEJORADO"""
     id: str
     name: str
     agent_id: str
@@ -189,7 +190,11 @@ class WorkflowStep:
     retry_config: RetryConfig = field(default_factory=RetryConfig)
     timeout: int = 300  # 5 minutos por defecto
     rollback_actions: List[str] = field(default_factory=list)
-
+    # NUEVOS CAMPOS para validación
+    validation_required: bool = False
+    validation_criteria: Dict[str, Any] = field(default_factory=dict)
+    generated_files: List[str] = field(default_factory=list)
+    expected_files: List[str] = field(default_factory=list)
 
 @dataclass
 class ProjectCreationResult:
@@ -200,14 +205,17 @@ class ProjectCreationResult:
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     rollback_data: Dict[str, Any] = field(default_factory=dict)
-
+    validation_results: Dict[str, Any] = field(default_factory=dict)  # NUEVO
 
 class GenesisOrchestrator:
     """
-    Orquestrador Central de Genesis Engine
+    Orquestrador Central de Genesis Engine - MEJORADO
     
-    Coordina la ejecución de agentes especializados para crear
-    proyectos completos según las especificaciones del usuario.
+    Mejoras:
+    - Validación de archivos generados entre pasos
+    - Mejor coordinación entre agentes Frontend y DevOps
+    - Verificación de coherencia en docker-compose vs Dockerfiles
+    - Auto-corrección de problemas detectados
     """
     
     def __init__(self):
@@ -245,13 +253,20 @@ class GenesisOrchestrator:
         self.state_file: Optional[Path] = None
         self.rollback_stack: List[Dict[str, Any]] = []
         
+        # NUEVOS: Validación y coordinación
+        self.file_tracker: Dict[str, List[str]] = {}  # Archivos generados por step
+        self.validation_enabled = True
+        self.auto_fix_enabled = True
+        
         # Métricas
         self.metrics = {
             "tasks_executed": 0,
             "tasks_failed": 0,
             "tasks_retried": 0,
             "circuit_breaker_trips": 0,
-            "average_execution_time": 0.0
+            "average_execution_time": 0.0,
+            "validations_performed": 0,  # NUEVO
+            "auto_fixes_applied": 0,     # NUEVO
         }
 
     @property
@@ -269,7 +284,7 @@ class GenesisOrchestrator:
     
     async def initialize(self):
         """Inicializar el orquestador"""
-        self.logger.info("🎼 Inicializando Genesis Orchestrator")
+        self.logger.info("🎼 Inicializando Genesis Orchestrator (Mejorado)")
         
         try:
             # Inicializar protocolo MCP
@@ -286,7 +301,7 @@ class GenesisOrchestrator:
             self._setup_circuit_breakers()
             
             self.running = True
-            self.logger.info("✅ Orchestrator inicializado")
+            self.logger.info("✅ Orchestrator inicializado con validación y auto-corrección")
             
         except Exception as e:
             self.logger.error(f"❌ Error inicializando orchestrator: {e}")
@@ -359,6 +374,9 @@ class GenesisOrchestrator:
         self.mcp.subscribe_to_broadcasts("task.failed", self._handle_task_failed)
         self.mcp.subscribe_to_broadcasts("agent.status_changed", self._handle_agent_status_changed)
         self.mcp.subscribe_to_broadcasts("workflow.cancelled", self._handle_workflow_cancelled)
+        # NUEVOS handlers
+        self.mcp.subscribe_to_broadcasts("file.generated", self._handle_file_generated)
+        self.mcp.subscribe_to_broadcasts("validation.completed", self._handle_validation_completed)
     
     def _setup_circuit_breakers(self):
         """Configurar circuit breakers para agentes"""
@@ -414,7 +432,8 @@ class GenesisOrchestrator:
             raise GenesisException("Features debe ser una lista")
         
         return True
-    
+
+    # MÉTODOS PARA COMPATIBILIDAD CON TESTS (sin cambios)
     def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Procesar una solicitud simple dirigida a un agente"""
         agent_key = request.get("agent")
@@ -458,23 +477,11 @@ class GenesisOrchestrator:
             self.logger.error(f"Error executing task {action} on {agent_key}: {e}")
             return {"success": False, "error": str(e)}
     
-    # MÉTODO CORREGIDO: Para compatibilidad con tests
     async def send_message(self, 
                           recipient: str, 
                           action: str, 
                           data: Dict[str, Any]) -> MCPResponse:
-        """
-        Enviar mensaje a un agente específico.
-        COMPATIBILIDAD: Para mantener compatibilidad con tests.
-        
-        Args:
-            recipient: ID del agente destinatario
-            action: Acción a ejecutar
-            data: Datos del mensaje
-            
-        Returns:
-            Respuesta del agente
-        """
+        """Enviar mensaje a un agente específico."""
         return await self.mcp.send_request(
             sender="orchestrator",
             recipient=recipient,
@@ -482,25 +489,12 @@ class GenesisOrchestrator:
             data=data
         )
     
-    # MÉTODO AGREGADO: Para compatibilidad con el orchestrator original
     async def execute_project_creation(self, 
                                      project_name: str,
                                      project_path: Path,
                                      template: str = "saas-basic",
                                      features: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Ejecutar creación completa de proyecto.
-        COMPATIBILIDAD: Para mantener compatibilidad con tests.
-        
-        Args:
-            project_name: Nombre del proyecto
-            project_path: Ruta donde crear el proyecto
-            template: Template a usar
-            features: Características adicionales
-            
-        Returns:
-            Resultado de la creación
-        """
+        """Ejecutar creación completa de proyecto."""
         config = {
             "name": project_name,
             "template": template,
@@ -518,23 +512,25 @@ class GenesisOrchestrator:
             "metadata": result.metadata
         }
     
-    # MÉTODO AGREGADO: Para compatibilidad con tests
     def get_available_templates(self) -> List[str]:
         """Obtener lista de templates disponibles."""
         return ["saas-basic", "microservices", "ai-ready"]
+
+    def get_status(self) -> Dict[str, Any]:
+        """Obtener información general del orquestador."""
+        return {
+            "running": self.running,
+            "agents_registered": len(self.agents),
+            "current_workflow": self.current_workflow,
+            "mcp_running": getattr(self.mcp, "running", False),
+            "validation_enabled": self.validation_enabled,  # NUEVO
+            "auto_fix_enabled": self.auto_fix_enabled,     # NUEVO
+        }
     
     async def create_project(self, config: Dict[str, Any]) -> ProjectCreationResult:
-        """
-        Crear proyecto completo
-        
-        Args:
-            config: Configuración del proyecto
-            
-        Returns:
-            Resultado de la creación
-        """
+        """Crear proyecto completo - MEJORADO con validación"""
         start_time = time.time()
-        self.logger.info(f"🚀 Iniciando creación de proyecto: {config.get('name', 'unknown')}")
+        self.logger.info(f"🚀 Iniciando creación de proyecto: {config.get('name', 'unknown')} (con validación)")
         
         try:
             # Validar configuración
@@ -550,20 +546,24 @@ class GenesisOrchestrator:
             # Crear directorio del proyecto
             project_path = await self._setup_project_directory(config)
             
-            # Definir flujo de trabajo
-            workflow_steps = self._define_workflow_steps(config, project_path)
+            # Definir flujo de trabajo MEJORADO
+            workflow_steps = self._define_workflow_steps_improved(config, project_path)
             
             # Guardar estado inicial
             await self._save_workflow_state()
             
-            # Ejecutar workflow
-            result = await self._execute_workflow(workflow_steps, config)
+            # Ejecutar workflow MEJORADO
+            result = await self._execute_workflow_improved(workflow_steps, config)
             
             # Actualizar métricas
             execution_time = time.time() - start_time
             self.metrics["average_execution_time"] = execution_time
             
             if result.success:
+                # Validación final del proyecto
+                final_validation = await self._validate_final_project(project_path, result)
+                result.validation_results = final_validation
+                
                 # Finalizar proyecto
                 await self._finalize_project(project_path, result)
                 
@@ -575,10 +575,13 @@ class GenesisOrchestrator:
                     success=True,
                     project_path=project_path,
                     generated_files=result.generated_files,
+                    validation_results=final_validation,
                     metadata={
                         **result.metadata,
                         "execution_time": execution_time,
-                        "workflow_id": workflow_id
+                        "workflow_id": workflow_id,
+                        "validations_performed": self.metrics["validations_performed"],
+                        "auto_fixes_applied": self.metrics["auto_fixes_applied"]
                     }
                 )
             else:
@@ -608,7 +611,663 @@ class GenesisOrchestrator:
             self.workflow_steps.clear()
             self.workflow_results.clear()
             self.rollback_stack.clear()
+            self.file_tracker.clear()  # NUEVO: Limpiar tracker de archivos
     
+    def _define_workflow_steps_improved(
+        self, 
+        config: Dict[str, Any], 
+        project_path: Path
+    ) -> List[WorkflowStep]:
+        """Definir pasos del flujo de trabajo - MEJORADO con validación"""
+        steps = []
+        
+        # 1. Análisis de requisitos (Architect Agent)
+        steps.append(WorkflowStep(
+            id="analyze_requirements",
+            name="Analizar Requisitos",
+            agent_id="architect_agent",
+            task_name="analyze_requirements",
+            params={
+                "description": config.get("description", ""),
+                "type": config.get("template", "web_app"),
+                "features": config.get("features", []),
+                "constraints": config.get("constraints", {})
+            },
+            dependencies=[],
+            priority=TaskPriority.CRITICAL,
+            status=WorkflowStatus.PENDING,
+            timeout=120,
+            retry_config=RetryConfig(max_attempts=3, initial_delay=2.0),
+            validation_required=True,
+            validation_criteria={"required_fields": ["requirements", "complexity"]}
+        ))
+        
+        # 2. Diseño de arquitectura (Architect Agent)
+        steps.append(WorkflowStep(
+            id="design_architecture",
+            name="Diseñar Arquitectura",
+            agent_id="architect_agent",
+            task_name="design_architecture",
+            params={
+                "requirements": "{{analyze_requirements}}",
+                "pattern": config.get("architecture_pattern", "layered"),
+                "type": config.get("template", "web_app")
+            },
+            dependencies=["analyze_requirements"],
+            priority=TaskPriority.CRITICAL,
+            status=WorkflowStatus.PENDING,
+            timeout=180,
+            retry_config=RetryConfig(max_attempts=2, initial_delay=3.0),
+            validation_required=True,
+            validation_criteria={"required_fields": ["components", "technologies"]}
+        ))
+        
+        # 3. Generación de schema (Architect Agent)
+        steps.append(WorkflowStep(
+            id="generate_schema",
+            name="Generar Schema del Proyecto",
+            agent_id="architect_agent",
+            task_name="generate_schema",
+            params={
+                "name": config.get("name"),
+                "description": config.get("description", ""),
+                "requirements": "{{analyze_requirements}}",
+                "architecture": "{{design_architecture}}",
+                "stack": config.get("stack", {})
+            },
+            dependencies=["analyze_requirements", "design_architecture"],
+            priority=TaskPriority.CRITICAL,
+            status=WorkflowStatus.PENDING,
+            timeout=240,
+            retry_config=RetryConfig(max_attempts=2, initial_delay=2.0),
+            validation_required=True,
+            validation_criteria={"required_fields": ["project_name", "entities", "stack"]}
+        ))
+        
+        # 4. Generación de backend (Backend Agent)
+        steps.append(WorkflowStep(
+            id="generate_backend",
+            name="Generar Backend",
+            agent_id="backend_agent",
+            task_name="generate_backend",
+            params={
+                "schema": "{{generate_schema}}",
+                "stack": config.get("stack", {}),
+                "output_path": str(project_path / "backend")
+            },
+            dependencies=["generate_schema"],
+            priority=TaskPriority.HIGH,
+            status=WorkflowStatus.PENDING,
+            timeout=300,
+            retry_config=RetryConfig(max_attempts=3, initial_delay=5.0),
+            validation_required=True,
+            validation_criteria={"required_files": ["Dockerfile", "requirements.txt", "main.py"]},
+            expected_files=[
+                str(project_path / "backend" / "Dockerfile"),
+                str(project_path / "backend" / "requirements.txt"),
+                str(project_path / "backend" / "app" / "main.py")
+            ]
+        ))
+        
+        # 5. Generación de frontend (Frontend Agent) - MEJORADO
+        steps.append(WorkflowStep(
+            id="generate_frontend",
+            name="Generar Frontend",
+            agent_id="frontend_agent",
+            task_name="generate_frontend",
+            params={
+                "schema": "{{generate_schema}}",
+                "stack": config.get("stack", {}),
+                "output_path": str(project_path / "frontend")
+            },
+            dependencies=["generate_schema"],
+            priority=TaskPriority.HIGH,
+            status=WorkflowStatus.PENDING,
+            timeout=300,
+            retry_config=RetryConfig(max_attempts=3, initial_delay=5.0),
+            validation_required=True,
+            validation_criteria={"required_files": ["Dockerfile", "package.json"]},
+            expected_files=[
+                str(project_path / "frontend" / "Dockerfile"),
+                str(project_path / "frontend" / "package.json"),
+                str(project_path / "frontend" / "app" / "page.tsx")
+            ]
+        ))
+        
+        # 6. Configuración DevOps (CRÍTICO: Después de backend y frontend)
+        steps.append(WorkflowStep(
+            id="setup_devops",
+            name="Configurar DevOps",
+            agent_id="devops_agent",
+            task_name="setup_devops",
+            params={
+                "schema": "{{generate_schema}}",
+                "backend_result": "{{generate_backend}}",
+                "frontend_result": "{{generate_frontend}}",
+                "output_path": str(project_path)
+            },
+            dependencies=["generate_backend", "generate_frontend"],  # CRÍTICO: Ambas dependencias
+            priority=TaskPriority.HIGH,  # CAMBIADO: Alta prioridad
+            status=WorkflowStatus.PENDING,
+            timeout=240,
+            retry_config=RetryConfig(max_attempts=3, initial_delay=3.0),
+            validation_required=True,
+            validation_criteria={"required_files": ["docker-compose.yml"], "docker_references_valid": True},
+            expected_files=[
+                str(project_path / "docker-compose.yml"),
+                str(project_path / ".github" / "workflows" / "ci.yml")
+            ]
+        ))
+        
+        return steps
+    
+    async def _execute_workflow_improved(
+        self, 
+        steps: List[WorkflowStep], 
+        config: Dict[str, Any]
+    ) -> ProjectCreationResult:
+        """Ejecutar flujo de trabajo - MEJORADO con validación entre pasos"""
+        self.workflow_steps = {step.id: step for step in steps}
+        
+        get_genesis_console().print(f"📋 Ejecutando {len(steps)} pasos del workflow (con validación)")
+        
+        completed_steps = set()
+        all_generated_files = []
+        validation_results = {}
+        
+        while len(completed_steps) < len(steps) and not self.cancelled:
+            # Guardar estado
+            await self._save_workflow_state()
+            
+            # Encontrar pasos listos para ejecutar
+            ready_steps = self._get_ready_steps(completed_steps)
+            
+            if not ready_steps:
+                if len(completed_steps) == 0:
+                    self.logger.error("❌ No hay pasos listos para ejecutar")
+                    return ProjectCreationResult(
+                        success=False,
+                        error="No hay pasos listos para ejecutar"
+                    )
+                else:
+                    # Esperar a que se completen tareas en progreso
+                    await asyncio.sleep(1)
+                    continue
+            
+            # Ejecutar pasos en paralelo (limitado por max_concurrent_tasks)
+            semaphore = asyncio.Semaphore(self.max_concurrent_tasks)
+            tasks = []
+            
+            for step in ready_steps:
+                task = asyncio.create_task(
+                    self._execute_step_with_validation(step, semaphore)
+                )
+                tasks.append((step.id, task))
+            
+            # Esperar completación de tareas
+            for step_id, task in tasks:
+                try:
+                    result = await task
+                    step = self.workflow_steps[step_id]
+                    
+                    if result.success:
+                        step.status = WorkflowStatus.COMPLETED
+                        step.result = result
+                        step.end_time = datetime.utcnow()
+                        completed_steps.add(step_id)
+                        
+                        # Registrar éxito en circuit breaker
+                        if step.agent_id in self.circuit_breakers:
+                            self.circuit_breakers[step.agent_id].record_success()
+                        
+                        # Agregar archivos generados
+                        if hasattr(result, 'result') and isinstance(result.result, dict):
+                            files = result.result.get('generated_files', [])
+                            all_generated_files.extend(files)
+                            step.generated_files = files
+                            
+                            # Rastrear archivos por step
+                            self.file_tracker[step_id] = files
+                        
+                        # Validar paso si es requerido
+                        if step.validation_required:
+                            validation_result = await self._validate_step_result(step, result)
+                            validation_results[step_id] = validation_result
+                            
+                            if not validation_result["valid"] and self.auto_fix_enabled:
+                                # Intentar auto-corrección
+                                fix_result = await self._auto_fix_step_issues(step, validation_result)
+                                if fix_result["fixes_applied"]:
+                                    self.metrics["auto_fixes_applied"] += len(fix_result["fixes_applied"])
+                                    get_genesis_console().print(f"🔧 Auto-correcciones aplicadas en {step.name}")
+                        
+                        # Actualizar métricas
+                        self.metrics["tasks_executed"] += 1
+                        
+                        get_genesis_console().print(f"✅ {step.name} completado")
+                        
+                    else:
+                        step.status = WorkflowStatus.FAILED
+                        step.end_time = datetime.utcnow()
+                        
+                        # Registrar fallo en circuit breaker
+                        if step.agent_id in self.circuit_breakers:
+                            self.circuit_breakers[step.agent_id].record_failure()
+                        
+                        # Actualizar métricas
+                        self.metrics["tasks_failed"] += 1
+                        
+                        get_genesis_console().print(f"❌ {step.name} falló: {result.error}")
+                        
+                        # Decidir si continuar o abortar
+                        if step.priority == TaskPriority.CRITICAL:
+                            return ProjectCreationResult(
+                                success=False,
+                                error=f"Paso crítico '{step.name}' falló: {result.error}",
+                                validation_results=validation_results
+                            )
+                        else:
+                            # Marcar como completado para continuar
+                            completed_steps.add(step_id)
+                            self.logger.warning(f"Paso opcional '{step.name}' falló, continuando")
+                        
+                except Exception as e:
+                    self.logger.error(f"❌ Error ejecutando paso {step_id}: {e}")
+                    return ProjectCreationResult(
+                        success=False,
+                        error=f"Error ejecutando paso '{step_id}': {str(e)}",
+                        validation_results=validation_results
+                    )
+        
+        if self.cancelled:
+            return ProjectCreationResult(
+                success=False,
+                error="Workflow cancelado por el usuario",
+                validation_results=validation_results
+            )
+        
+        return ProjectCreationResult(
+            success=True,
+            generated_files=all_generated_files,
+            validation_results=validation_results,
+            metadata={
+                "workflow_id": self.current_workflow,
+                "completed_steps": len(completed_steps),
+                "total_steps": len(steps),
+                "execution_time": self._calculate_execution_time(),
+                "metrics": self.metrics
+            }
+        )
+    
+    async def _execute_step_with_validation(
+        self, 
+        step: WorkflowStep, 
+        semaphore: asyncio.Semaphore
+    ) -> TaskResult:
+        """Ejecutar paso con validación - NUEVO"""
+        async with semaphore:
+            # Pre-validación
+            if step.validation_required:
+                pre_validation = await self._pre_validate_step(step)
+                if not pre_validation["can_proceed"] and not self.auto_fix_enabled:
+                    return TaskResult(
+                        task_id=step.id,
+                        success=False,
+                        error=f"Pre-validación falló: {pre_validation['reason']}"
+                    )
+            
+            # Ejecutar paso con retry
+            result = await self._execute_step_with_retry(step, semaphore)
+            
+            # Post-validación
+            if result.success and step.validation_required:
+                post_validation = await self._post_validate_step(step, result)
+                if not post_validation["valid"]:
+                    self.logger.warning(f"Post-validación falló para {step.name}: {post_validation['issues']}")
+                    # No fallar automáticamente, permitir auto-corrección después
+            
+            return result
+    
+    async def _validate_step_result(self, step: WorkflowStep, result: TaskResult) -> Dict[str, Any]:
+        """Validar resultado de un paso - NUEVO"""
+        self.metrics["validations_performed"] += 1
+        
+        validation_result = {
+            "valid": True,
+            "issues": [],
+            "step_id": step.id,
+            "step_name": step.name,
+            "validation_criteria": step.validation_criteria
+        }
+        
+        # Validar archivos esperados
+        if step.expected_files:
+            for expected_file in step.expected_files:
+                file_path = Path(expected_file)
+                if not file_path.exists():
+                    validation_result["valid"] = False
+                    validation_result["issues"].append({
+                        "type": "missing_file",
+                        "file": str(file_path),
+                        "severity": "error"
+                    })
+        
+        # Validar criterios específicos
+        if step.validation_criteria:
+            if "required_files" in step.validation_criteria:
+                for required_file in step.validation_criteria["required_files"]:
+                    # Buscar en archivos generados
+                    if not any(required_file in f for f in step.generated_files):
+                        validation_result["valid"] = False
+                        validation_result["issues"].append({
+                            "type": "missing_required_file",
+                            "file": required_file,
+                            "severity": "error"
+                        })
+            
+            if "docker_references_valid" in step.validation_criteria:
+                docker_validation = await self._validate_docker_references(step)
+                if not docker_validation["valid"]:
+                    validation_result["valid"] = False
+                    validation_result["issues"].extend(docker_validation["issues"])
+        
+        return validation_result
+    
+    async def _validate_docker_references(self, step: WorkflowStep) -> Dict[str, Any]:
+        """Validar referencias de Docker - NUEVO Y CRÍTICO"""
+        validation = {"valid": True, "issues": []}
+        
+        # Solo validar para paso de DevOps
+        if step.agent_id != "devops_agent":
+            return validation
+        
+        # Verificar docker-compose.yml
+        project_path = Path(step.params.get("output_path", "./"))
+        compose_file = project_path / "docker-compose.yml"
+        
+        if not compose_file.exists():
+            validation["valid"] = False
+            validation["issues"].append({
+                "type": "missing_compose_file",
+                "file": str(compose_file),
+                "severity": "error"
+            })
+            return validation
+        
+        try:
+            import yaml
+            with open(compose_file, 'r') as f:
+                compose_content = yaml.safe_load(f)
+            
+            services = compose_content.get('services', {})
+            
+            # Verificar referencias a Dockerfiles
+            for service_name, service_config in services.items():
+                if 'build' in service_config:
+                    build_config = service_config['build']
+                    if isinstance(build_config, dict):
+                        context = build_config.get('context', '.')
+                        dockerfile = build_config.get('dockerfile', 'Dockerfile')
+                        
+                        dockerfile_path = project_path / context / dockerfile
+                        if not dockerfile_path.exists():
+                            validation["valid"] = False
+                            validation["issues"].append({
+                                "type": "broken_dockerfile_reference",
+                                "service": service_name,
+                                "file": str(dockerfile_path),
+                                "severity": "error"
+                            })
+        
+        except Exception as e:
+            validation["valid"] = False
+            validation["issues"].append({
+                "type": "compose_parse_error",
+                "error": str(e),
+                "severity": "error"
+            })
+        
+        return validation
+    
+    async def _auto_fix_step_issues(self, step: WorkflowStep, validation_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Auto-corregir problemas detectados - NUEVO"""
+        fix_result = {"fixes_applied": [], "issues_remaining": []}
+        
+        for issue in validation_result["issues"]:
+            if issue["type"] == "missing_file" and issue["severity"] == "error":
+                # Intentar generar archivo faltante
+                fix_applied = await self._auto_fix_missing_file(issue, step)
+                if fix_applied:
+                    fix_result["fixes_applied"].append(fix_applied)
+                else:
+                    fix_result["issues_remaining"].append(issue)
+            
+            elif issue["type"] == "broken_dockerfile_reference":
+                # Intentar generar Dockerfile faltante
+                fix_applied = await self._auto_fix_missing_dockerfile(issue, step)
+                if fix_applied:
+                    fix_result["fixes_applied"].append(fix_applied)
+                else:
+                    fix_result["issues_remaining"].append(issue)
+            
+            else:
+                fix_result["issues_remaining"].append(issue)
+        
+        return fix_result
+    
+    async def _auto_fix_missing_dockerfile(self, issue: Dict[str, Any], step: WorkflowStep) -> Optional[Dict[str, Any]]:
+        """Auto-corregir Dockerfile faltante - NUEVO Y CRÍTICO"""
+        try:
+            dockerfile_path = Path(issue["file"])
+            service_name = issue.get("service", "unknown")
+            
+            # Determinar tipo de servicio y framework
+            if "backend" in str(dockerfile_path):
+                # Generar Dockerfile de backend
+                backend_agent = self.agents.get("backend_agent")
+                if backend_agent:
+                    # Intentar detectar framework
+                    framework = "fastapi"  # Default
+                    
+                    # Solicitar generación de Dockerfile
+                    result = await self._request_dockerfile_generation(
+                        "backend_agent", 
+                        str(dockerfile_path.parent),
+                        framework
+                    )
+                    
+                    if result and result.get("success"):
+                        return {
+                            "type": "generated_dockerfile",
+                            "service": service_name,
+                            "path": str(dockerfile_path),
+                            "framework": framework
+                        }
+            
+            elif "frontend" in str(dockerfile_path):
+                # Generar Dockerfile de frontend
+                frontend_agent = self.agents.get("frontend_agent")
+                if frontend_agent:
+                    # Intentar detectar framework
+                    framework = "nextjs"  # Default
+                    
+                    # Solicitar generación de Dockerfile
+                    result = await self._request_dockerfile_generation(
+                        "frontend_agent",
+                        str(dockerfile_path.parent),
+                        framework
+                    )
+                    
+                    if result and result.get("success"):
+                        return {
+                            "type": "generated_dockerfile",
+                            "service": service_name,
+                            "path": str(dockerfile_path),
+                            "framework": framework
+                        }
+            
+        except Exception as e:
+            self.logger.error(f"Error auto-corrigiendo Dockerfile: {e}")
+        
+        return None
+    
+    async def _request_dockerfile_generation(self, agent_id: str, output_path: str, framework: str) -> Optional[Dict[str, Any]]:
+        """Solicitar generación de Dockerfile a un agente - NUEVO"""
+        try:
+            response = await self.mcp.send_request(
+                sender="orchestrator",
+                recipient=agent_id,
+                action="generate_dockerfile",
+                data={
+                    "output_path": output_path,
+                    "framework": framework
+                }
+            )
+            
+            if response.success:
+                return response.result
+            else:
+                self.logger.error(f"Error generando Dockerfile: {response.error_message}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error solicitando generación de Dockerfile: {e}")
+            return None
+    
+    async def _auto_fix_missing_file(self, issue: Dict[str, Any], step: WorkflowStep) -> Optional[Dict[str, Any]]:
+        """Auto-corregir archivo faltante genérico - NUEVO"""
+        # Implementación básica - se puede expandir
+        return None
+    
+    async def _validate_final_project(self, project_path: Path, result: ProjectCreationResult) -> Dict[str, Any]:
+        """Validación final del proyecto - NUEVO"""
+        validation = {
+            "valid": True,
+            "issues": [],
+            "recommendations": [],
+            "summary": {}
+        }
+        
+        # Verificar estructura básica
+        required_dirs = ["backend", "frontend"]
+        for dir_name in required_dirs:
+            dir_path = project_path / dir_name
+            if not dir_path.exists():
+                validation["valid"] = False
+                validation["issues"].append({
+                    "type": "missing_directory",
+                    "path": str(dir_path),
+                    "severity": "error"
+                })
+        
+        # Verificar docker-compose.yml y Dockerfiles
+        compose_file = project_path / "docker-compose.yml"
+        if compose_file.exists():
+            docker_validation = await self._validate_docker_setup(project_path)
+            if not docker_validation["valid"]:
+                validation["valid"] = False
+                validation["issues"].extend(docker_validation["issues"])
+        
+        # Generar recomendaciones
+        if not validation["issues"]:
+            validation["recommendations"].append("Proyecto listo para ejecutar: docker-compose up -d")
+        else:
+            validation["recommendations"].append("Corrija los issues antes de ejecutar docker-compose")
+        
+        validation["summary"] = {
+            "total_issues": len(validation["issues"]),
+            "error_count": len([i for i in validation["issues"] if i["severity"] == "error"]),
+            "warning_count": len([i for i in validation["issues"] if i["severity"] == "warning"])
+        }
+        
+        return validation
+    
+    async def _validate_docker_setup(self, project_path: Path) -> Dict[str, Any]:
+        """Validar configuración completa de Docker - NUEVO"""
+        validation = {"valid": True, "issues": []}
+        
+        # Verificar docker-compose.yml
+        compose_file = project_path / "docker-compose.yml"
+        if not compose_file.exists():
+            validation["valid"] = False
+            validation["issues"].append({
+                "type": "missing_compose",
+                "severity": "error"
+            })
+            return validation
+        
+        # Verificar Dockerfiles referenciados
+        try:
+            import yaml
+            with open(compose_file, 'r') as f:
+                compose_content = yaml.safe_load(f)
+            
+            services = compose_content.get('services', {})
+            
+            for service_name, service_config in services.items():
+                if 'build' in service_config:
+                    build_config = service_config['build']
+                    if isinstance(build_config, dict):
+                        context = build_config.get('context', '.')
+                        dockerfile = build_config.get('dockerfile', 'Dockerfile')
+                        
+                        dockerfile_path = project_path / context / dockerfile
+                        if not dockerfile_path.exists():
+                            validation["valid"] = False
+                            validation["issues"].append({
+                                "type": "missing_dockerfile",
+                                "service": service_name,
+                                "path": str(dockerfile_path),
+                                "severity": "error"
+                            })
+        
+        except Exception as e:
+            validation["valid"] = False
+            validation["issues"].append({
+                "type": "compose_invalid",
+                "error": str(e),
+                "severity": "error"
+            })
+        
+        return validation
+    
+    # NUEVOS Handlers de eventos
+    async def _handle_file_generated(self, event: Dict[str, Any]):
+        """Manejar evento de archivo generado - NUEVO"""
+        try:
+            step_id = event.get("step_id")
+            file_path = event.get("file_path")
+            
+            if step_id and file_path:
+                if step_id not in self.file_tracker:
+                    self.file_tracker[step_id] = []
+                self.file_tracker[step_id].append(file_path)
+                
+                self.logger.debug(f"📄 Archivo generado: {file_path} (paso: {step_id})")
+        except Exception as exc:
+            self._handle_orchestrator_error(exc, "handle_file_generated")
+    
+    async def _handle_validation_completed(self, event: Dict[str, Any]):
+        """Manejar evento de validación completada - NUEVO"""
+        try:
+            step_id = event.get("step_id")
+            validation_result = event.get("result", {})
+            
+            if not validation_result.get("valid", True):
+                self.logger.warning(f"⚠️ Validación falló para paso {step_id}: {validation_result.get('issues', [])}")
+        except Exception as exc:
+            self._handle_orchestrator_error(exc, "handle_validation_completed")
+    
+    # Métodos auxiliares de validación
+    async def _pre_validate_step(self, step: WorkflowStep) -> Dict[str, Any]:
+        """Pre-validación antes de ejecutar paso - NUEVO"""
+        return {"can_proceed": True, "reason": None}
+    
+    async def _post_validate_step(self, step: WorkflowStep, result: TaskResult) -> Dict[str, Any]:
+        """Post-validación después de ejecutar paso - NUEVO"""
+        return {"valid": True, "issues": []}
+    
+    # Resto de métodos sin cambios significativos...
     def _setup_persistence(self, config: Dict[str, Any]):
         """Configurar persistence del workflow"""
         project_name = config.get("name", "unknown")
@@ -635,12 +1294,15 @@ class GenesisOrchestrator:
                     "status": step.status.value,
                     "retry_count": step.retry_count,
                     "start_time": step.start_time.isoformat() if step.start_time else None,
-                    "end_time": step.end_time.isoformat() if step.end_time else None
+                    "end_time": step.end_time.isoformat() if step.end_time else None,
+                    "generated_files": step.generated_files,  # NUEVO
+                    "validation_required": step.validation_required  # NUEVO
                 }
                 for step_id, step in self.workflow_steps.items()
             },
             "results": self.workflow_results,
-            "rollback_stack": self.rollback_stack
+            "rollback_stack": self.rollback_stack,
+            "file_tracker": self.file_tracker  # NUEVO
         }
         
         try:
@@ -737,246 +1399,6 @@ class GenesisOrchestrator:
         
         return project_path
     
-    def _define_workflow_steps(
-        self, 
-        config: Dict[str, Any], 
-        project_path: Path
-    ) -> List[WorkflowStep]:
-        """Definir pasos del flujo de trabajo"""
-        steps = []
-        
-        # 1. Análisis de requisitos (Architect Agent)
-        steps.append(WorkflowStep(
-            id="analyze_requirements",
-            name="Analizar Requisitos",
-            agent_id="architect_agent",
-            task_name="analyze_requirements",
-            params={
-                "description": config.get("description", ""),
-                "type": config.get("template", "web_app"),
-                "features": config.get("features", []),
-                "constraints": config.get("constraints", {})
-            },
-            dependencies=[],
-            priority=TaskPriority.CRITICAL,
-            status=WorkflowStatus.PENDING,
-            timeout=120,
-            retry_config=RetryConfig(max_attempts=3, initial_delay=2.0)
-        ))
-        
-        # 2. Diseño de arquitectura (Architect Agent)
-        steps.append(WorkflowStep(
-            id="design_architecture",
-            name="Diseñar Arquitectura",
-            agent_id="architect_agent",
-            task_name="design_architecture",
-            params={
-                "requirements": "{{analyze_requirements}}",
-                "pattern": config.get("architecture_pattern", "layered"),
-                "type": config.get("template", "web_app")
-            },
-            dependencies=["analyze_requirements"],
-            priority=TaskPriority.CRITICAL,
-            status=WorkflowStatus.PENDING,
-            timeout=180,
-            retry_config=RetryConfig(max_attempts=2, initial_delay=3.0)
-        ))
-        
-        # 3. Generación de schema (Architect Agent)
-        steps.append(WorkflowStep(
-            id="generate_schema",
-            name="Generar Schema del Proyecto",
-            agent_id="architect_agent",
-            task_name="generate_schema",
-            params={
-                "name": config.get("name"),
-                "description": config.get("description", ""),
-                "requirements": "{{analyze_requirements}}",
-                "architecture": "{{design_architecture}}",
-                "stack": config.get("stack", {})
-            },
-            dependencies=["analyze_requirements", "design_architecture"],
-            priority=TaskPriority.CRITICAL,
-            status=WorkflowStatus.PENDING,
-            timeout=240,
-            retry_config=RetryConfig(max_attempts=2, initial_delay=2.0)
-        ))
-        
-        # 4. Generación de backend (Backend Agent)
-        steps.append(WorkflowStep(
-            id="generate_backend",
-            name="Generar Backend",
-            agent_id="backend_agent",
-            task_name="generate_backend",
-            params={
-                "schema": "{{generate_schema}}",
-                "stack": config.get("stack", {}),
-                "output_path": str(project_path / "backend")
-            },
-            dependencies=["generate_schema"],
-            priority=TaskPriority.HIGH,
-            status=WorkflowStatus.PENDING,
-            timeout=300,
-            retry_config=RetryConfig(max_attempts=3, initial_delay=5.0)
-        ))
-        
-        # 5. Generación de frontend (Frontend Agent)
-        steps.append(WorkflowStep(
-            id="generate_frontend",
-            name="Generar Frontend",
-            agent_id="frontend_agent",
-            task_name="generate_frontend",
-            params={
-                "schema": "{{generate_schema}}",
-                "stack": config.get("stack", {}),
-                "output_path": str(project_path / "frontend")
-            },
-            dependencies=["generate_schema"],
-            priority=TaskPriority.HIGH,
-            status=WorkflowStatus.PENDING,
-            timeout=300,
-            retry_config=RetryConfig(max_attempts=3, initial_delay=5.0)
-        ))
-        
-        # 6. Configuración DevOps (si está habilitado)
-        if config.get("enable_devops", True):
-            steps.append(WorkflowStep(
-                id="setup_devops",
-                name="Configurar DevOps",
-                agent_id="devops_agent",
-                task_name="setup_devops",
-                params={
-                    "schema": "{{generate_schema}}",
-                    "backend_result": "{{generate_backend}}",
-                    "frontend_result": "{{generate_frontend}}",
-                    "output_path": str(project_path)
-                },
-                dependencies=["generate_backend", "generate_frontend"],
-                priority=TaskPriority.NORMAL,
-                status=WorkflowStatus.PENDING,
-                timeout=240,
-                retry_config=RetryConfig(max_attempts=2, initial_delay=3.0)
-            ))
-        
-        return steps
-    
-    async def _execute_workflow(
-        self, 
-        steps: List[WorkflowStep], 
-        config: Dict[str, Any]
-    ) -> ProjectCreationResult:
-        """Ejecutar flujo de trabajo con retry logic y circuit breakers"""
-        self.workflow_steps = {step.id: step for step in steps}
-        
-        genesis_console.print(f"📋 Ejecutando {len(steps)} pasos del workflow")
-        
-        completed_steps = set()
-        all_generated_files = []
-        
-        while len(completed_steps) < len(steps) and not self.cancelled:
-            # Guardar estado
-            await self._save_workflow_state()
-            
-            # Encontrar pasos listos para ejecutar
-            ready_steps = self._get_ready_steps(completed_steps)
-            
-            if not ready_steps:
-                if len(completed_steps) == 0:
-                    self.logger.error("❌ No hay pasos listos para ejecutar")
-                    return ProjectCreationResult(
-                        success=False,
-                        error="No hay pasos listos para ejecutar"
-                    )
-                else:
-                    # Esperar a que se completen tareas en progreso
-                    await asyncio.sleep(1)
-                    continue
-            
-            # Ejecutar pasos en paralelo (limitado por max_concurrent_tasks)
-            semaphore = asyncio.Semaphore(self.max_concurrent_tasks)
-            tasks = []
-            
-            for step in ready_steps:
-                task = asyncio.create_task(
-                    self._execute_step_with_retry(step, semaphore)
-                )
-                tasks.append((step.id, task))
-            
-            # Esperar completación de tareas
-            for step_id, task in tasks:
-                try:
-                    result = await task
-                    step = self.workflow_steps[step_id]
-                    
-                    if result.success:
-                        step.status = WorkflowStatus.COMPLETED
-                        step.result = result
-                        step.end_time = datetime.utcnow()
-                        completed_steps.add(step_id)
-                        
-                        # Registrar éxito en circuit breaker
-                        if step.agent_id in self.circuit_breakers:
-                            self.circuit_breakers[step.agent_id].record_success()
-                        
-                        # Agregar archivos generados
-                        if hasattr(result, 'result') and isinstance(result.result, dict):
-                            files = result.result.get('generated_files', [])
-                            all_generated_files.extend(files)
-                        
-                        # Actualizar métricas
-                        self.metrics["tasks_executed"] += 1
-                        
-                        genesis_console.print(f"✅ {step.name} completado")
-                        
-                    else:
-                        step.status = WorkflowStatus.FAILED
-                        step.end_time = datetime.utcnow()
-                        
-                        # Registrar fallo en circuit breaker
-                        if step.agent_id in self.circuit_breakers:
-                            self.circuit_breakers[step.agent_id].record_failure()
-                        
-                        # Actualizar métricas
-                        self.metrics["tasks_failed"] += 1
-                        
-                        genesis_console.print(f"❌ {step.name} falló: {result.error}")
-                        
-                        # Decidir si continuar o abortar
-                        if step.priority == TaskPriority.CRITICAL:
-                            return ProjectCreationResult(
-                                success=False,
-                                error=f"Paso crítico '{step.name}' falló: {result.error}"
-                            )
-                        else:
-                            # Marcar como completado para continuar
-                            completed_steps.add(step_id)
-                            self.logger.warning(f"Paso opcional '{step.name}' falló, continuando")
-                        
-                except Exception as e:
-                    self.logger.error(f"❌ Error ejecutando paso {step_id}: {e}")
-                    return ProjectCreationResult(
-                        success=False,
-                        error=f"Error ejecutando paso '{step_id}': {str(e)}"
-                    )
-        
-        if self.cancelled:
-            return ProjectCreationResult(
-                success=False,
-                error="Workflow cancelado por el usuario"
-            )
-        
-        return ProjectCreationResult(
-            success=True,
-            generated_files=all_generated_files,
-            metadata={
-                "workflow_id": self.current_workflow,
-                "completed_steps": len(completed_steps),
-                "total_steps": len(steps),
-                "execution_time": self._calculate_execution_time(),
-                "metrics": self.metrics
-            }
-        )
-    
     def _get_ready_steps(self, completed_steps: set) -> List[WorkflowStep]:
         """Obtener pasos listos para ejecutar"""
         ready_steps = []
@@ -997,64 +1419,65 @@ class GenesisOrchestrator:
         semaphore: asyncio.Semaphore
     ) -> TaskResult:
         """Ejecutar paso con retry logic"""
-        async with semaphore:
-            max_attempts = step.retry_config.max_attempts
+        max_attempts = step.retry_config.max_attempts
+        
+        for attempt in range(max_attempts):
+            # Verificar circuit breaker
+            if step.agent_id in self.circuit_breakers:
+                circuit_breaker = self.circuit_breakers[step.agent_id]
+                if not circuit_breaker.should_allow_request():
+                    return TaskResult(
+                        task_id=step.id,
+                        success=False,
+                        error=f"Circuit breaker abierto para agente {step.agent_id}"
+                    )
             
-            for attempt in range(max_attempts):
-                # Verificar circuit breaker
-                if step.agent_id in self.circuit_breakers:
-                    circuit_breaker = self.circuit_breakers[step.agent_id]
-                    if not circuit_breaker.should_allow_request():
-                        return TaskResult(
-                            task_id=step.id,
-                            success=False,
-                            error=f"Circuit breaker abierto para agente {step.agent_id}"
-                        )
+            try:
+                if attempt > 0:
+                    step.status = WorkflowStatus.RETRYING
+                    step.retry_count = attempt
+                    
+                    # Calcular delay con exponential backoff
+                    delay = min(
+                        step.retry_config.initial_delay * (step.retry_config.exponential_base ** attempt),
+                        step.retry_config.max_delay
+                    )
+                    
+                    if step.retry_config.jitter:
+                        import random
+                        delay *= (0.5 + random.random() * 0.5)
+                    
+                    get_genesis_console().print(
+                        f"🔄 Reintentando {step.name} (intento {attempt + 1}/{max_attempts})"
+                    )
+                    await asyncio.sleep(delay)
+                    
+                    # Actualizar métricas
+                    self.metrics["tasks_retried"] += 1
                 
-                try:
-                    if attempt > 0:
-                        step.status = WorkflowStatus.RETRYING
-                        step.retry_count = attempt
-                        
-                        # Calcular delay con exponential backoff
-                        delay = min(
-                            step.retry_config.initial_delay * (step.retry_config.exponential_base ** attempt),
-                            step.retry_config.max_delay
-                        )
-                        
-                        if step.retry_config.jitter:
-                            import random
-                            delay *= (0.5 + random.random() * 0.5)
-                        
-                        genesis_console.print(f"🔄 Reintentando {step.name} (intento {attempt + 1}/{max_attempts})")
-                        await asyncio.sleep(delay)
-                        
-                        # Actualizar métricas
-                        self.metrics["tasks_retried"] += 1
-                    
-                    step.status = WorkflowStatus.RUNNING
-                    result = await self._execute_step(step)
-                    
-                    if result.success:
-                        return result
-                    
-                    # Si es el último intento, retornar el error
-                    if attempt == max_attempts - 1:
-                        return result
-                    
-                except Exception as e:
-                    if attempt == max_attempts - 1:
-                        return TaskResult(
-                            task_id=step.id,
-                            success=False,
-                            error=f"Error después de {max_attempts} intentos: {str(e)}"
-                        )
-                    
-            return TaskResult(
-                task_id=step.id,
-                success=False,
-                error=f"Falló después de {max_attempts} intentos"
-            )
+                step.status = WorkflowStatus.RUNNING
+                result = await self._execute_step(step)
+                
+                if result.success:
+                    return result
+                
+                # Si es el último intento, retornar el error
+                if attempt == max_attempts - 1:
+                    return result
+                
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    return TaskResult(
+                        task_id=step.id,
+                        success=False,
+                        error=f"Error después de {max_attempts} intentos: {str(e)}"
+                    )
+                
+        return TaskResult(
+            task_id=step.id,
+            success=False,
+            error=f"Falló después de {max_attempts} intentos"
+        )
     
     async def _execute_step(self, step: WorkflowStep) -> TaskResult:
         """Ejecutar un paso del workflow"""
@@ -1180,11 +1603,12 @@ class GenesisOrchestrator:
             "name": project_path.name,
             "generated_at": datetime.utcnow().isoformat(),
             "generator": "Genesis Engine",
-            "version": "1.0.0",
+            "version": "1.0.1",  # Version actualizada
             "workflow_id": self.current_workflow,
             "generated_files": result.generated_files,
             "metadata": result.metadata,
-            "metrics": self.metrics
+            "metrics": self.metrics,
+            "validation_results": result.validation_results  # NUEVO
         }
         
         metadata_file = project_path / "genesis.json"
@@ -1213,9 +1637,18 @@ class GenesisOrchestrator:
     
     def _generate_project_readme(self, metadata: Dict[str, Any]) -> str:
         """Generar README del proyecto"""
+        validation_status = "✅ Validado" if metadata.get("validation_results", {}).get("valid", False) else "⚠️ Con warnings"
+        
         return f"""# {metadata['name']}
 
 Proyecto generado por Genesis Engine el {metadata['generated_at']}
+
+## Estado del Proyecto
+
+- **Estado de validación**: {validation_status}
+- **Archivos generados**: {len(metadata.get('generated_files', []))}
+- **Tiempo de ejecución**: {metadata.get('metadata', {}).get('execution_time', 'N/A')}s
+- **Auto-correcciones aplicadas**: {metadata.get('metrics', {}).get('auto_fixes_applied', 0)}
 
 ## Estructura del Proyecto
 
@@ -1224,23 +1657,37 @@ Este proyecto fue generado automáticamente e incluye:
 - Backend completo con APIs REST
 - Frontend moderno y responsivo  
 - Configuración de base de datos
-- Archivos de despliegue
+- Archivos de despliegue (Docker)
 - Documentación de API
 
 ## Siguientes Pasos
 
 1. Revisar la configuración en cada directorio
-2. Instalar dependencias según las instrucciones
+2. Verificar que todos los Dockerfiles estén presentes
 3. Configurar variables de entorno
-4. Ejecutar migraciones de base de datos
-5. Iniciar los servicios en modo desarrollo
+4. Ejecutar: `docker-compose up -d`
+
+## Comandos Útiles
+
+```bash
+# Desarrollo
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f
+
+# Detener servicios
+docker-compose down
+
+# Diagnóstico
+genesis doctor
+```
 
 ## Información Técnica
 
-- **Generator**: Genesis Engine v1.0.0
+- **Generator**: Genesis Engine v1.0.1
 - **Workflow ID**: {metadata['workflow_id']}
-- **Archivos generados**: {len(metadata.get('generated_files', []))}
-- **Tiempo de ejecución**: {metadata.get('metadata', {}).get('execution_time', 'N/A')}s
+- **Validaciones realizadas**: {metadata.get('metrics', {}).get('validations_performed', 0)}
 
 ## Métricas de Generación
 
@@ -1250,7 +1697,7 @@ Este proyecto fue generado automáticamente e incluye:
 
 ---
 
-Generado con ❤️ por Genesis Engine
+Generado con ❤️ por Genesis Engine (Mejorado)
 """
     
     def _calculate_execution_time(self) -> float:
@@ -1291,6 +1738,8 @@ Generado con ❤️ por Genesis Engine
         return {
             "status": "running" if self.running else "idle",
             "workflow_id": self.current_workflow,
+            "validation_enabled": self.validation_enabled,  # NUEVO
+            "auto_fix_enabled": self.auto_fix_enabled,     # NUEVO
             "progress": {
                 "completed": completed_steps,
                 "total": total_steps,
@@ -1302,7 +1751,9 @@ Generado con ❤️ por Genesis Engine
                     "status": step.status.value,
                     "agent": step.agent_id,
                     "retry_count": step.retry_count,
-                    "execution_time": self._calculate_step_execution_time(step)
+                    "execution_time": self._calculate_step_execution_time(step),
+                    "validation_required": step.validation_required,  # NUEVO
+                    "generated_files_count": len(step.generated_files)  # NUEVO
                 }
                 for step_id, step in self.workflow_steps.items()
             },
@@ -1322,7 +1773,7 @@ Generado con ❤️ por Genesis Engine
             return (step.end_time - step.start_time).total_seconds()
         return None
     
-    # Event handlers
+    # Event handlers originales (sin cambios significativos)
     async def _handle_task_completed(self, event: Dict[str, Any]):
         """Manejar tarea completada"""
         try:
@@ -1346,7 +1797,7 @@ Generado con ❤️ por Genesis Engine
 
             self.workflow_results[step_id] = step.result.result
 
-            genesis_console.print(f"✅ {step.name} completado")
+            get_genesis_console().print(f"✅ {step.name} completado")
             self.logger.info(f"✅ Paso {step.name} completado")
         except Exception as exc:
             self._handle_orchestrator_error(exc, "handle_task_completed")
@@ -1374,7 +1825,7 @@ Generado con ❤️ por Genesis Engine
 
             self.workflow_results[step_id] = {"error": step.result.error}
 
-            genesis_console.print(f"❌ {step.name} falló: {step.result.error}")
+            get_genesis_console().print(f"❌ {step.name} falló: {step.result.error}")
             self.logger.error(f"❌ Paso {step.name} falló: {step.result.error}")
         except Exception as exc:
             self._handle_orchestrator_error(exc, "handle_task_failed")

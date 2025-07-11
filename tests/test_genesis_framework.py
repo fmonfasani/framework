@@ -219,8 +219,13 @@ class GenesisFrameworkTester:
             
             # Detener protocolo
             await protocol.stop()
+            assert protocol.worker_task.done()
+            assert protocol.metrics_task.done()
+            assert protocol.circuit_task.done()
             
         except Exception as e:
+            if 'protocol' in locals() and protocol.running:
+                await protocol.stop()
             self.add_result(TestResult(
                 name="MCP Protocol Test",
                 success=False,
@@ -350,12 +355,21 @@ class GenesisFrameworkTester:
             from genesis_engine.core.config import validate_environment
             
             env_validation = validate_environment()
-            
+
+            failed_checks = [
+                f"{name}: {info['message']}"
+                for name, info in env_validation["checks"].items()
+                if not info.get("success")
+            ]
+
             self.add_result(TestResult(
                 name="Environment Validation",
-                success=env_validation["valid"],
-                error="; ".join(env_validation["errors"]) if env_validation["errors"] else None,
-                details=f"Dependencies checked: {len(env_validation['dependency_checks'])}"
+                success=env_validation["overall_success"],
+                error="; ".join(failed_checks) if failed_checks else None,
+                details=(
+                    f"Checks passed: {env_validation['passed']}"
+                    f"/{env_validation['total_checks']}"
+                )
             ))
             
         except Exception as e:

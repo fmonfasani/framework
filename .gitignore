@@ -14,6 +14,7 @@ __pycache__/
 # Metadatos de empaquetado
 *.egg-info/
 
+node_modules/
 
 # Archivos de empaquetado Python
 *.egg-info/

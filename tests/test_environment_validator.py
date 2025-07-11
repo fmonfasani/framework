@@ -1,8 +1,4 @@
 from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from genesis_engine.utils.validation import EnvironmentValidator
 import genesis_engine.utils.validation as validation_mod
