@@ -1,8 +1,4 @@
 from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from genesis_engine.core.config import GenesisConfig
 from genesis_engine.utils.validation import ConfigValidator, ValidationLevel

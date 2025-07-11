@@ -1,17 +1,7 @@
-import importlib.util
 import types
-from pathlib import Path
-import sys
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-
-spec = importlib.util.spec_from_file_location(
-    'genesis_engine.cli.commands.utils',
-    ROOT / 'genesis_engine' / 'cli' / 'commands' / 'utils.py'
-)
-utils = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(utils)
+from genesis_engine.cli.commands import utils
 
 
 def test_check_dependencies_success(monkeypatch):

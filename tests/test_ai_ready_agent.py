@@ -6,17 +6,16 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
-# Stub core.config before importing TemplateEngine
-spec = importlib.util.spec_from_file_location(
-    'genesis_engine.core.config', ROOT / 'genesis_engine' / 'core' / 'config.py'
-)
-config_mod = importlib.util.module_from_spec(spec)
-sys.modules['genesis_engine.core.config'] = config_mod
-spec.loader.exec_module(config_mod)
-config_mod.GenesisConfig.get = classmethod(lambda cls, key, default=None: default)
+def load_config(genesis_root):
+    spec = importlib.util.spec_from_file_location(
+        'genesis_engine.core.config', genesis_root / 'genesis_engine' / 'core' / 'config.py'
+    )
+    config_mod = importlib.util.module_from_spec(spec)
+    sys.modules['genesis_engine.core.config'] = config_mod
+    spec.loader.exec_module(config_mod)
+    config_mod.GenesisConfig.get = classmethod(lambda cls, key, default=None: default)
+    return config_mod
 
 # Stub core.logging to avoid circular import
 logging_mod = types.ModuleType('genesis_engine.core.logging')
@@ -30,7 +29,8 @@ from genesis_engine.mcp.agent_base import AgentTask
 
 
 @pytest.mark.asyncio
-async def test_ai_ready_agent_main_handlers(tmp_path):
+async def test_ai_ready_agent_main_handlers(genesis_root, tmp_path):
+    load_config(genesis_root)
     agent = AIReadyAgent()
     # Provide missing set_metadata method
     agent.metadata = {}

@@ -1,11 +1,6 @@
 from pathlib import Path
 import asyncio
-
-import sys
-
-# Ensure repo root on path
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+import pytest
 
 from genesis_engine.agents.backend import (
     BackendAgent,
@@ -16,10 +11,10 @@ from genesis_engine.agents.backend import (
 )
 from genesis_engine.templates.engine import TemplateEngine
 
-def make_agent():
+def make_agent(genesis_root):
     agent = BackendAgent()
     agent.template_engine = TemplateEngine(
-        ROOT / 'genesis_engine' / 'templates' / 'backend'
+        genesis_root / 'genesis_engine' / 'templates' / 'backend'
     )
     # Register missing filter used in templates
     agent.template_engine.register_filter('sql_type', agent.template_engine._get_sql_type)
@@ -27,8 +22,8 @@ def make_agent():
     return agent
 
 
-def test_generate_data_models(tmp_path):
-    agent = make_agent()
+def test_generate_data_models(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
     schema = {
         'entities': [
             {
@@ -59,8 +54,8 @@ def test_generate_data_models(tmp_path):
     assert 'class UserBase' in expected_schema.read_text()
 
 
-def test_setup_database_config(tmp_path, monkeypatch):
-    agent = make_agent()
+def test_setup_database_config(genesis_root, tmp_path, monkeypatch):
+    agent = make_agent(genesis_root)
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -95,8 +90,8 @@ def test_setup_database_config(tmp_path, monkeypatch):
     assert migration_file.read_text() == 'alembic'
 
 
-def test_setup_authentication(tmp_path, monkeypatch):
-    agent = make_agent()
+def test_setup_authentication(genesis_root, tmp_path, monkeypatch):
+    agent = make_agent(genesis_root)
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -122,28 +117,28 @@ def test_setup_authentication(tmp_path, monkeypatch):
     assert expected_file.read_text() == 'auth'
 
 
-def test_load_framework_configs():
-    agent = make_agent()
+def test_load_framework_configs(genesis_root):
+    agent = make_agent(genesis_root)
     configs = agent.framework_configs
     assert 'fastapi' in configs
     assert 'nestjs' in configs
 
 
-def test_load_code_templates():
-    agent = make_agent()
+def test_load_code_templates(genesis_root):
+    agent = make_agent(genesis_root)
     agent._load_code_templates()
     assert any(t.endswith('main.py.j2') for t in agent.available_templates)
 
 
-def test_setup_code_generators():
-    agent = make_agent()
+def test_setup_code_generators(genesis_root):
+    agent = make_agent(genesis_root)
     agent._setup_code_generators()
     assert 'nestjs_controller' in agent.code_generators
     assert agent.code_generators['nestjs_controller'] == agent._generate_nestjs_controller
 
 
-def test_generate_nestjs_controller(tmp_path):
-    agent = make_agent()
+def test_generate_nestjs_controller(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
     config = BackendConfig(
         framework=BackendFramework.NESTJS,
         database=DatabaseType.POSTGRESQL,
@@ -159,8 +154,8 @@ def test_generate_nestjs_controller(tmp_path):
     assert 'class UserController' in file.read_text()
 
 
-def test_generate_typeorm_config(tmp_path):
-    agent = make_agent()
+def test_generate_typeorm_config(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
     config = BackendConfig(
         framework=BackendFramework.NESTJS,
         database=DatabaseType.POSTGRESQL,
@@ -175,8 +170,10 @@ def test_generate_typeorm_config(tmp_path):
     assert 'DataSource' in file.read_text()
 
 
-def test_generate_fastapi_jwt_auth(tmp_path):
-    agent = make_agent()
+
+def test_generate_fastapi_jwt_auth(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -185,14 +182,16 @@ def test_generate_fastapi_jwt_auth(tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
+    paths = await agent._generate_fastapi_jwt_auth(tmp_path, config)
     file = tmp_path / 'jwt.py'
     assert list(map(Path, paths)) == [file]
     assert 'SECRET_KEY' in file.read_text()
 
 
-def test_generate_nestjs_jwt_auth(tmp_path):
-    agent = make_agent()
+
+def test_generate_nestjs_jwt_auth(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.NESTJS,
         database=DatabaseType.POSTGRESQL,
@@ -201,14 +200,14 @@ def test_generate_nestjs_jwt_auth(tmp_path):
         dependencies=[],
         environment_vars={},
     )
-    paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
+    paths = await agent._generate_nestjs_jwt_auth(tmp_path, config)
     file = tmp_path / 'jwt.ts'
     assert list(map(Path, paths)) == [file]
     assert 'jwtConstants' in file.read_text()
 
 
-def test_generate_dockerfile_python(tmp_path):
-    agent = make_agent()
+def test_generate_dockerfile_python(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -223,8 +222,10 @@ def test_generate_dockerfile_python(tmp_path):
     assert 'FROM python' in file.read_text()
 
 
-def test_generate_api_documentation(tmp_path):
-    agent = make_agent()
+
+def test_generate_api_documentation(genesis_root, tmp_path):
+    agent = make_agent(genesis_root)
+
     config = BackendConfig(
         framework=BackendFramework.FASTAPI,
         database=DatabaseType.POSTGRESQL,
@@ -234,7 +235,7 @@ def test_generate_api_documentation(tmp_path):
         environment_vars={},
     )
     params = {'schema': {}, 'config': config, 'output_path': tmp_path}
-    paths = asyncio.run(agent._generate_api_documentation(params))
+    paths = await agent._generate_api_documentation(params)
     file = tmp_path / 'api.md'
     assert list(map(Path, paths)) == [file]
     assert 'API Documentation' in file.read_text()
