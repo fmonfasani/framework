@@ -360,7 +360,7 @@ class BackendAgent(GenesisAgent):
         files = {}
         
         # main.py para FastAPI
-        files["app/main.py"] = self._generate_fastapi_main(schema)
+        files["app/main.py"] = self._generate_fastapi_main(config,output_path)
         files["app/__init__.py"] = ""
         
         return files
