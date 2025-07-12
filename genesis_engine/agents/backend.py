@@ -330,12 +330,22 @@ class BackendAgent(GenesisAgent):
                 "config_files": ["package.json", "Dockerfile"]
             }
     
-    async def _generate_all_backend_files(self, structure: Dict[str, Any], output_path: str, schema: Dict[str, Any], config: BackendConfig) -> Dict[str, str]:
+
+    async def _generate_all_backend_files(
+        self,
+        structure: Dict[str, Any],
+        output_path: str,
+        schema: Dict[str, Any],
+        config: BackendConfig,
+    ) -> Dict[str, str]:
+
         """Generar todos los archivos del backend"""
         files = {}
 
         # Archivos principales
-        files.update(await self._generate_main_files(config))
+
+        files.update(await self._generate_main_files(config, Path(output_path)))
+
         
         # Modelos de datos
         files.update(await self._generate_model_files(schema))
@@ -361,18 +371,22 @@ class BackendAgent(GenesisAgent):
         
         return files
     
-    async def _generate_main_files(self, config: BackendConfig) -> Dict[str, str]:
+
+    async def _generate_main_files(self, config: BackendConfig, output_path: Path) -> Dict[str, str]:
         """Generar archivos principales"""
         files = {}
 
-        # main.py para FastAPI
-        files["app/main.py"] = self._generate_fastapi_main(config)
+        main_content = self._generate_fastapi_main(config, output_path)
+        files["app/main.py"] = main_content
+
         files["app/__init__.py"] = ""
 
         return files
 
-    def _generate_fastapi_main(self, config: BackendConfig) -> str:
-        """Generar contenido del archivo main.py de FastAPI"""
+
+    def _generate_fastapi_main(self, config, output_path: Path):
+        """Generar contenido para main.py de FastAPI"""
+
 
         main_content = f"""from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
