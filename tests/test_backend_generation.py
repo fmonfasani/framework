@@ -40,14 +40,14 @@ def test_generate_data_models(tmp_path):
             }
         ]
     }
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     output = tmp_path / 'models'
     output.mkdir(parents=True, exist_ok=True)
     params = {'schema': schema, 'config': config, 'output_path': output}
@@ -61,14 +61,14 @@ def test_generate_data_models(tmp_path):
 
 def test_setup_database_config(tmp_path, monkeypatch):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     schema = {'entities': [{'name': 'User'}]}
 
     def fake_generate_sqlalchemy_config(path, cfg):
@@ -97,14 +97,14 @@ def test_setup_database_config(tmp_path, monkeypatch):
 
 def test_setup_authentication(tmp_path, monkeypatch):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
 
     async def fake_generate_fastapi_jwt_auth(path, cfg):
         path.mkdir(parents=True, exist_ok=True)
@@ -144,14 +144,14 @@ def test_setup_code_generators():
 
 def test_generate_nestjs_controller(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.NESTJS,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'nestjs',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     entity = {'name': 'User', 'attributes': {}}
     path = agent._generate_nestjs_controller(entity, tmp_path, config)
     file = Path(path)
@@ -161,14 +161,14 @@ def test_generate_nestjs_controller(tmp_path):
 
 def test_generate_typeorm_config(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.NESTJS,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={'ENTITIES': ['User']},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'nestjs',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {'ENTITIES': ['User']},
+    })
     path = agent._generate_typeorm_config(tmp_path, config)
     file = Path(path)
     assert file.exists()
@@ -177,14 +177,14 @@ def test_generate_typeorm_config(tmp_path):
 
 def test_generate_fastapi_jwt_auth(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     paths = asyncio.run(agent._generate_fastapi_jwt_auth(tmp_path, config))
     file = tmp_path / 'jwt.py'
     assert list(map(Path, paths)) == [file]
@@ -193,14 +193,14 @@ def test_generate_fastapi_jwt_auth(tmp_path):
 
 def test_generate_nestjs_jwt_auth(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.NESTJS,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'nestjs',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     paths = asyncio.run(agent._generate_nestjs_jwt_auth(tmp_path, config))
     file = tmp_path / 'jwt.ts'
     assert list(map(Path, paths)) == [file]
@@ -209,14 +209,14 @@ def test_generate_nestjs_jwt_auth(tmp_path):
 
 def test_generate_dockerfile_python(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={'PROJECT_NAME': 'demo'},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {'PROJECT_NAME': 'demo'},
+    })
     path = agent._generate_dockerfile_python(tmp_path, config)
     file = Path(path)
     assert file.exists()
@@ -225,14 +225,14 @@ def test_generate_dockerfile_python(tmp_path):
 
 def test_generate_api_documentation(tmp_path):
     agent = make_agent()
-    config = BackendConfig(
-        framework=BackendFramework.FASTAPI,
-        database=DatabaseType.POSTGRESQL,
-        auth_method=AuthMethod.JWT,
-        features=[],
-        dependencies=[],
-        environment_vars={},
-    )
+    config = agent._extract_backend_config({
+        'backend_framework': 'fastapi',
+        'database': 'postgresql',
+        'auth_method': 'jwt',
+        'features': [],
+        'dependencies': [],
+        'environment_vars': {},
+    })
     params = {'schema': {}, 'config': config, 'output_path': tmp_path}
     paths = asyncio.run(agent._generate_api_documentation(params))
     file = tmp_path / 'api.md'
@@ -245,4 +245,23 @@ def test_generate_config_file_uses_pydantic_settings():
     schema = {'project': {'name': 'Demo'}, 'features': []}
     config_content = agent._generate_config_file(schema)
     assert 'from pydantic_settings import BaseSettings' in config_content
+
+
+def test_generate_fastapi_main_includes_project_name(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    config.project_name = 'DemoApp'
+    config.description = 'Demo description'
+    agent._generate_fastapi_main(config, tmp_path)
+
+    main_file = tmp_path / 'app' / 'main.py'
+    assert main_file.exists()
+    assert 'DemoApp' in main_file.read_text()
 
