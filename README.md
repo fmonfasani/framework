@@ -76,6 +76,7 @@ conocer las características que llegarán próximamente.
 - Node.js 18+
 - Git
 - Docker (opcional pero recomendado)
+- PyYAML 6+
 
 ### Instalación
 
@@ -85,7 +86,7 @@ git clone https://github.com/genesis-engine/genesis-engine.git
 cd genesis-engine
 
 # Instalar Genesis Engine
-pip install -e .
+pip install -e .  # instala dependencias como PyYAML
 
 # Verificar instalación
 genesis --version

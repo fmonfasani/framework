@@ -8,7 +8,7 @@ git clone https://github.com/genesis-engine/genesis-engine.git
 cd genesis-engine
 
 # Instalar Genesis Engine
-pip install -e .
+pip install -e .  # incluye dependencias como PyYAML
 
 # Verificar instalación
 genesis --version
