@@ -76,6 +76,7 @@ python verify_fixes.py
 pip install pydantic-settings
 ```
 
+
 ### Conflictos de Puertos
 
 Al ejecutar `docker-compose up` cada servicio expone un puerto fijo en tu
@@ -100,6 +101,7 @@ dashboards no estarán disponibles.
    ```
 
 Luego ejecuta nuevamente `docker-compose up -d`.
+
 
 ## Estructura del proyecto
 
