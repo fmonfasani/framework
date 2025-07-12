@@ -253,6 +253,7 @@ class BackendAgent(GenesisAgent):
         schema = params.get("schema", {})
         output_path = params.get("output_path", "./backend")
         framework = params.get("framework", "fastapi")
+        config: BackendConfig = params.get("config", BackendConfig())
         
         # Validar parámetros
         if not schema:
@@ -262,7 +263,12 @@ class BackendAgent(GenesisAgent):
         backend_structure = await self._create_backend_structure(schema, framework)
         
         # Generar archivos
-        generated_files = await self._generate_all_backend_files(backend_structure, output_path, schema)
+        generated_files = await self._generate_all_backend_files(
+            backend_structure,
+            output_path,
+            schema,
+            config,
+        )
         
         # Crear archivos en el sistema
         created_files = await self._write_backend_files(generated_files, output_path)
@@ -324,12 +330,18 @@ class BackendAgent(GenesisAgent):
                 "config_files": ["package.json", "Dockerfile"]
             }
     
-    async def _generate_all_backend_files(self, structure: Dict[str, Any], output_path: str, schema: Dict[str, Any]) -> Dict[str, str]:
+    async def _generate_all_backend_files(
+        self,
+        structure: Dict[str, Any],
+        output_path: str,
+        schema: Dict[str, Any],
+        config: BackendConfig,
+    ) -> Dict[str, str]:
         """Generar todos los archivos del backend"""
         files = {}
-        
+
         # Archivos principales
-        files.update(await self._generate_main_files(schema))
+        files.update(await self._generate_main_files(config, Path(output_path)))
         
         # Modelos de datos
         files.update(await self._generate_model_files(schema))
@@ -355,18 +367,18 @@ class BackendAgent(GenesisAgent):
         
         return files
     
-    async def _generate_main_files(self, schema: Dict[str, Any]) -> Dict[str, str]:
+    async def _generate_main_files(self, config: BackendConfig, output_path: Path) -> Dict[str, str]:
         """Generar archivos principales"""
         files = {}
-        
-        # main.py para FastAPI
-        files["app/main.py"] = self._generate_fastapi_main(config,output_path)
+
+        main_content = self._generate_fastapi_main(config, output_path)
+        files["app/main.py"] = main_content
         files["app/__init__.py"] = ""
-        
+
         return files
-    
+
     def _generate_fastapi_main(self, config, output_path: Path):
-        """Generar archivo main.py de FastAPI"""
+        """Generar contenido para main.py de FastAPI"""
 
         main_content = f"""from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -407,14 +419,7 @@ def test_endpoint():
     }}
 """
 
-        app_dir = output_path / "app"
-        app_dir.mkdir(parents=True, exist_ok=True)
-
-        main_file = app_dir / "main.py"
-        with open(main_file, 'w', encoding='utf-8') as f:
-            f.write(main_content)
-
-        self.logger.info(f"✅ Main.py generado: {main_file}")
+        return main_content
     
     async def _generate_model_files(self, schema: Dict[str, Any]) -> Dict[str, str]:
         """Generar archivos de modelos"""
