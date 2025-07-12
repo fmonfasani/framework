@@ -8,7 +8,7 @@ def test_read_root():
     """Test root endpoint"""
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["message"] == "Genesis API is running"
+    assert response.json()["message"] == "Welcome to mi-app"
 
 def test_health_check():
     """Test health check endpoint"""
@@ -16,8 +16,10 @@ def test_health_check():
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
-def test_api_status():
-    """Test API status endpoint"""
-    response = client.get("/api/v1/status")
+def test_api_test():
+    """Test sample API endpoint"""
+    response = client.get("/api/test")
     assert response.status_code == 200
-    assert response.json()["status"] == "running"
+    data = response.json()
+    assert data["message"] == "Backend API is working!"
+    assert data["project"] == "mi-app"
