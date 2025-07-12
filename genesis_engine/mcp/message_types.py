@@ -3,7 +3,7 @@ Tipos de mensajes para el protocolo MCP (Multi-agent Communication Protocol).
 """
 
 from typing import Any, Dict, Optional, Literal, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -101,10 +101,11 @@ class MCPRequest(BaseModel):
     priority: Priority = Field(default=Priority.NORMAL)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class MCPBroadcast(BaseModel):
@@ -121,10 +122,11 @@ class MCPBroadcast(BaseModel):
     priority: Priority = Field(default=Priority.NORMAL)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class MCPError(BaseModel):
@@ -141,7 +143,8 @@ class MCPError(BaseModel):
     priority: Priority = Field(default=Priority.NORMAL)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
