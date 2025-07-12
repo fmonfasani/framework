@@ -86,7 +86,10 @@ class TemplateEngine:
     }
     
 
-    def __init__(self, templates_dir: Optional[Path] = None, strict_validation: Optional[bool] = None, error_on_missing: bool = True):
+    def __init__(self, templates_dir: Optional[Path] = None,
+                 strict_validation: Optional[bool] = None,
+                 error_on_missing: bool = True,
+                 use_defaults: Optional[bool] = None):
 
         self.templates_dir = templates_dir or self._get_default_templates_dir()
         if strict_validation is None:
@@ -95,6 +98,13 @@ class TemplateEngine:
         self.strict_validation = strict_validation
 
         self.error_on_missing = error_on_missing
+
+        # Determine whether to automatically populate missing values with
+        # defaults. When not explicitly provided, fall back to the opposite of
+        # ``error_on_missing`` for backwards compatible behaviour.
+        if use_defaults is None:
+            use_defaults = not error_on_missing
+        self.use_defaults = use_defaults
 
         self.env = self._setup_jinja_environment()
         
