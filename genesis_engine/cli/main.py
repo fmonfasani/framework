@@ -48,7 +48,7 @@ def show_banner():
     """
     console.print(Panel(
         banner,
-        title="🚀 Genesis Engine",
+        title="[INIT] Genesis Engine",
         subtitle="Sistema operativo para desarrollo full-stack",
         border_style="bright_blue"
     ))
@@ -57,11 +57,11 @@ def validate_project_name(name: str) -> bool:
     """Validar nombre de proyecto"""
     import re
     if not re.match(r'^[a-zA-Z][a-zA-Z0-9_-]*$', name):
-        console.print("[red]❌ Nombre de proyecto inválido. Use solo letras, números, _ y -[/red]")
+        console.print("[red][ERROR] Nombre de proyecto inválido. Use solo letras, números, _ y -[/red]")
         return False
     
     if len(name) < 2 or len(name) > 50:
-        console.print("[red]❌ Nombre debe tener entre 2 y 50 caracteres[/red]")
+        console.print("[red][ERROR] Nombre debe tener entre 2 y 50 caracteres[/red]")
         return False
     
     return True
@@ -79,7 +79,7 @@ def check_dependencies() -> bool:
     ]
     
     all_ok = True
-    table = Table(title="🔍 Verificación de Dependencias")
+    table = Table(title="[CHECK] Verificación de Dependencias")
     table.add_column("Dependencia", style="cyan")
     table.add_column("Estado", style="green")
     table.add_column("Versión", style="yellow")
@@ -94,13 +94,13 @@ def check_dependencies() -> bool:
             )
             if result.returncode == 0:
                 version = result.stdout.strip()
-                table.add_row(name, "✅ Instalado", version)
+                table.add_row(name, "[PASS] Instalado", version)
             else:
-                table.add_row(name, "❌ Error", "No disponible")
+                table.add_row(name, "[ERROR] Error", "No disponible")
                 if name != "docker":  # Docker es opcional
                     all_ok = False
         except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
-            table.add_row(name, "❌ No encontrado", required)
+            table.add_row(name, "[ERROR] No encontrado", required)
             if name != "docker":  # Docker es opcional
                 all_ok = False
     
@@ -110,7 +110,7 @@ def check_dependencies() -> bool:
 # Crear aplicación Typer principal
 app = typer.Typer(
     name="genesis",
-    help="🚀 Genesis Engine - Sistema operativo para desarrollo full-stack moderno",
+    help="[INIT] Genesis Engine - Sistema operativo para desarrollo full-stack moderno",
     add_completion=False,
     rich_markup_mode="rich",
     no_args_is_help=True
@@ -141,15 +141,15 @@ def main(
     )
 ):
     """
-    🚀 Genesis Engine - Sistema operativo para desarrollo full-stack moderno
+    [INIT] Genesis Engine - Sistema operativo para desarrollo full-stack moderno
 
     Genesis Engine te permite crear, optimizar y desplegar aplicaciones
     completas usando agentes IA especializados que se comunican via MCP.
     """
     if ctx.invoked_subcommand is None:
         show_banner()
-        console.print("\n[bold yellow]💡 Usa 'genesis --help' para ver comandos disponibles[/bold yellow]")
-        console.print("[bold yellow]💡 Usa 'genesis init <nombre>' para crear un proyecto[/bold yellow]")
+        console.print("\n[bold yellow][INFO] Usa 'genesis --help' para ver comandos disponibles[/bold yellow]")
+        console.print("[bold yellow][INFO] Usa 'genesis init <nombre>' para crear un proyecto[/bold yellow]")
         
     # Inicializar configuración
     try:
@@ -157,7 +157,7 @@ def main(
         if verbose:
             logger.info("Configuración inicializada en modo verbose")
     except Exception as e:
-        console.print(f"[red]❌ Error inicializando configuración: {e}[/red]")
+        console.print(f"[red][ERROR] Error inicializando configuración: {e}[/red]")
         raise typer.Exit(1)
 
     ctx.obj = {"skip_project_check": skip_project_check}
@@ -191,7 +191,7 @@ def init(
     )
 ):
     """
-    🎯 Inicializar un nuevo proyecto full-stack
+    [TARGET] Inicializar un nuevo proyecto full-stack
     
     Crea un proyecto completo usando el Golden Path seleccionado.
     Los agentes IA trabajarán en conjunto para generar:
@@ -211,7 +211,7 @@ def init(
         if output_dir:
             output_path = Path(output_dir)
             if not output_path.exists():
-                console.print(f"[red]❌ Directorio de salida no existe: {output_dir}[/red]")
+                console.print(f"[red][ERROR] Directorio de salida no existe: {output_dir}[/red]")
                 raise typer.Exit(1)
         else:
             output_path = Path.cwd()
@@ -221,16 +221,16 @@ def init(
         # Verificar si el proyecto ya existe
         if project_path.exists() and not force:
             if not no_interactive:
-                if not Confirm.ask(f"[yellow]⚠️ El directorio '{project_name}' ya existe. ¿Continuar?[/yellow]"):
+                if not Confirm.ask(f"[yellow][WARN] El directorio '{project_name}' ya existe. ¿Continuar?[/yellow]"):
                     console.print("[yellow]Operación cancelada[/yellow]")
                     raise typer.Exit(0)
             else:
-                console.print(f"[red]❌ El directorio '{project_name}' ya existe. Use --force para sobrescribir[/red]")
+                console.print(f"[red][ERROR] El directorio '{project_name}' ya existe. Use --force para sobrescribir[/red]")
                 raise typer.Exit(1)
         
         # Verificar dependencias
         if not check_dependencies():
-            console.print("[red]❌ Algunas dependencias no están disponibles[/red]")
+            console.print("[red][ERROR] Algunas dependencias no están disponibles[/red]")
             if not no_interactive:
                 if not Confirm.ask("[yellow]¿Continuar de todos modos?[/yellow]"):
                     raise typer.Exit(1)
@@ -256,18 +256,18 @@ def init(
             # Seleccionar características
             features = []
             feature_options = [
-                ("authentication", "🔐 Autenticación y autorización"),
-                ("database", "💾 Base de datos PostgreSQL"),
+                ("authentication", "[SECURE] Autenticación y autorización"),
+                ("database", "[SAVE] Base de datos PostgreSQL"),
                 ("api", "🔌 API REST completa"),
-                ("frontend", "🎨 Frontend moderno"),
-                ("docker", "🐳 Containerización Docker"),
-                ("ci_cd", "🚀 CI/CD Pipeline")
+                ("frontend", "[UI] Frontend moderno"),
+                ("docker", "[DOCKER] Containerización Docker"),
+                ("ci_cd", "[INIT] CI/CD Pipeline")
             ]
             
             console.print("\n[bold cyan]Selecciona características (Enter para todas):[/bold cyan]")
             for key, desc in feature_options:
                 features.append(key)
-                console.print(f"  ✅ {desc}")
+                console.print(f"  [PASS] {desc}")
             
             config["features"] = features
         else:
@@ -275,7 +275,7 @@ def init(
             config["features"] = ["authentication", "database", "api", "frontend", "docker", "ci_cd"]
         
         # Ejecutar creación del proyecto
-        console.print(f"\n[bold green]🚀 Creando proyecto '{project_name}'...[/bold green]")
+        console.print(f"\n[bold green][INIT] Creando proyecto '{project_name}'...[/bold green]")
         
         with Progress(
             SpinnerColumn(),
@@ -289,28 +289,28 @@ def init(
             result = asyncio.run(_create_project_async(config, progress, task))
             
             if result.success:
-                console.print(f"\n[bold green]✅ Proyecto '{project_name}' creado exitosamente![/bold green]")
-                console.print(f"[green]📁 Ubicación: {result.project_path}[/green]")
+                console.print(f"\n[bold green][PASS] Proyecto '{project_name}' creado exitosamente![/bold green]")
+                console.print(f"[green][DIR] Ubicación: {result.project_path}[/green]")
                 
                 if result.generated_files:
                     console.print(f"[green]📄 Archivos generados: {len(result.generated_files)}[/green]")
                 
                 # Mostrar siguientes pasos
-                console.print("\n[bold cyan]🎯 Siguientes pasos:[/bold cyan]")
+                console.print("\n[bold cyan][TARGET] Siguientes pasos:[/bold cyan]")
                 console.print(f"1. cd {project_name}")
                 console.print("2. docker-compose up -d")
                 console.print("3. Abrir http://localhost:3000")
                 
             else:
-                console.print(f"\n[red]❌ Error creando proyecto: {result.error}[/red]")
+                console.print(f"\n[red][ERROR] Error creando proyecto: {result.error}[/red]")
                 raise typer.Exit(1)
                 
     except KeyboardInterrupt:
-        console.print("\n[yellow]⚠️ Operación cancelada por el usuario[/yellow]")
+        console.print("\n[yellow][WARN] Operación cancelada por el usuario[/yellow]")
         raise typer.Exit(1)
     except Exception as e:
         logger.error(f"Error en init: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 async def _create_project_async(config: Dict[str, Any], progress: Progress, task_id) -> Any:
@@ -342,7 +342,7 @@ async def _create_project_async(config: Dict[str, Any], progress: Progress, task
 @app.command("doctor") 
 def doctor():
     """
-    🔍 Diagnosticar el entorno y verificar dependencias
+    [CHECK] Diagnosticar el entorno y verificar dependencias
     
     Ejecuta un diagnóstico completo del entorno de desarrollo:
     
@@ -352,7 +352,7 @@ def doctor():
     • Ejecuta tests de comunicación MCP
     """
     try:
-        console.print("[bold blue]🔍 Diagnóstico del Sistema Genesis[/bold blue]")
+        console.print("[bold blue][CHECK] Diagnóstico del Sistema Genesis[/bold blue]")
         
         # Verificar dependencias
         deps_ok = check_dependencies()
@@ -361,9 +361,9 @@ def doctor():
         console.print("\n[bold cyan]⚙️ Verificando configuración...[/bold cyan]")
         try:
             initialize()
-            console.print("[green]✅ Configuración OK[/green]")
+            console.print("[green][PASS] Configuración OK[/green]")
         except Exception as e:
-            console.print(f"[red]❌ Error en configuración: {e}[/red]")
+            console.print(f"[red][ERROR] Error en configuración: {e}[/red]")
             deps_ok = False
         
         # Verificar agentes
@@ -374,23 +374,23 @@ def doctor():
             from genesis_engine.agents.backend import BackendAgent
             from genesis_engine.agents.frontend import FrontendAgent
             
-            console.print("[green]✅ Agentes disponibles[/green]")
+            console.print("[green][PASS] Agentes disponibles[/green]")
         except Exception as e:
-            console.print(f"[red]❌ Error cargando agentes: {e}[/red]")
+            console.print(f"[red][ERROR] Error cargando agentes: {e}[/red]")
             deps_ok = False
         
         # Resultado final
         if deps_ok:
-            console.print(f"\n[bold green]🎉 Sistema OK - Listo para usar Genesis Engine[/bold green]")
-            console.print("[green]💡 Ejecuta 'genesis init <nombre>' para crear un proyecto[/green]")
+            console.print(f"\n[bold green][SUCCESS] Sistema OK - Listo para usar Genesis Engine[/bold green]")
+            console.print("[green][INFO] Ejecuta 'genesis init <nombre>' para crear un proyecto[/green]")
         else:
-            console.print(f"\n[bold red]❌ Sistema no está listo[/bold red]")
-            console.print("[red]🔧 Instala las dependencias faltantes y vuelve a ejecutar[/red]")
+            console.print(f"\n[bold red][ERROR] Sistema no está listo[/bold red]")
+            console.print("[red][FIX] Instala las dependencias faltantes y vuelve a ejecutar[/red]")
             raise typer.Exit(1)
             
     except Exception as e:
         logger.error(f"Error en doctor: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 @app.command("deploy")
@@ -414,7 +414,7 @@ def deploy(
     )
 ):
     """
-    🚀 Desplegar aplicación usando el DeployAgent
+    [INIT] Desplegar aplicación usando el DeployAgent
     
     Ejecuta el proceso de despliegue automático:
     
@@ -428,22 +428,22 @@ def deploy(
         skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
         # Verificar que estamos en un proyecto Genesis
         if not skip_check and not Path("genesis.json").exists():
-            console.print("[red]❌ No estás en un proyecto Genesis[/red]")
-            console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
+            console.print("[red][ERROR] No estás en un proyecto Genesis[/red]")
+            console.print("[yellow][INFO] Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
         
         # Validar entorno
         valid_envs = ["local", "staging", "production"]
         if environment not in valid_envs:
-            console.print(f"[red]❌ Entorno inválido: {environment}[/red]")
-            console.print(f"[yellow]💡 Entornos válidos: {', '.join(valid_envs)}[/yellow]")
+            console.print(f"[red][ERROR] Entorno inválido: {environment}[/red]")
+            console.print(f"[yellow][INFO] Entornos válidos: {', '.join(valid_envs)}[/yellow]")
             raise typer.Exit(1)
         
-        console.print(f"[bold blue]🚀 Desplegando en entorno: {environment}[/bold blue]")
+        console.print(f"[bold blue][INIT] Desplegando en entorno: {environment}[/bold blue]")
         
         # Confirmación para production
         if environment == "production" and not force:
-            if not Confirm.ask("[yellow]⚠️ ¿Confirmas despliegue en producción?[/yellow]"):
+            if not Confirm.ask("[yellow][WARN] ¿Confirmas despliegue en producción?[/yellow]"):
                 console.print("[yellow]Despliegue cancelado[/yellow]")
                 raise typer.Exit(0)
         
@@ -457,16 +457,16 @@ def deploy(
         result = asyncio.run(_deploy_async(config))
         
         if result.get("success"):
-            console.print(f"[bold green]✅ Despliegue exitoso en {environment}[/bold green]")
+            console.print(f"[bold green][PASS] Despliegue exitoso en {environment}[/bold green]")
             if result.get("url"):
                 console.print(f"[green]🌐 URL: {result['url']}[/green]")
         else:
-            console.print(f"[red]❌ Error en despliegue: {result.get('error', 'Unknown error')}[/red]")
+            console.print(f"[red][ERROR] Error en despliegue: {result.get('error', 'Unknown error')}[/red]")
             raise typer.Exit(1)
             
     except Exception as e:
         logger.error(f"Error en deploy: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 async def _deploy_async(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -528,7 +528,7 @@ def generate(
     )
 ):
     """
-    ⚡ Generar componentes específicos usando agentes IA
+    [FAST] Generar componentes específicos usando agentes IA
     
     Genera componentes individuales de la aplicación:
     
@@ -542,22 +542,22 @@ def generate(
         skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
         # Verificar que estamos en un proyecto Genesis
         if not skip_check and not Path("genesis.json").exists():
-            console.print("[red]❌ No estás en un proyecto Genesis[/red]")
-            console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
+            console.print("[red][ERROR] No estás en un proyecto Genesis[/red]")
+            console.print("[yellow][INFO] Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
         
         # Validar tipo de componente
         valid_components = ["model", "endpoint", "page", "component", "test"]
         if component not in valid_components:
-            console.print(f"[red]❌ Tipo de componente inválido: {component}[/red]")
-            console.print(f"[yellow]💡 Tipos válidos: {', '.join(valid_components)}[/yellow]")
+            console.print(f"[red][ERROR] Tipo de componente inválido: {component}[/red]")
+            console.print(f"[yellow][INFO] Tipos válidos: {', '.join(valid_components)}[/yellow]")
             raise typer.Exit(1)
         
         # Validar nombre
         if not validate_project_name(name):
             raise typer.Exit(1)
         
-        console.print(f"[bold blue]⚡ Generando {component}: {name}[/bold blue]")
+        console.print(f"[bold blue][FAST] Generando {component}: {name}[/bold blue]")
         
         # Configurar generación
         config = {
@@ -571,18 +571,18 @@ def generate(
         result = asyncio.run(_generate_async(config))
         
         if result.get("success"):
-            console.print(f"[bold green]✅ {component.capitalize()} '{name}' generado exitosamente[/bold green]")
+            console.print(f"[bold green][PASS] {component.capitalize()} '{name}' generado exitosamente[/bold green]")
             if result.get("files"):
                 console.print(f"[green]📄 Archivos creados: {len(result['files'])}[/green]")
                 for file in result["files"]:
                     console.print(f"  • {file}")
         else:
-            console.print(f"[red]❌ Error generando {component}: {result.get('error', 'Unknown error')}[/red]")
+            console.print(f"[red][ERROR] Error generando {component}: {result.get('error', 'Unknown error')}[/red]")
             raise typer.Exit(1)
             
     except Exception as e:
         logger.error(f"Error en generate: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 async def _generate_async(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -628,17 +628,17 @@ async def _generate_async(config: Dict[str, Any]) -> Dict[str, Any]:
 @app.command("status")
 def status(ctx: typer.Context):
     """
-    📊 Mostrar estado del proyecto actual
+    [STATS] Mostrar estado del proyecto actual
     """
     try:
-        console.print("[bold blue]📊 Estado del Proyecto Genesis[/bold blue]")
+        console.print("[bold blue][STATS] Estado del Proyecto Genesis[/bold blue]")
         
         # Verificar si estamos en un proyecto Genesis
         project_file = Path("genesis.json")
         skip_check = ctx.obj.get("skip_project_check") if ctx.obj else False
         if not skip_check and not project_file.exists():
-            console.print("[red]❌ No estás en un proyecto Genesis[/red]")
-            console.print("[yellow]💡 Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
+            console.print("[red][ERROR] No estás en un proyecto Genesis[/red]")
+            console.print("[yellow][INFO] Ejecuta 'genesis init <nombre>' para crear uno[/yellow]")
             raise typer.Exit(1)
         
         # Leer metadata del proyecto
@@ -646,7 +646,7 @@ def status(ctx: typer.Context):
             with open(project_file, 'r') as f:
                 metadata = json.load(f)
             
-            console.print("[green]✅ Proyecto Genesis detectado[/green]")
+            console.print("[green][PASS] Proyecto Genesis detectado[/green]")
             
             # Mostrar información del proyecto
             table = Table(title="Información del Proyecto")
@@ -661,12 +661,12 @@ def status(ctx: typer.Context):
             console.print(table)
             
         except Exception as e:
-            console.print(f"[red]❌ Error leyendo metadata: {e}[/red]")
+            console.print(f"[red][ERROR] Error leyendo metadata: {e}[/red]")
             raise typer.Exit(1)
             
     except Exception as e:
         logger.error(f"Error en status: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 @app.command("agents")
@@ -702,12 +702,12 @@ def agents(
             console.print("[bold cyan]🤖 Agentes Disponibles:[/bold cyan]")
             
             agents_info = [
-                ("ArchitectAgent", "🏗️", "Diseño de arquitectura y esquemas"),
+                ("ArchitectAgent", "[BUILD]", "Diseño de arquitectura y esquemas"),
                 ("BackendAgent", "⚙️", "Generación de APIs y servicios"),
-                ("FrontendAgent", "🎨", "Interfaces y experiencia usuario"),
-                ("DevOpsAgent", "🐳", "CI/CD, Docker y automatización"),
-                ("DeployAgent", "🚀", "Despliegue y configuración"),
-                ("PerformanceAgent", "⚡", "Optimización y rendimiento"),
+                ("FrontendAgent", "[UI]", "Interfaces y experiencia usuario"),
+                ("DevOpsAgent", "[DOCKER]", "CI/CD, Docker y automatización"),
+                ("DeployAgent", "[INIT]", "Despliegue y configuración"),
+                ("PerformanceAgent", "[FAST]", "Optimización y rendimiento"),
                 ("AIReadyAgent", "🧠", "Integración IA y LLMs")
             ]
             
@@ -722,7 +722,7 @@ def agents(
             console.print(table)
             
         elif agent_info:
-            console.print(f"[bold cyan]📋 Información del agente: {agent_info}[/bold cyan]")
+            console.print(f"[bold cyan][LIST] Información del agente: {agent_info}[/bold cyan]")
             
             # Información detallada de agentes
             agent_details = {
@@ -756,16 +756,16 @@ def agents(
                 
                 console.print(table)
             else:
-                console.print(f"[red]❌ Agente no encontrado: {agent_info}[/red]")
-                console.print("[yellow]💡 Usa --list para ver agentes disponibles[/yellow]")
+                console.print(f"[red][ERROR] Agente no encontrado: {agent_info}[/red]")
+                console.print("[yellow][INFO] Usa --list para ver agentes disponibles[/yellow]")
                 
         else:
-            console.print("[yellow]💡 Usa --list para ver agentes disponibles[/yellow]")
-            console.print("[yellow]💡 Usa --info <agente> para información detallada[/yellow]")
+            console.print("[yellow][INFO] Usa --list para ver agentes disponibles[/yellow]")
+            console.print("[yellow][INFO] Usa --info <agente> para información detallada[/yellow]")
             
     except Exception as e:
         logger.error(f"Error en agents: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         raise typer.Exit(1)
 
 @app.command("help")
@@ -782,14 +782,14 @@ def main_entry():
     try:
         app()
     except KeyboardInterrupt:
-        console.print("\n[yellow]⚠️ Operación cancelada por el usuario[/yellow]")
+        console.print("\n[yellow][WARN] Operación cancelada por el usuario[/yellow]")
         sys.exit(1)
     except GenesisException as e:
-        console.print(f"[red]❌ Error de Genesis: {e}[/red]")
+        console.print(f"[red][ERROR] Error de Genesis: {e}[/red]")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Error inesperado en main: {e}", exc_info=True)
-        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        console.print(f"[red][ERROR] Error inesperado: {e}[/red]")
         sys.exit(1)
 
 # Para compatibilidad con python -m

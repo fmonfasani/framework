@@ -5,6 +5,7 @@ Script de validación para proyectos Genesis
 
 import sys
 from pathlib import Path
+from typing import Dict
 
 def validate_project_structure(project_path: Path) -> Dict[str, bool]:
     """Validar estructura del proyecto"""
