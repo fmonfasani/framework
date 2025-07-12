@@ -489,6 +489,7 @@ jobs:
         generated_files = []
         stack = schema.get("stack", {})
 
+
         # Generate Dockerfiles based on stack
         backend_framework = stack.get("backend")
         if backend_framework:
@@ -507,10 +508,11 @@ jobs:
             if dockerfile:
                 generated_files.append(dockerfile)
 
+
         # docker-compose.yml - MEJORADO con verificación
         compose_file = await self._generate_docker_compose(output_path, schema, config)
         generated_files.append(compose_file)
-        
+
         # .dockerignore files
         dockerignore_files = await self._generate_dockerignore_files(output_path, stack)
         generated_files.extend(dockerignore_files)
@@ -524,7 +526,9 @@ jobs:
         config: DevOpsConfig,
         dockerfile_status: Optional[Dict[str, Any]] = None,
     ) -> str:
+
         """Compatibilidad: delega en _generate_docker_compose_improved"""
+
         if dockerfile_status is None:
             dockerfile_status = await self._verify_project_dockerfiles(output_path, schema)
         return await self._generate_docker_compose_improved(
