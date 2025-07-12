@@ -45,7 +45,7 @@ def test_generate_docker_config(monkeypatch, tmp_path):
     async def dummy_nextjs(path):
         return str(path / "Dockerfile")
 
-    async def dummy_compose(out_path, schema, config):
+    async def dummy_compose(out_path, schema, config, dockerfile_status):
         return str(out_path / "docker-compose.yml")
 
     async def dummy_ignore(out_path, stack):
@@ -65,8 +65,6 @@ def test_generate_docker_config(monkeypatch, tmp_path):
 
     files = asyncio.run(agent._generate_docker_config(params))
     expected = {
-        str(tmp_path / "backend/Dockerfile"),
-        str(tmp_path / "frontend/Dockerfile"),
         str(tmp_path / "docker-compose.yml"),
         str(tmp_path / "backend/.dockerignore"),
         str(tmp_path / "frontend/.dockerignore"),
