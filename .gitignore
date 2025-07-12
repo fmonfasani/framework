@@ -2,6 +2,14 @@
 # Entornos virtuales Python
 venv/
 .env
+my-saas-app/
+/genesis_engine/genesis_engine.egg-info
+/genesis_engine/genesis_engine.egg-info/
+/genesis_engine/genesis_engine.egg-info/*
+genesis-engine/my-saas-app/
+genesis-engine/my-saas-app/
+genesis-engine/my-saas-app/
+
 __pycache__/
 *.__pycache__
 *.__pycache__/
@@ -45,3 +53,5 @@ Thumbs.db
 
 # Otros específicos que no quieras subir (ajustalo)
 # genesis_engine/genesis_engine.egg-info/
+/my-saas-app/
+/my-saas-app/*

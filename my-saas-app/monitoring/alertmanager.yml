@@ -1,4 +1,0 @@
-receivers:
-- name: default
-route:
-  receiver: default
