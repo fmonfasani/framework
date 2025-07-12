@@ -501,6 +501,7 @@ class FrontendAgent(GenesisAgent):
             "testing_framework": config.testing_framework,
             "pwa_enabled": config.pwa_enabled,
             "styling": config.ui_library.value,  # NUEVA: Alias para styling
+            "ui_components": schema.get("stack", {}).get("ui_components", ""),
         }
         
         if config.framework == FrontendFramework.NEXTJS:
