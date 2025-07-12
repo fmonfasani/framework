@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes import api
 
 app = FastAPI(
     title="mi-app API",
@@ -16,11 +17,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API router
+app.include_router(api.router, prefix="/api/v1", tags=["API"])
+
 @app.get("/")
 def read_root():
     return {
-        "message": "Welcome to mi-app",
-        "status": "running",
+        "message": "Genesis API is running",
+        "status": "healthy",
         "docs": "/docs"
     }
 
