@@ -1,0 +1,26 @@
+{
+  "name": "mi-app",
+  "description": "lalala",
+  "template": "saas-basic",
+  "version": "1.0.0",
+  "created_at": "2025-07-12T04:12:57.055026",
+  "last_modified": "2025-07-12T04:12:57.058039",
+  "generator_version": "1.0.0",
+  "stack": {},
+  "features": [
+    "authentication",
+    "database",
+    "api",
+    "frontend",
+    "docker",
+    "ci_cd"
+  ],
+  "agents_used": [
+    "project_manager"
+  ],
+  "generated_files": [
+    ".gitignore"
+  ],
+  "total_files": 1,
+  "project_size": 392
+}

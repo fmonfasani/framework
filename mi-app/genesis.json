@@ -1,0 +1,38 @@
+{
+  "name": "mi-app",
+  "generated_at": "2025-07-12T04:12:57.281048",
+  "generator": "Genesis Engine",
+  "version": "1.0.1",
+  "workflow_id": "579af03a-cccf-4532-8dfc-339cd3fc9d5b",
+  "generated_files": [],
+  "metadata": {
+    "workflow_id": "579af03a-cccf-4532-8dfc-339cd3fc9d5b",
+    "completed_steps": 6,
+    "total_steps": 6,
+    "success_rate": 1.0,
+    "execution_time": 0.212331,
+    "metrics": {
+      "tasks_executed": 6,
+      "tasks_failed": 0,
+      "tasks_retried": 0,
+      "circuit_breaker_trips": 0,
+      "average_execution_time": 0.22956538200378418,
+      "validations_performed": 6,
+      "auto_fixes_applied": 0
+    }
+  },
+  "metrics": {
+    "tasks_executed": 6,
+    "tasks_failed": 0,
+    "tasks_retried": 0,
+    "circuit_breaker_trips": 0,
+    "average_execution_time": 0.22956538200378418,
+    "validations_performed": 6,
+    "auto_fixes_applied": 0
+  },
+  "validation_results": {
+    "valid": true,
+    "issues": [],
+    "recommendations": []
+  }
+}
