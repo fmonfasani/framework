@@ -348,7 +348,7 @@ class BackendAgent(GenesisAgent):
             files.update(await self._generate_auth_files(schema))
         
         # Docker y deployment
-        files.update(await self._generate_deployment_files(schema))
+        files.update(await self._generate_deployment_files(schema, Path(output_path)))
         
         # Tests
         files.update(await self._generate_test_files(schema))
@@ -841,12 +841,12 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 '''
     
-    async def _generate_deployment_files(self, schema: Dict[str, Any]) -> Dict[str, str]:
+    async def _generate_deployment_files(self, schema: Dict[str, Any], output_path: Path) -> Dict[str, str]:
         """Generar archivos de deployment"""
         files = {}
-        
+
         # Requirements.txt
-        files["requirements.txt"] = self._generate_requirements_txt(schema)
+        files["requirements.txt"] = self._generate_requirements_txt(schema, output_path)
         
         # Dockerfile
         files["Dockerfile"] = self._generate_dockerfile(schema)
@@ -861,7 +861,7 @@ class TokenData(BaseModel):
         
         return files
     
-    def _generate_requirements_txt(self, schema: Dict[str, Any]) -> str:
+    def _generate_requirements_txt(self, schema: Dict[str, Any], output_path: Path) -> str:
         """Generar requirements.txt"""
         features = schema.get("features", [])
         
@@ -894,8 +894,16 @@ class TokenData(BaseModel):
                 "pytest-asyncio>=0.21.0",
                 "httpx>=0.24.0"
             ])
-        
-        return "\n".join(requirements)
+
+        requirements_str = "\n".join(requirements)
+
+        output_path.mkdir(parents=True, exist_ok=True)
+        req_file = output_path / "requirements.txt"
+        with open(req_file, "w", encoding="utf-8") as f:
+            f.write(requirements_str)
+        self.logger.info(f"✅ Requirements.txt generado: {req_file}")
+
+        return requirements_str
     
     def _generate_dockerfile(self, schema: Dict[str, Any]) -> str:
         """Generar Dockerfile"""
