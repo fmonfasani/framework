@@ -479,10 +479,10 @@ jobs:
     async def _generate_docker_config(self, params: Dict[str, Any]) -> List[str]:
         """Generate Docker-related configuration files.
 
-        This method always generates Dockerfiles for the backend and frontend
-        stacks (if applicable) for completeness, but the returned list only
-        includes paths for ``docker-compose.yml`` and any ``.dockerignore``
-        files created.
+        Dockerfiles for each stack component are always created for
+        completeness, but their paths are discarded.  The returned list
+        therefore only contains the path to ``docker-compose.yml`` and any
+        ``.dockerignore`` files that were generated.
         """
         # CORRECCIÓN: Log sin emojis
         self.logger.info("[DOCKER] Generando configuración de Docker")
@@ -496,14 +496,13 @@ jobs:
         stack = schema.get("stack", {})
 
 
-        # Generate Dockerfiles based on stack but do not include them in the
-        # returned file list. They are created only as side effects.
+        # Generate Dockerfiles based on stack but deliberately ignore the
+        # returned paths so they are not included in ``generated_files``.
         backend_framework = stack.get("backend")
         if backend_framework:
             backend_path = output_path / "backend"
 
-            # Dockerfile path is ignored in returned files
-
+            # Generate backend Dockerfile but ignore the returned path
             await self._generate_python_dockerfile(backend_path, backend_framework)
 
         frontend_framework = stack.get("frontend")
@@ -511,11 +510,10 @@ jobs:
             frontend_path = output_path / "frontend"
             if frontend_framework == "nextjs":
 
-                # Dockerfile path is ignored in returned files
+                # Generate frontend Dockerfile but ignore the returned path
                 await self._generate_nextjs_dockerfile(frontend_path)
             else:
-                # Dockerfile path is ignored in returned files
-
+                # Generate frontend Dockerfile but ignore the returned path
                 await self._generate_node_dockerfile(frontend_path, frontend_framework)
 
 
