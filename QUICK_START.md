@@ -101,6 +101,7 @@ dashboards no estarán disponibles.
 
 Luego ejecuta nuevamente `docker-compose up -d`.
 
+
 ## Estructura del proyecto
 
 ```
