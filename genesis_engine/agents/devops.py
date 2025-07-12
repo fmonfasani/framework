@@ -570,7 +570,7 @@ jobs:
             "backend_dockerfile_exists": dockerfile_status.get("backend_dockerfile", False),
             "frontend_dockerfile_exists": dockerfile_status.get("frontend_dockerfile", False),
             # Siempre incluir servicios de backend y frontend
-            "include_backend": bool(stack.get("backend")),
+            "include_backend": bool(stack.get("backend")) if "backend" in stack else True,
             "include_frontend": bool(stack.get("frontend")),
             # NUEVAS VARIABLES para evitar errores
             "version": "1.0.0",

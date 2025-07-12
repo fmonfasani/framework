@@ -1,10 +1,12 @@
 import sys
+import asyncio
 from pathlib import Path
 
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from genesis_engine.core.orchestrator import GenesisOrchestrator
+from genesis_engine.agents.devops import DevOpsAgent
 
 
 class DummyArchitect:
@@ -52,3 +54,25 @@ def test_init_command_calls_design_architecture(monkeypatch, tmp_path):
     monkeypatch.setattr(init_module.real_module, "TemplateEngine", lambda: tmpl)
     init_module.init_command("demo", no_interactive=True, output_dir=str(tmp_path))
     assert any(req.get("type") == "design_architecture" for req in orch.requests)
+
+
+def test_validate_generated_project_without_stack(tmp_path):
+    """Project validation should pass even when stack info is missing."""
+    agent = DevOpsAgent()
+    config = agent._extract_devops_config({})
+    schema = {"project_name": "demo", "stack": {"frontend": "nextjs"}}
+    backend_app = tmp_path / "backend" / "app"
+    backend_app.mkdir(parents=True)
+    (backend_app / "main.py").write_text("print('hi')")
+    (tmp_path / "backend" / "requirements.txt").write_text("fastapi")
+    frontend_app = tmp_path / "frontend" / "app"
+    frontend_app.mkdir(parents=True)
+    (frontend_app / "page.tsx").write_text("page")
+    (tmp_path / "frontend" / "package.json").write_text("{}")
+    asyncio.run(
+        agent._generate_docker_compose_improved(
+            tmp_path, schema, config, {}
+        )
+    )
+    orchestrator = GenesisOrchestrator()
+    orchestrator._validate_generated_project(tmp_path)
