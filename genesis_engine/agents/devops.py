@@ -477,7 +477,13 @@ jobs:
             return str(workflow_file)
 
     async def _generate_docker_config(self, params: Dict[str, Any]) -> List[str]:
-        """Generar configuración de Docker - MEJORADO"""
+        """Generate Docker-related configuration files.
+
+        This method always generates Dockerfiles for the backend and frontend
+        stacks (if applicable) for completeness, but the returned list only
+        includes paths for ``docker-compose.yml`` and any ``.dockerignore``
+        files created.
+        """
         # CORRECCIÓN: Log sin emojis
         self.logger.info("[DOCKER] Generando configuración de Docker")
         
@@ -494,19 +500,18 @@ jobs:
         backend_framework = stack.get("backend")
         if backend_framework:
             backend_path = output_path / "backend"
-            dockerfile = await self._generate_python_dockerfile(backend_path, backend_framework)
-            if dockerfile:
-                generated_files.append(dockerfile)
+            # Dockerfile path is ignored in returned files
+            await self._generate_python_dockerfile(backend_path, backend_framework)
 
         frontend_framework = stack.get("frontend")
         if frontend_framework:
             frontend_path = output_path / "frontend"
             if frontend_framework == "nextjs":
-                dockerfile = await self._generate_nextjs_dockerfile(frontend_path)
+                # Dockerfile path is ignored in returned files
+                await self._generate_nextjs_dockerfile(frontend_path)
             else:
-                dockerfile = await self._generate_node_dockerfile(frontend_path, frontend_framework)
-            if dockerfile:
-                generated_files.append(dockerfile)
+                # Dockerfile path is ignored in returned files
+                await self._generate_node_dockerfile(frontend_path, frontend_framework)
 
 
         # docker-compose.yml - MEJORADO con verificación
