@@ -55,3 +55,8 @@ Thumbs.db
 # genesis_engine/genesis_engine.egg-info/
 /my-saas-app/
 /my-saas-app/*
+
+/mi-app/*
+mi-app/
+
+/mi-app
