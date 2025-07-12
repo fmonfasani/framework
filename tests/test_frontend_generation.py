@@ -30,7 +30,11 @@ def test_generate_react_frontend(tmp_path):
         tmp_path / "src" / "main.tsx",
     }
 
-    assert set(map(Path, result["generated_files"])) == expected
+    generated = set(Path(p) for p in result["generated_files"])
+    assert expected <= generated
+
+    assert (tmp_path / "tailwind.config.js") in generated
+    assert (tmp_path / "styles" / "globals.css") in generated
     assert result["framework"] == "react"
     assert "DemoApp" in (tmp_path / "src" / "App.tsx").read_text()
 
