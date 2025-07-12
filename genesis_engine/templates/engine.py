@@ -301,10 +301,9 @@ class TemplateEngine:
         except Exception as e:
             error_msg = f"Unexpected error rendering {template_name}: {e}"
             self.logger.error(f"[ERROR] {error_msg}")
-            # CORRECCIÓN: En lugar de fallar, intentar con template básico
-            if not self.strict_validation:
-                self.logger.warning(f"[WARN] Usando template básico para {template_name}")
-                return self._generate_fallback_content(template_name, vars_clean)
+            # En modo no estricto simplemente propagamos el error para que
+            # Jinja devuelva el contenido renderizado (variables faltantes se
+            # sustituyen por vacío). No generamos contenido de fallback.
             raise
 
     def _generate_fallback_content(self, template_name: str, variables: Dict[str, Any]) -> str:
