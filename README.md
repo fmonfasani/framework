@@ -209,6 +209,26 @@ npm run dev
 # - API Docs: http://localhost:8000/docs
 ```
 
+### Conflictos de Puertos
+
+Algunos servicios del stack utilizan puertos fijos en tu máquina:
+
+- **Frontend**: 3000
+- **Backend**: 8000
+- **PostgreSQL**: 5432
+- **Prometheus**: 9090
+- **Grafana**: 3001
+
+Si otros proyectos están ocupando esos puertos, los contenedores no iniciarán
+o quedarán inaccesibles.
+
+1. Detén los proyectos que ya estén ejecutándose con `docker-compose down` o
+   `docker stop <id>`.
+2. O bien edita `docker-compose.yml` y cambia el número a la izquierda del `:`
+   para asignar un nuevo puerto en tu host.
+
+Después vuelve a ejecutar `docker-compose up -d` para iniciar los servicios.
+
 ## 🎨 Plantillas Disponibles
 
 ### Golden Path - SaaS Básico

@@ -76,6 +76,32 @@ python verify_fixes.py
 pip install pydantic-settings
 ```
 
+### Conflictos de Puertos
+
+Al ejecutar `docker-compose up` cada servicio expone un puerto fijo en tu
+máquina. Por ejemplo, Grafana usa el **3001** y Prometheus el **9090**. Si otro
+proyecto ya está utilizando esos puertos obtendrás errores de arranque o los
+dashboards no estarán disponibles.
+
+**Opciones para resolverlo**:
+
+1. Detén las instancias de otros proyectos con `docker-compose down` o
+   `docker stop <id>` antes de iniciar uno nuevo.
+2. Cambia los puertos editando tu `docker-compose.yml`. Modifica el valor a la
+   izquierda del `:`. Ejemplo:
+
+   ```yaml
+   grafana:
+     ports:
+       - "3100:3000"  # host:contenedor
+   prometheus:
+     ports:
+       - "9091:9090"
+   ```
+
+Luego ejecuta nuevamente `docker-compose up -d`.
+
+
 ## Estructura del proyecto
 
 ```
