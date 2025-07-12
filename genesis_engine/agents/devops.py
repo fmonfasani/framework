@@ -490,19 +490,31 @@ jobs:
         stack = schema.get("stack", {})
         
         # docker-compose.yml - MEJORADO con verificación
-        compose_file = await self._generate_docker_compose_improved(output_path, schema, config, dockerfile_status)
+        compose_file = await self._generate_docker_compose(output_path, schema, config, dockerfile_status)
         generated_files.append(compose_file)
         
         # .dockerignore files
         dockerignore_files = await self._generate_dockerignore_files(output_path, stack)
         generated_files.extend(dockerignore_files)
-        
+
         return generated_files
 
+    async def _generate_docker_compose(
+        self,
+        output_path: Path,
+        schema: Dict[str, Any],
+        config: DevOpsConfig,
+        dockerfile_status: Dict[str, Any],
+    ) -> str:
+        """Wrapper para _generate_docker_compose_improved."""
+        return await self._generate_docker_compose_improved(
+            output_path, schema, config, dockerfile_status
+        )
+
     async def _generate_docker_compose_improved(
-        self, 
-        output_path: Path, 
-        schema: Dict[str, Any], 
+        self,
+        output_path: Path,
+        schema: Dict[str, Any],
         config: DevOpsConfig,
         dockerfile_status: Dict[str, Any]
     ) -> str:
