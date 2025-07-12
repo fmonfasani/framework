@@ -477,7 +477,13 @@ jobs:
             return str(workflow_file)
 
     async def _generate_docker_config(self, params: Dict[str, Any]) -> List[str]:
-        """Generar configuración de Docker - MEJORADO"""
+        """Generate Docker-related configuration files.
+
+        This method always generates Dockerfiles for the backend and frontend
+        stacks (if applicable) for completeness, but the returned list only
+        includes paths for ``docker-compose.yml`` and any ``.dockerignore``
+        files created.
+        """
         # CORRECCIÓN: Log sin emojis
         self.logger.info("[DOCKER] Generando configuración de Docker")
         
@@ -495,14 +501,21 @@ jobs:
         backend_framework = stack.get("backend")
         if backend_framework:
             backend_path = output_path / "backend"
+
+            # Dockerfile path is ignored in returned files
+
             await self._generate_python_dockerfile(backend_path, backend_framework)
 
         frontend_framework = stack.get("frontend")
         if frontend_framework:
             frontend_path = output_path / "frontend"
             if frontend_framework == "nextjs":
+
+                # Dockerfile path is ignored in returned files
                 await self._generate_nextjs_dockerfile(frontend_path)
             else:
+                # Dockerfile path is ignored in returned files
+
                 await self._generate_node_dockerfile(frontend_path, frontend_framework)
 
 
