@@ -569,8 +569,9 @@ jobs:
             # Variables para control condicional
             "backend_dockerfile_exists": dockerfile_status.get("backend_dockerfile", False),
             "frontend_dockerfile_exists": dockerfile_status.get("frontend_dockerfile", False),
-            "include_backend": stack.get("backend") and dockerfile_status.get("backend_dockerfile", False),
-            "include_frontend": stack.get("frontend") and dockerfile_status.get("frontend_dockerfile", False),
+            # Siempre incluir servicios de backend y frontend
+            "include_backend": bool(stack.get("backend")),
+            "include_frontend": bool(stack.get("frontend")),
             # NUEVAS VARIABLES para evitar errores
             "version": "1.0.0",
             "port": 8000,
