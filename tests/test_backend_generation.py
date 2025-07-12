@@ -239,3 +239,10 @@ def test_generate_api_documentation(tmp_path):
     assert list(map(Path, paths)) == [file]
     assert 'API Documentation' in file.read_text()
 
+
+def test_generate_config_file_uses_pydantic_settings():
+    agent = make_agent()
+    schema = {'project': {'name': 'Demo'}, 'features': []}
+    config_content = agent._generate_config_file(schema)
+    assert 'from pydantic_settings import BaseSettings' in config_content
+
