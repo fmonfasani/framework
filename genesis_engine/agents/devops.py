@@ -529,7 +529,12 @@ jobs:
 
         dockerfile_status: Dict[str, Any],
     ) -> str:
-        """Wrapper para _generate_docker_compose_improved."""
+
+
+        """Compatibilidad: delega en _generate_docker_compose_improved"""
+
+        if dockerfile_status is None:
+            dockerfile_status = await self._verify_project_dockerfiles(output_path, schema)
 
         return await self._generate_docker_compose_improved(
             output_path, schema, config, dockerfile_status
