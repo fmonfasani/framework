@@ -26,11 +26,14 @@ from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
 class TemplateEngine:
     """
     Motor de plantillas para Genesis Engine - CORREGIDO
-    
+
     FIXES:
     - Validación menos restrictiva
     - Mejores valores por defecto
     - Logs ASCII-safe
+
+    Si ``strict_validation`` es ``False`` la validación de variables requeridas
+    se omite al renderizar y Jinja gestiona las faltantes de forma silenciosa.
     """
 
     # Variables obligatorias por plantilla integrada - CORREGIDAS
@@ -262,8 +265,9 @@ class TemplateEngine:
         vars_clean = variables or {}
         
         try:
-            # CORRECCIÓN: Validación mejorada con manejo de errores
-            self.validate_required_variables(template_name, vars_clean)
+            # Only validate when strict mode is enabled
+            if self.strict_validation:
+                self.validate_required_variables(template_name, vars_clean)
             
             # Obtener template (con cache si está habilitado)
             if use_cache and template_name in self._template_cache:
