@@ -485,14 +485,36 @@ jobs:
         config = params.get("config")
         output_path = Path(params.get("output_path", "./"))
         dockerfile_status = params.get("dockerfile_status", {})
-        
+
         generated_files = []
         stack = schema.get("stack", {})
-        
+
+
+        # Generate Dockerfiles based on stack
+        backend_framework = stack.get("backend")
+        if backend_framework:
+            backend_path = output_path / "backend"
+            dockerfile = await self._generate_python_dockerfile(backend_path, backend_framework)
+            if dockerfile:
+                generated_files.append(dockerfile)
+
+        frontend_framework = stack.get("frontend")
+        if frontend_framework:
+            frontend_path = output_path / "frontend"
+            if frontend_framework == "nextjs":
+                dockerfile = await self._generate_nextjs_dockerfile(frontend_path)
+            else:
+                dockerfile = await self._generate_node_dockerfile(frontend_path, frontend_framework)
+            if dockerfile:
+                generated_files.append(dockerfile)
+
+
         # docker-compose.yml - MEJORADO con verificación
+
         compose_file = await self._generate_docker_compose(output_path, schema, config, dockerfile_status)
+
         generated_files.append(compose_file)
-        
+
         # .dockerignore files
         dockerignore_files = await self._generate_dockerignore_files(output_path, stack)
         generated_files.extend(dockerignore_files)
@@ -504,9 +526,11 @@ jobs:
         output_path: Path,
         schema: Dict[str, Any],
         config: DevOpsConfig,
+
         dockerfile_status: Dict[str, Any],
     ) -> str:
         """Wrapper para _generate_docker_compose_improved."""
+
         return await self._generate_docker_compose_improved(
             output_path, schema, config, dockerfile_status
         )
