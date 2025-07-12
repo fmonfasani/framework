@@ -1471,6 +1471,7 @@ def test_openapi_schema():
 
     def _extract_backend_config(self, task_params):
         """Extraer configuración específica del backend"""
+
         return BackendConfig(
             project_name=task_params.get("project_name", "genesis-app"),
             description=task_params.get(
@@ -1479,10 +1480,12 @@ def test_openapi_schema():
             framework=task_params.get("backend_framework", BackendFramework.FASTAPI),
             database=task_params.get("database", DatabaseType.POSTGRESQL),
             auth_method=task_params.get("auth_method", AuthMethod.JWT),
+
             features=task_params.get("features", []),
             dependencies=task_params.get("dependencies", []),
             environment_vars=task_params.get("environment_vars", {}),
         )
+
 
     def _generate_fastapi_main(self, config, output_path: Path):
         """Generar archivo main.py de FastAPI"""
