@@ -1,2 +1,0 @@
-[console_scripts]
-genesis = genesis_engine.cli.main:app
