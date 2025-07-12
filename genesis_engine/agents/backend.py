@@ -710,7 +710,7 @@ class AuthService:
         project_name = schema.get("project", {}).get("name", "Genesis API")
         features = schema.get("features", [])
         
-        config_content = f'''from pydantic import BaseSettings
+        config_content = f'''from pydantic_settings import BaseSettings
 from typing import List, Optional
 
 class Settings(BaseSettings):
