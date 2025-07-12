@@ -485,19 +485,59 @@ jobs:
         config = params.get("config")
         output_path = Path(params.get("output_path", "./"))
         dockerfile_status = params.get("dockerfile_status", {})
-        
+
         generated_files = []
         stack = schema.get("stack", {})
-        
+
+        backend_framework = stack.get("backend")
+        frontend_framework = stack.get("frontend")
+
+        # Generar Dockerfile de backend si hay framework definido
+        if backend_framework:
+            backend_dockerfile = await self._generate_python_dockerfile(
+                output_path / "backend",
+                backend_framework,
+            )
+            if backend_dockerfile:
+                generated_files.append(backend_dockerfile)
+
+        # Generar Dockerfile de frontend si hay framework definido
+        if frontend_framework:
+            if frontend_framework == "nextjs":
+                frontend_dockerfile = await self._generate_nextjs_dockerfile(
+                    output_path / "frontend"
+                )
+            else:
+                frontend_dockerfile = await self._generate_node_dockerfile(
+                    output_path / "frontend",
+                    frontend_framework,
+                )
+            if frontend_dockerfile:
+                generated_files.append(frontend_dockerfile)
+
         # docker-compose.yml - MEJORADO con verificación
-        compose_file = await self._generate_docker_compose_improved(output_path, schema, config, dockerfile_status)
+        compose_file = await self._generate_docker_compose(output_path, schema, config)
         generated_files.append(compose_file)
-        
+
         # .dockerignore files
         dockerignore_files = await self._generate_dockerignore_files(output_path, stack)
         generated_files.extend(dockerignore_files)
-        
+
         return generated_files
+
+    async def _generate_docker_compose(
+        self,
+        output_path: Path,
+        schema: Dict[str, Any],
+        config: DevOpsConfig,
+        dockerfile_status: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Wrapper para generar docker-compose utilizando la versión mejorada."""
+        if dockerfile_status is None:
+            dockerfile_status = await self._verify_project_dockerfiles(output_path, schema)
+        return await self._generate_docker_compose_improved(
+            output_path, schema, config, dockerfile_status
+        )
 
     async def _generate_docker_compose_improved(
         self, 
