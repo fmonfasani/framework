@@ -226,7 +226,7 @@ class FrontendAgent(GenesisAgent):
         generated_files.extend(app_files)
         
         # 3. Dockerfile - CORREGIDO: Generar para todos los frameworks
-        dockerfile = self._generate_dockerfile(output_path, config, project_name)
+        dockerfile = self._generate_dockerfile(output_path, config, project_name, description)
         if dockerfile:
             generated_files.append(dockerfile)
         
@@ -264,7 +264,7 @@ class FrontendAgent(GenesisAgent):
             "run_commands": self._get_run_commands(config),
         }
 
-    def _generate_dockerfile(self, output_path: Path, config: FrontendConfig, project_name: str) -> Optional[str]:
+    def _generate_dockerfile(self, output_path: Path, config: FrontendConfig, project_name: str, description: str = "Generated frontend") -> Optional[str]:
         """
         MÉTODO CORREGIDO: Generar Dockerfile para el framework específico
         """
@@ -280,9 +280,10 @@ class FrontendAgent(GenesisAgent):
                 self.logger.warning(f"No hay template de Dockerfile para {config.framework}")
                 return None
             
-            # CORRECCIÓN: Variables completas para el template
+            # CORRECCIÓN: Variables completas para el template incluyendo description
             template_vars = {
                 "project_name": project_name,
+                "description": description,  # CRÍTICO: Variable faltante añadida
                 "framework": config.framework.value,
                 "node_version": "18",
                 "port": 3000 if config.framework == FrontendFramework.NEXTJS else 80,
@@ -292,6 +293,8 @@ class FrontendAgent(GenesisAgent):
                 "state_management": config.state_management.value,
                 "ui_library": config.ui_library.value,
                 "styling": config.ui_library.value,  # NUEVA: Alias para styling
+                "version": "1.0.0",  # NUEVA: Variable adicional
+                "entities": [],  # NUEVA: Variable adicional
             }
             
             content = self.template_engine.render_template(template_name, template_vars)
@@ -331,8 +334,10 @@ class FrontendAgent(GenesisAgent):
         config = self._extract_frontend_config(params)
         output_path = Path(params.get("output_path", "./frontend"))
         project_name = params.get("project_name", "frontend-app")
+        description = params.get("description", "Frontend application")  # AÑADIDO
+        description = params.get("description", "Frontend application")  # AÑADIDO
         
-        dockerfile = self._generate_dockerfile(output_path, config, project_name)
+        dockerfile = self._generate_dockerfile(output_path, config, project_name, description)
         
         return {
             "dockerfile_generated": dockerfile is not None,
