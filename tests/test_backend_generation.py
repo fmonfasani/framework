@@ -246,3 +246,22 @@ def test_generate_config_file_uses_pydantic_settings():
     config_content = agent._generate_config_file(schema)
     assert 'from pydantic_settings import BaseSettings' in config_content
 
+
+def test_generate_fastapi_main_includes_project_name(tmp_path):
+    agent = make_agent()
+    config = BackendConfig(
+        framework=BackendFramework.FASTAPI,
+        database=DatabaseType.POSTGRESQL,
+        auth_method=AuthMethod.JWT,
+        features=[],
+        dependencies=[],
+        environment_vars={},
+    )
+    config.project_name = 'DemoApp'
+    config.description = 'Demo description'
+    agent._generate_fastapi_main(config, tmp_path)
+
+    main_file = tmp_path / 'app' / 'main.py'
+    assert main_file.exists()
+    assert 'DemoApp' in main_file.read_text()
+
