@@ -490,23 +490,20 @@ jobs:
         stack = schema.get("stack", {})
 
 
-        # Generate Dockerfiles based on stack
+        # Generate Dockerfiles based on stack but do not include them in the
+        # returned file list. They are created only as side effects.
         backend_framework = stack.get("backend")
         if backend_framework:
             backend_path = output_path / "backend"
-            dockerfile = await self._generate_python_dockerfile(backend_path, backend_framework)
-            if dockerfile:
-                generated_files.append(dockerfile)
+            await self._generate_python_dockerfile(backend_path, backend_framework)
 
         frontend_framework = stack.get("frontend")
         if frontend_framework:
             frontend_path = output_path / "frontend"
             if frontend_framework == "nextjs":
-                dockerfile = await self._generate_nextjs_dockerfile(frontend_path)
+                await self._generate_nextjs_dockerfile(frontend_path)
             else:
-                dockerfile = await self._generate_node_dockerfile(frontend_path, frontend_framework)
-            if dockerfile:
-                generated_files.append(dockerfile)
+                await self._generate_node_dockerfile(frontend_path, frontend_framework)
 
 
         # docker-compose.yml - MEJORADO con verificación
