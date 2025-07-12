@@ -567,6 +567,9 @@ class GenesisOrchestrator:
                 
                 # Finalizar proyecto
                 await self._finalize_project(project_path, result)
+
+                # Validar archivos críticos generados
+                self._validate_generated_project(project_path)
                 
                 # Limpiar estado de persistence
                 await self._cleanup_persistence()
@@ -924,6 +927,40 @@ class GenesisOrchestrator:
     async def _validate_final_project(self, project_path: Path, result: ProjectCreationResult) -> Dict[str, Any]:
         """Validación final del proyecto"""
         return {"valid": True, "issues": [], "recommendations": []}
+
+    def _validate_generated_project(self, project_path: Path):
+        """Validar que archivos críticos fueron generados"""
+
+        critical_files = [
+            project_path / "backend" / "app" / "main.py",
+            project_path / "frontend" / "app" / "page.tsx",
+            project_path / "docker-compose.yml",
+            project_path / "backend" / "requirements.txt",
+            project_path / "frontend" / "package.json",
+        ]
+
+        missing_files = []
+        empty_files = []
+
+        for file_path in critical_files:
+            if not file_path.exists():
+                missing_files.append(str(file_path))
+            elif file_path.stat().st_size == 0:
+                empty_files.append(str(file_path))
+
+        if missing_files:
+            raise Exception(f"Archivos críticos faltantes: {missing_files}")
+
+        if empty_files:
+            raise Exception(f"Archivos críticos vacíos: {empty_files}")
+
+        compose_content = (project_path / "docker-compose.yml").read_text()
+        if "backend:" not in compose_content:
+            raise Exception("docker-compose.yml no tiene servicio backend")
+        if "frontend:" not in compose_content:
+            raise Exception("docker-compose.yml no tiene servicio frontend")
+
+        self.logger.info("✅ Validación de proyecto completada")
     
     # Event handlers simplificados
     async def _handle_task_completed(self, event: Dict[str, Any]):
