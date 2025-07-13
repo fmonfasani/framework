@@ -100,7 +100,7 @@ click==8.1.7
 GitPython==3.1.40
 docker==6.1.3
 kubernetes==28.1.0
-fastapi==0.115.14
+fastapi>=0.115.14
 sqlalchemy==2.0.23
 alembic==1.13.1
 psycopg2-binary==2.9.9
