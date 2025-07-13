@@ -1553,7 +1553,7 @@ def test_endpoint():
     def _write_requirements_txt(self, output_path: Path):
         """Generar requirements.txt"""
 
-        requirements_content = '''fastapi==0.115.14
+        requirements_content = '''fastapi>=0.115.14
 uvicorn[standard]==0.35.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
