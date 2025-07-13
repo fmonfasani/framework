@@ -65,9 +65,8 @@ genesis init mi-app --template=saas-basic
 
 ### Error de encoding en Windows
 ```bash
-# Verificar encoding
-python apply_final_fixes.py
-python verify_fixes.py
+# Verificar que todos los archivos usen UTF-8
+git config --global core.autocrlf false
 ```
 
 ### Error de Pydantic
