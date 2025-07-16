@@ -6,7 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from genesis_engine.agents.frontend import FrontendAgent
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
+from importlib import resources
 
 async def run_async(coro):
     return await coro
@@ -14,7 +15,8 @@ async def run_async(coro):
 
 def make_agent():
     agent = FrontendAgent()
-    agent.template_engine = TemplateEngine(ROOT / 'genesis_engine' / 'templates')
+    templates_path = resources.files('genesis_templates').joinpath('templates')
+    agent.template_engine = TemplateEngine(templates_path)
     return agent
 
 

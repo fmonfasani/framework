@@ -24,7 +24,7 @@ import logging
 from jinja2 import Environment, FileSystemLoader, Template, TemplateError
 from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 from genesis_engine.core.logging import get_safe_logger  # CORRECCIÓN: Usar safe logger
 from genesis_engine.core.exceptions import GenesisException
 

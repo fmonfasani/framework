@@ -22,6 +22,7 @@ dependencies = [
     "fastapi>=0.115.14",
     "sqlalchemy>=2.0.23",
     "httpx>=0.24.0",
+    "genesis-templates>=1.0.0",
 ]
 
 [project.scripts]

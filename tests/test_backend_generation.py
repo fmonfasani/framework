@@ -14,13 +14,13 @@ from genesis_engine.agents.backend import (
     DatabaseType,
     AuthMethod,
 )
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
+from importlib import resources
 
 def make_agent():
     agent = BackendAgent()
-    agent.template_engine = TemplateEngine(
-        ROOT / 'genesis_engine' / 'templates' / 'backend'
-    )
+    templates_path = resources.files('genesis_templates').joinpath('templates/backend')
+    agent.template_engine = TemplateEngine(templates_path)
     # Register missing filter used in templates
     agent.template_engine.register_filter('sql_type', agent.template_engine._get_sql_type)
     agent.template_engine.register_filter('python_type', agent.template_engine._get_python_type)
