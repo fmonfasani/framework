@@ -19,8 +19,10 @@ from genesis_engine.mcp.protocol import MCPProtocol
 from genesis_engine.mcp.message_types import MCPMessage, MCPResponse, MessageType
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
+
 from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
 from genesis_engine.templates.engine import TemplateEngine
+
 from genesis_engine.core.config import validate_environment
 
 
@@ -264,15 +266,14 @@ class TestConfigValidationFixed:
         print(f"✅ Validación de entorno: {result['summary']}")
         print(f"   Verificaciones: {result['passed']}/{result['total_checks']} pasaron")
 
-
-
-
 def test_imports_fixed():
     """Test: Todos los imports funcionan correctamente - CORREGIDO"""
     try:
         from genesis_engine.mcp.protocol import MCPProtocol
         from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
+
         from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator
+
         test_agents.test_architect_agent_initialization_fixed()
         print("   ✅ ArchitectAgent inicialización")
         

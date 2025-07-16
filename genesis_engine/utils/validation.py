@@ -739,7 +739,8 @@ class SchemaValidator:
                     message=f"Relación referencia entidad inexistente: {to_entity}",
                     passed=False
                 ))
-                return results
+
+        return results
 
 def check_network_connectivity() -> bool:
     """Verificar conectividad de red básica"""

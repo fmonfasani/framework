@@ -11,8 +11,10 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+
 from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
 from genesis_engine.templates.engine import TemplateEngine
+
 import sys
 
 # Export real module reference for tests

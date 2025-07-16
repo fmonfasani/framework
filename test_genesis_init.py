@@ -606,7 +606,7 @@ jobs:
     async def _phase_6_final_validation(self):
         """Fase 6: Validación final de estructura"""
         try:
-            from genesis_engine.templates.engine import TemplateEngine
+            from genesis_templates.engine import TemplateEngine
             
             # Test template engine con el proyecto generado
             engine = TemplateEngine(strict_validation=False)

@@ -68,6 +68,17 @@ Estas partes pueden cambiar sin previo aviso y es posible que presenten
 comportamientos inesperados. Consulta la sección de [Roadmap](#-roadmap) para
 conocer las características que llegarán próximamente.
 
+## 📦 Repositorios Separados
+
+A partir de la versión 1.1 el proyecto se divide en varios repositorios:
+
+- [`genesis-core`](https://github.com/genesis-engine/genesis-core) – lógica de orquestación y agentes base.
+- [`genesis-cli`](https://github.com/genesis-engine/genesis-cli) – interfaz de línea de comandos.
+- [`genesis-templates`](https://github.com/genesis-engine/genesis-templates) – plantillas oficiales.
+- [`genesis-examples`](https://github.com/genesis-engine/genesis-examples) – proyectos de ejemplo.
+
+Cada componente se versiona por separado y puede instalarse de forma independiente.
+
 ## 🚀 Instalación Rápida
 
 ### Prerrequisitos
@@ -81,12 +92,15 @@ conocer las características que llegarán próximamente.
 ### Instalación
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/genesis-engine/genesis-engine.git
-cd genesis-engine
+# Clonar repositorios principales
+git clone https://github.com/genesis-engine/genesis-core.git
+git clone https://github.com/genesis-engine/genesis-cli.git
+git clone https://github.com/genesis-engine/genesis-templates.git
 
-# Instalar Genesis Engine
-pip install -e .  # instala dependencias como PyYAML
+# Instalar cada componente
+pip install -e genesis-core
+pip install -e genesis-cli
+pip install -e genesis-templates
 
 # Verificar instalación
 genesis --version
@@ -363,6 +377,22 @@ async def architect_to_backend():
     return response.result
 ```
 
+### Uso de `GenesisOrchestrator` con MCPturbo
+
+```python
+from mcpturbo.protocol import TurboProtocol
+from genesis_core.orchestrator import GenesisOrchestrator
+
+turbo = TurboProtocol()
+orchestrator = GenesisOrchestrator()
+orchestrator.mcp = turbo
+
+result = await orchestrator.create_project({
+    "name": "demo",
+    "template": "saas-basic"
+})
+```
+
 ### Flujo de Trabajo
 
 ```mermaid
@@ -524,7 +554,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 ```python
 # custom_template.py
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 
 # Registrar template personalizado
 template_engine.register_template(
@@ -561,6 +591,7 @@ async def custom_post_processing(context):
 - **[Templates y Plantillas](docs/templates.md)**
 - **[Despliegue en Producción](docs/deployment.md)**
 - **[Guía de Contribución](CONTRIBUTING.md)**
+- **[Guía de Migración](docs/migration.md)**
 
 ### Ejemplos
 
@@ -576,14 +607,18 @@ Genesis Engine es un proyecto open source. ¡Las contribuciones son bienvenidas!
 ### Desarrollo Local
 
 ```bash
-# Clonar repo
-git clone https://github.com/genesis-engine/genesis-engine.git
-cd genesis-engine
+# Clonar repos principales
+git clone https://github.com/genesis-engine/genesis-core.git
+git clone https://github.com/genesis-engine/genesis-cli.git
+git clone https://github.com/genesis-engine/genesis-templates.git
+cd genesis-core  # ruta para el core
 
 # Setup desarrollo
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -e .[dev]
+pip install -e ../genesis-cli
+pip install -e ../genesis-templates
 
 # Ejecutar tests
 pytest

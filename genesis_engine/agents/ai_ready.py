@@ -34,7 +34,7 @@ except Exception:  # noqa: W0703
     ANTHROPIC_AVAILABLE = False
 
 from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 
 
 def _check_import(module_name: str) -> bool:

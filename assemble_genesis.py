@@ -34,10 +34,10 @@ ARTIFACT_MAPPING = {
     # Core
     "genesis_orchestrator": "genesis_core/orchestrator/core_orchestrator.py",
     "genesis_project_manager": "genesis_engine/core/project_manager.py",
-    "genesis_template_engine": "genesis_engine/templates/engine.py",
-    
+    "genesis_template_engine": "genesis_templates/engine.py",
+
     # Golden Path
-    "genesis_golden_path": "genesis_engine/golden_path/saas_basic.py",
+    "genesis_golden_path": "genesis_templates/golden_path/saas_basic.py",
     
     # Utilidades
     "genesis_validation_utils": "genesis_engine/utils/validation.py",
@@ -79,8 +79,8 @@ def create_init_files():
         "genesis_engine/core/__init__.py",
         "genesis_engine/mcp/__init__.py",
         "genesis_engine/agents/__init__.py",
-        "genesis_engine/templates/__init__.py",
-        "genesis_engine/golden_path/__init__.py",
+        "genesis_templates/__init__.py",
+        "genesis_templates/golden_path/__init__.py",
         "genesis_engine/utils/__init__.py",
     ]
     
