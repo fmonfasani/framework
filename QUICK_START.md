@@ -3,12 +3,15 @@
 ## Instalación
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/genesis-engine/genesis-engine.git
-cd genesis-engine
+# Clonar repos principales
+git clone https://github.com/genesis-engine/genesis-core.git
+git clone https://github.com/genesis-engine/genesis-cli.git
+git clone https://github.com/genesis-engine/genesis-templates.git
 
-# Instalar Genesis Engine
-pip install -e .  # incluye dependencias como PyYAML
+# Instalar componentes
+pip install -e genesis-core
+pip install -e genesis-cli
+pip install -e genesis-templates
 
 # Verificar instalación
 genesis --version
