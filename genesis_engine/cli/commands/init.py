@@ -12,7 +12,7 @@ from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from genesis_engine.core.orchestrator import GenesisOrchestrator
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 import sys
 
 # Export real module reference for tests

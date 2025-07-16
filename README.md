@@ -524,7 +524,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 ```python
 # custom_template.py
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 
 # Registrar template personalizado
 template_engine.register_template(

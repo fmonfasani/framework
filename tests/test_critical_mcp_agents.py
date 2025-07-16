@@ -20,7 +20,7 @@ from genesis_engine.mcp.message_types import MCPMessage, MCPResponse, MessageTyp
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
 from genesis_engine.core.orchestrator import GenesisOrchestrator, Orchestrator
-from genesis_engine.templates.engine import TemplateEngine
+from genesis_templates.engine import TemplateEngine
 from genesis_engine.core.config import validate_environment
 
 
@@ -419,7 +419,7 @@ def test_imports_fixed():
         from genesis_engine.mcp.protocol import MCPProtocol
         from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
         from genesis_engine.core.orchestrator import GenesisOrchestrator
-        from genesis_engine.templates.engine import TemplateEngine
+        from genesis_templates.engine import TemplateEngine
         from genesis_engine.core.config import validate_environment
         print("✅ Todos los imports exitosos")
         # CORRECCIÓN: No retornar valor, solo hacer assert
