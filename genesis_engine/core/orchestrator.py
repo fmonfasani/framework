@@ -26,9 +26,9 @@ from genesis_engine.core.logging import get_safe_logger  # CORRECCIÓN: Usar saf
 from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
 
 # CORRECCIÓN: Import corregido del protocolo MCP
-from genesis_engine.mcp.protocol import MCPProtocol
-from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
-from genesis_engine.mcp.agent_base import AgentTask, TaskResult
+from mcpturbo_core import MCPProtocol
+from mcpturbo_core.messages import Message as MCPMessage, Response as MCPResponse
+from genesis_engine.tasking import AgentTask, TaskResult
 
 # Imports de agentes - con manejo de errores
 try:

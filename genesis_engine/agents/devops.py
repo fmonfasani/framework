@@ -17,7 +17,8 @@ from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
 
-from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+from genesis_engine.genesis_agent import GenesisAgent
+from genesis_engine.tasking import AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
 from genesis_engine.core.logging import get_safe_logger  # CORRECCIÓN: Usar safe logger
 

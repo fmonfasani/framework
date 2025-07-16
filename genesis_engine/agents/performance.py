@@ -26,7 +26,8 @@ import tokenize
 import io
 from typing import Generator, Tuple
 
-from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+from genesis_engine.genesis_agent import GenesisAgent
+from genesis_engine.tasking import AgentTask, TaskResult
 
 class OptimizationType(str, Enum):
     """Tipos de optimización"""

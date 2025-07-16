@@ -21,8 +21,6 @@ ARTIFACT_MAPPING = {
     "genesis_cli_commands": "genesis_engine/cli/commands/create.py",
     
     # MCP y Agentes
-    "genesis_mcp_protocol": "genesis_engine/mcp/protocol.py",
-    "genesis_agent_base": "genesis_engine/mcp/agent_base.py",
     "genesis_architect_agent": "genesis_engine/agents/architect.py",
     "genesis_backend_agent": "genesis_engine/agents/backend.py",
     "genesis_frontend_agent": "genesis_engine/agents/frontend.py",
@@ -77,7 +75,6 @@ def create_init_files():
         "genesis_engine/cli/commands/__init__.py", 
         "genesis_engine/cli/ui/__init__.py",
         "genesis_engine/core/__init__.py",
-        "genesis_engine/mcp/__init__.py",
         "genesis_engine/agents/__init__.py",
         "genesis_engine/templates/__init__.py",
         "genesis_engine/golden_path/__init__.py",

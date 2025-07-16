@@ -26,7 +26,7 @@ sys.modules['genesis_engine.core.logging'] = logging_mod
 from genesis_engine.agents.ai_ready import AIReadyAgent
 import genesis_engine.agents.ai_ready as ai_mod
 ai_mod.asyncio = __import__('asyncio')
-from genesis_engine.mcp.agent_base import AgentTask
+from genesis_engine.tasking import AgentTask
 
 
 @pytest.mark.asyncio

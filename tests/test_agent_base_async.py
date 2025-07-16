@@ -6,8 +6,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from genesis_engine.mcp.agent_base import create_simple_agent
-from genesis_engine.mcp.message_types import MCPRequest
+from genesis_engine.tasking import create_simple_agent
+from mcpturbo_core.messages import Request
 
 
 @pytest.mark.asyncio
@@ -19,9 +19,9 @@ async def test_async_handler_runs_in_running_loop():
         return request.data["x"]
 
     agent.register_handler("act", handler)
-    req = MCPRequest(
-        sender_agent="src",
-        target_agent=agent.agent_id,
+    req = Request(
+        sender="src",
+        target=agent.agent_id,
         action="act",
         data={"x": 123},
         timeout=1,

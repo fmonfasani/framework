@@ -388,7 +388,7 @@ graph TD
 Crear agentes personalizados:
 
 ```python
-from genesis_engine.mcp.agent_base import GenesisAgent
+from mcpturbo_agents import GenesisAgent
 
 class CustomAgent(GenesisAgent):
     def __init__(self):
@@ -598,7 +598,7 @@ mypy .
 
 ```python
 # my_custom_agent.py
-from genesis_engine.mcp.agent_base import GenesisAgent
+from mcpturbo_agents import GenesisAgent
 
 class MyCustomAgent(GenesisAgent):
     def __init__(self):

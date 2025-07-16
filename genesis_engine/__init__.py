@@ -20,8 +20,8 @@ logger.addHandler(logging.NullHandler())
 try:
     from genesis_engine.core.orchestrator import GenesisOrchestrator
     from genesis_engine.core.project_manager import ProjectManager
-    from genesis_engine.mcp.protocol import MCPProtocol
-    from genesis_engine.mcp.agent_base import GenesisAgent
+    from mcpturbo_core import MCPProtocol
+    from mcpturbo_agents import GenesisAgent
 except Exception as e:  # pragma: no cover - graceful fallback if deps fail
     logger.error(f"Failed to import core dependencies: {e}", exc_info=True)
     GenesisOrchestrator = None

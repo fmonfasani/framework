@@ -3,7 +3,8 @@
 ArchitectAgent corregido - Agente especializado en diseño de arquitectura
 Implementa todos los handlers necesarios para comunicación MCP
 """
-from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+from genesis_engine.genesis_agent import GenesisAgent
+from genesis_engine.tasking import AgentTask, TaskResult
 from typing import Dict, Any, List, Optional
 import json
 import logging

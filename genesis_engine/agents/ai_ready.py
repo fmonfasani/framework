@@ -33,7 +33,8 @@ try:  # pragma: no cover - opcional según entorno
 except Exception:  # noqa: W0703
     ANTHROPIC_AVAILABLE = False
 
-from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+from genesis_engine.genesis_agent import GenesisAgent
+from genesis_engine.tasking import AgentTask, TaskResult
 from genesis_engine.templates.engine import TemplateEngine
 
 

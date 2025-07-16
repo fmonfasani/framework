@@ -477,7 +477,7 @@ async def _deploy_async(config: Dict[str, Any]) -> Dict[str, Any]:
         await orchestrator.initialize()
         
         # Crear tarea de despliegue
-        from genesis_engine.mcp.agent_base import AgentTask
+        from genesis_engine.tasking import AgentTask
         task = AgentTask(
             id="deploy_task",
             name="deploy_application",

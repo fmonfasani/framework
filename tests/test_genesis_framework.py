@@ -108,8 +108,8 @@ class GenesisFrameworkTester:
         """Test de importación de módulos críticos"""
         
         imports_to_test = [
-            ("genesis_engine.mcp.agent_base", "GenesisAgent"),
-            ("genesis_engine.mcp.protocol", "MCPProtocol"),
+            ("mcpturbo_agents", "GenesisAgent"),
+            ("mcpturbo_core", "MCPProtocol"),
             ("genesis_engine.agents.architect", "ArchitectAgent"),
             ("genesis_engine.agents.backend", "BackendAgent"),
             ("genesis_engine.agents.frontend", "FrontendAgent"),
@@ -146,7 +146,8 @@ class GenesisFrameworkTester:
         """Test de clases base"""
         
         try:
-            from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+            from mcpturbo_agents import GenesisAgent
+            from genesis_engine.tasking import AgentTask, TaskResult
             
             # Test de AgentTask
             task = AgentTask(name="test_task", description="Test task")
@@ -175,8 +176,9 @@ class GenesisFrameworkTester:
         """Test del protocolo MCP"""
         
         try:
-            from genesis_engine.mcp.protocol import MCPProtocol, MCPMessage
-            from genesis_engine.mcp.agent_base import SimpleAgent
+            from mcpturbo_core import MCPProtocol
+            from mcpturbo_core.messages import Message
+            from genesis_engine.tasking import SimpleAgent
             
             # Crear protocolo
             protocol = MCPProtocol()
@@ -406,11 +408,11 @@ class GenesisFrameworkTester:
                 
                 if architect_agent:
                     # Simular task.execute que estaba fallando
-                    from genesis_engine.mcp.protocol import MCPMessage
-                    
-                    test_message = MCPMessage(
+                    from mcpturbo_core.messages import Request
+
+                    test_message = Request(
                         sender="test",
-                        recipient="architect_agent",
+                        target="architect_agent",
                         action="task.execute",
                         data={
                             "name": "analyze_requirements",

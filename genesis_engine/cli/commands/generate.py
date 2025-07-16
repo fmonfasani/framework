@@ -13,7 +13,7 @@ from rich.panel import Panel
 from genesis_engine.agents.backend import BackendAgent
 from genesis_engine.agents.devops import DevOpsAgent
 from genesis_engine.agents.frontend import FrontendAgent
-from genesis_engine.mcp.agent_base import AgentTask
+from genesis_engine.tasking import AgentTask
 
 console = Console()
 

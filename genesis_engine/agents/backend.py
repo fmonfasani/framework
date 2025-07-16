@@ -3,7 +3,8 @@
 BackendAgent corregido - Agente especializado en generación de backend
 Implementa todos los handlers necesarios para comunicación MCP
 """
-from genesis_engine.mcp.agent_base import GenesisAgent, AgentTask, TaskResult
+from genesis_engine.genesis_agent import GenesisAgent
+from genesis_engine.tasking import AgentTask, TaskResult
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum

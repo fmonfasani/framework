@@ -15,8 +15,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # CORRECCIÓN: Imports actualizados con estructura corregida
-from genesis_engine.mcp.protocol import MCPProtocol
-from genesis_engine.mcp.message_types import MCPMessage, MCPResponse, MessageType
+from mcpturbo_core import MCPProtocol
+from mcpturbo_core.messages import Message, Response, MessageType
+from genesis_engine.tasking import SimpleAgent
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
 from genesis_engine.core.orchestrator import GenesisOrchestrator, Orchestrator
@@ -39,22 +40,16 @@ class TestMCPProtocolCriticalFixed:
     def test_mcp_message_structure_fixed(self):
         """Test: Estructura de mensajes MCP - CORREGIDA"""
         # CORRECCIÓN: Usar estructura corregida con todos los campos requeridos
-        message = MCPMessage(
+        message = Message(
             id="test_123",
-            type=MessageType.REQUEST,  # Campo requerido agregado
+            type=MessageType.REQUEST,
             sender="test_sender",
-            sender_agent="TestAgent",  # Campo requerido agregado
-            recipient="test_recipient",
-            action="test_action",
             data={"test": "data"}
         )
-        
+
         assert message.id == "test_123"
         assert message.type == MessageType.REQUEST
         assert message.sender == "test_sender"
-        assert message.sender_agent == "TestAgent"
-        assert message.recipient == "test_recipient"
-        assert message.action == "test_action"
         assert message.data == {"test": "data"}
     
     @pytest.mark.asyncio
@@ -79,9 +74,7 @@ class TestMCPProtocolCriticalFixed:
             
         finally:
             await protocol.stop()
-            assert protocol.worker_task.done()
-            assert protocol.metrics_task.done()
-            assert protocol.circuit_task.done()
+            assert not protocol.running
 
 
 class TestAgentBaseCriticalFixed:
@@ -416,8 +409,8 @@ class TestIntegrationCriticalFixed:
 def test_imports_fixed():
     """Test: Todos los imports funcionan correctamente - CORREGIDO"""
     try:
-        from genesis_engine.mcp.protocol import MCPProtocol
-        from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
+        from mcpturbo_core import MCPProtocol
+        from mcpturbo_core.messages import Message, Response
         from genesis_engine.core.orchestrator import GenesisOrchestrator
         from genesis_engine.templates.engine import TemplateEngine
         from genesis_engine.core.config import validate_environment

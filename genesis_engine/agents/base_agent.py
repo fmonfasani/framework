@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 
-from genesis_engine.mcp.message_types import MCPRequest, MCPResponse
+from mcpturbo_core.messages import Request as MCPRequest, Response as MCPResponse
 
 logger = logging.getLogger(__name__)
 

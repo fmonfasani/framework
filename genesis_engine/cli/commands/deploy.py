@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from genesis_engine.agents.deploy import DeployAgent
-from genesis_engine.mcp.agent_base import AgentTask
+from genesis_engine.tasking import AgentTask
 
 console = Console()
 
