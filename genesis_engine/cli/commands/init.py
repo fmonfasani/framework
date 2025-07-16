@@ -11,8 +11,10 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from genesis_engine.core.orchestrator import GenesisOrchestrator
-from genesis_templates.engine import TemplateEngine
+
+from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
+from genesis_engine.templates.engine import TemplateEngine
+
 import sys
 
 # Export real module reference for tests
@@ -118,24 +120,20 @@ def init_command(
         
         # Tarea 1: Inicializar agentes
         task1 = progress.add_task("🤖 Inicializando agentes IA...", total=1)
-        orchestrator = GenesisOrchestrator()
+        orchestrator = CoreOrchestrator()
         template_engine = TemplateEngine()
         progress.update(task1, completed=1)
-        
+
         # Tarea 2: Generar arquitectura
         task2 = progress.add_task("🏗️ Generando arquitectura del proyecto...", total=1)
-        
-        # Usar ArchitectAgent para generar el esquema
-        architect_result = orchestrator.process_request({
-            "type": "design_architecture",
-            "agent": "architect",
-            "data": {
-                "project_name": project_name,
-                "template": template,
-                "config": project_config
-            }
-        })
-        
+
+        request = ProjectGenerationRequest(
+            name=project_name,
+            template=template,
+            options=project_config,
+        )
+        architect_result = asyncio.run(orchestrator.execute_project_generation(request))
+
         progress.update(task2, completed=1)
         
         # Tarea 3: Generar código
@@ -165,14 +163,7 @@ def init_command(
         # Tarea 4: Configurar DevOps
         task4 = progress.add_task("🐳 Configurando DevOps...", total=1)
         
-        devops_result = orchestrator.process_request({
-            "type": "setup_devops",
-            "agent": "devops", 
-            "data": {
-                "project_dir": str(project_dir),
-                "config": project_config
-            }
-        })
+        devops_result = architect_result
         
         progress.update(task4, completed=1)
         

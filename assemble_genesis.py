@@ -32,7 +32,7 @@ ARTIFACT_MAPPING = {
     "genesis_ai_ready_agent": "genesis_engine/agents/ai_ready.py",
     
     # Core
-    "genesis_orchestrator": "genesis_engine/core/orchestrator.py",
+    "genesis_orchestrator": "genesis_core/orchestrator/core_orchestrator.py",
     "genesis_project_manager": "genesis_engine/core/project_manager.py",
     "genesis_template_engine": "genesis_templates/engine.py",
 
