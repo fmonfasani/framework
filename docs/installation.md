@@ -8,11 +8,15 @@ Esta guía describe los pasos básicos para instalar **Genesis Engine** en tu en
    git clone https://github.com/genesis-engine/genesis-engine.git
    cd genesis-engine
    ```
-3. Instala las dependencias principales:
+3. Instala las dependencias principales del motor:
    ```bash
    pip install -e .
    ```
-4. Comprueba la instalación ejecutando:
+4. Instala el paquete de la CLI por separado:
+   ```bash
+   pip install genesis-cli
+   ```
+5. Comprueba la instalación ejecutando:
    ```bash
    genesis --version
    genesis doctor

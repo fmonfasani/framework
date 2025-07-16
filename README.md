@@ -87,6 +87,8 @@ cd genesis-engine
 
 # Instalar Genesis Engine
 pip install -e .  # instala dependencias como PyYAML
+# Instalar CLI independiente
+pip install genesis-cli
 
 # Verificar instalación
 genesis --version
@@ -101,6 +103,7 @@ puedes recrear la estructura del paquete ejecutando:
 ```bash
 python assemble_genesis.py --artifacts path/to/artifacts
 pip install -e .
+pip install genesis-cli
 ```
 
 El script copiará cada artefacto a su ubicación correspondiente y generará los
@@ -441,6 +444,7 @@ trabajo típico:
 
 ```bash
 pip install -e .
+pip install genesis-cli
 genesis init my-app
 cd my-app/backend && pytest
 cd my-app/frontend && npm test
