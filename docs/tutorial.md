@@ -1,6 +1,7 @@
 # Tutorial Paso a Paso
 
 Este tutorial muestra de forma resumida cómo iniciar un proyecto con **Genesis Engine**.
+Recuerda que el CLI ahora vive en el repositorio [`genesis-cli`](https://github.com/genesis-engine/genesis-cli).
 
 1. Ejecuta el comando de ayuda para conocer las opciones disponibles:
    ```bash
