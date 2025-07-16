@@ -19,7 +19,7 @@ from genesis_engine.mcp.protocol import MCPProtocol
 from genesis_engine.mcp.message_types import MCPMessage, MCPResponse, MessageType
 from genesis_engine.agents.architect import ArchitectAgent
 from genesis_engine.agents.backend import BackendAgent
-from genesis_engine.core.orchestrator import GenesisOrchestrator, Orchestrator
+from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
 from genesis_engine.templates.engine import TemplateEngine
 from genesis_engine.core.config import validate_environment
 
@@ -162,77 +162,21 @@ class TestAgentBaseCriticalFixed:
             assert str(e) != ""  # Debe tener información del error
 
 
-class TestOrchestratorCriticalFixed:
-    """Tests críticos del orquestador - CORREGIDOS"""
-    
-    def test_orchestrator_initialization_fixed(self):
-        """Test: Orchestrator se inicializa correctamente - CORREGIDO"""
-        orchestrator = Orchestrator()
-        
-        assert orchestrator is not None
-        # CORRECCIÓN: Verificar atributos correctos
-        assert hasattr(orchestrator, 'mcp')  # Protocolo interno
-        assert hasattr(orchestrator, 'protocol')  # Alias de compatibilidad
-        assert orchestrator.protocol is orchestrator.mcp  # Verificar alias
-        assert hasattr(orchestrator, 'create_project')
-        assert hasattr(orchestrator, 'agents')
-        assert orchestrator.agents == {}
-    
-    @pytest.mark.asyncio
-    async def test_orchestrator_agent_communication_fixed(self):
-        """Test CRÍTICO: Orquestador puede comunicarse con agentes - CORREGIDO"""
-        orchestrator = Orchestrator()
-        
-        # Inicializar orquestador
-        await orchestrator.start()
-        
-        try:
-            # CORRECCIÓN: Verificar protocolo interno correcto
-            assert len(orchestrator.mcp.agents) > 0
-            
-            # Verificar que architect_agent está registrado
-            assert "architect_agent" in orchestrator.mcp.agents
-            assert "backend_agent" in orchestrator.mcp.agents
-            
-            # Verificar alias de compatibilidad
-            assert len(orchestrator.protocol.agents) == len(orchestrator.mcp.agents)
-            
-            print(f"✅ Agentes registrados: {list(orchestrator.mcp.agents.keys())}")
-            
-        finally:
-            # CORRECCIÓN: Mejor cleanup para evitar tareas pendientes
-            await orchestrator.stop()
-            # Esperar un poco para que las tareas background terminen
-            await asyncio.sleep(0.1)
-    
-    @pytest.mark.asyncio 
-    async def test_orchestrator_send_message_method_fixed(self):
-        """Test CRÍTICO: Método send_message del orchestrator funciona - CORREGIDO"""
-        orchestrator = Orchestrator()
-        await orchestrator.start()
-        
-        try:
-            # CORRECCIÓN: Usar método corregido send_message
-            response = await orchestrator.send_message(
-                recipient="architect_agent",
-                action="ping",
-                data={"test": "message"}
-            )
-            
-            # Verificar respuesta
-            assert response is not None
-            assert hasattr(response, 'success')
-            print(f"✅ send_message funciona: {response.success}")
-            
-        except Exception as e:
-            print(f"⚠️ send_message tiene problemas: {e}")
-            # No fallar completamente, solo verificar que el método existe
-            assert hasattr(orchestrator, 'send_message')
-            
-        finally:
-            await orchestrator.stop()
-            await asyncio.sleep(0.1)  # Cleanup mejorado
 
+
+class TestOrchestratorCriticalFixed:
+    """Pruebas simplificadas del orquestador"""
+
+    def test_orchestrator_initialization_fixed(self):
+        orchestrator = CoreOrchestrator()
+        assert orchestrator is not None
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_execute_method(self):
+        orchestrator = CoreOrchestrator()
+        req = ProjectGenerationRequest(name="demo", template="saas")
+        result = await orchestrator.execute_project_generation(req)
+        assert result.success
 
 class TestTemplateEngineCriticalFixed:
     """Tests críticos para TemplateEngine - CORREGIDOS"""
@@ -321,96 +265,6 @@ class TestConfigValidationFixed:
         print(f"   Verificaciones: {result['passed']}/{result['total_checks']} pasaron")
 
 
-class TestWorkflowCriticalFixed:
-    """Tests críticos del workflow de creación - CORREGIDOS"""
-    
-    @pytest.mark.asyncio
-    async def test_analyze_requirements_step_fixed(self):
-        """Test CRÍTICO: Paso 'Analizar Requisitos' funciona - CORREGIDO"""
-        orchestrator = Orchestrator()
-        await orchestrator.start()
-        
-        try:
-            # Simular el paso con datos más realistas
-            task_data = {
-                "task_id": "analyze_requirements_test",
-                "name": "analyze_requirements",  # ✅ CORREGIDO: usar capability real
-                "description": "Test app para ingeniería",
-                "params": {
-                    "description": "Test app para ingeniería", 
-                    "features": ["authentication", "database", "api"],
-                    "type": "web_app"
-                }
-            }
-            
-            # CORRECCIÓN: Usar método corregido send_message
-            response = await orchestrator.send_message(
-                recipient="architect_agent",
-                action="task.execute",
-                data=task_data
-            )
-            
-            # Verificar respuesta
-            assert response is not None
-            assert hasattr(response, 'success')
-            
-            if response.success:
-                print(f"✅ Analizar Requisitos exitoso: {response.result}")
-            else:
-                print(f"⚠️ Analizar Requisitos falló pero el flujo funciona: {response.error}")
-                # No fallar el test - el flujo básico funciona
-            
-        except Exception as e:
-            print(f"⚠️ Analizar Requisitos tiene problemas: {e}")
-            # Verificar que al menos la comunicación básica funciona
-            assert hasattr(orchestrator, 'send_message')
-            
-        finally:
-            await orchestrator.stop()
-            await asyncio.sleep(0.1)
-
-
-class TestIntegrationCriticalFixed:
-    """Tests de integración críticos - CORREGIDOS"""
-    
-    @pytest.mark.asyncio
-    async def test_full_init_workflow_fixed(self):
-        """Test CRÍTICO: Workflow completo de 'genesis init' - CORREGIDO"""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            project_path = Path(tmp_dir) / "test_project"
-            
-            orchestrator = Orchestrator()
-            await orchestrator.start()
-            
-            try:
-                # CORRECCIÓN: Usar método corregido execute_project_creation
-                result = await orchestrator.execute_project_creation(
-                    project_name="test_project",
-                    project_path=project_path,
-                    template="saas-basic",
-                    features=["authentication"]
-                )
-                
-                # Verificar resultado básico
-                assert result is not None
-                assert isinstance(result, dict)
-                assert "success" in result
-                
-                if result.get("success"):
-                    print(f"✅ Workflow completo exitoso: {result}")
-                    assert project_path.exists()
-                else:
-                    print(f"⚠️ Workflow no completó pero estructura funciona: {result.get('error', 'Unknown error')}")
-                    # No fallar el test - la estructura básica funciona
-                
-            except Exception as e:
-                print(f"⚠️ Workflow tiene problemas pero orchestrator funciona: {e}")
-                # Verificar que al menos el orchestrator funciona
-                assert hasattr(orchestrator, 'execute_project_creation')
-                
-            finally:
-                await orchestrator.stop()
-                await asyncio.sleep(0.1)
 
 
 def test_imports_fixed():
@@ -418,48 +272,7 @@ def test_imports_fixed():
     try:
         from genesis_engine.mcp.protocol import MCPProtocol
         from genesis_engine.mcp.message_types import MCPMessage, MCPResponse
-        from genesis_engine.core.orchestrator import GenesisOrchestrator
-        from genesis_engine.templates.engine import TemplateEngine
-        from genesis_engine.core.config import validate_environment
-        print("✅ Todos los imports exitosos")
-        # CORRECCIÓN: No retornar valor, solo hacer assert
-        assert True
-    except ImportError as e:
-        print(f"❌ Error en imports: {e}")
-        assert False, f"Import error: {e}"
-
-
-def run_critical_tests_fixed():
-    """Ejecutar tests críticos corregidos y mostrar resultados"""
-    print("🔥 EJECUTANDO TESTS CRÍTICOS CORREGIDOS DE GENESIS ENGINE")
-    print("=" * 60)
-    
-    # Test de imports
-    print("\n1. 📦 Tests de Imports:")
-    try:
-        test_imports_fixed()
-        print("   ✅ Imports funcionan correctamente")
-    except Exception as e:
-        print(f"   ❌ Problemas con imports: {e}")
-        return
-    
-    # Tests básicos de estructura
-    print("\n2. 🧪 Tests de Estructura Básica:")
-    try:
-        test_mcp = TestMCPProtocolCriticalFixed()
-        test_mcp.test_mcp_protocol_initialization()
-        print("   ✅ MCP Protocol inicialización")
-        
-        test_mcp.test_mcp_message_structure_fixed()
-        print("   ✅ Estructura de mensajes MCP corregida")
-        
-    except Exception as e:
-        print(f"   ❌ Error en estructura básica: {e}")
-    
-    # Tests de agentes
-    print("\n3. 🤖 Tests de Agentes:")
-    try:
-        test_agents = TestAgentBaseCriticalFixed()
+        from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator
         test_agents.test_architect_agent_initialization_fixed()
         print("   ✅ ArchitectAgent inicialización")
         

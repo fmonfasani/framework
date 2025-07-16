@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Importar componentes core
 from genesis_engine.core.exceptions import GenesisException, ProjectCreationError
-from genesis_engine.core.orchestrator import GenesisOrchestrator
+from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
 from genesis_engine.core.config import initialize
 from genesis_engine.core.logging import get_logger
 from genesis_engine import __version__
@@ -315,29 +315,28 @@ def init(
 
 async def _create_project_async(config: Dict[str, Any], progress: Progress, task_id) -> Any:
     """Crear proyecto de forma asíncrona"""
-    orchestrator = GenesisOrchestrator()
+    orchestrator = CoreOrchestrator()
     
     try:
-        progress.update(task_id, description="Inicializando orquestador...")
-        await orchestrator.initialize()
-        
         progress.update(task_id, description="Creando proyecto...")
-        result = await orchestrator.create_project(config)
+        request = ProjectGenerationRequest(
+            name=config.get("name", "project"),
+            template=config.get("template", "default"),
+            features=config.get("features", []),
+            options=config,
+        )
+        result = await orchestrator.execute_project_generation(request)
         
         return result
         
     except Exception as e:
         logger.error(f"Error en creación asíncrona: {e}", exc_info=True)
-        from genesis_engine.core.orchestrator import ProjectCreationResult
-        return ProjectCreationResult(
-            success=False,
-            error=str(e)
-        )
+        return {
+            "success": False,
+            "error": str(e),
+        }
     finally:
-        try:
-            await orchestrator.shutdown()
-        except Exception as e:
-            logger.warning(f"Error cerrando orquestador: {e}")
+        pass
 
 @app.command("doctor") 
 def doctor():
@@ -471,40 +470,25 @@ def deploy(
 
 async def _deploy_async(config: Dict[str, Any]) -> Dict[str, Any]:
     """Ejecutar despliegue de forma asíncrona"""
-    orchestrator = GenesisOrchestrator()
+    orchestrator = CoreOrchestrator()
     
     try:
-        await orchestrator.initialize()
-        
-        # Crear tarea de despliegue
-        from genesis_engine.mcp.agent_base import AgentTask
-        task = AgentTask(
-            id="deploy_task",
-            name="deploy_application",
-            params=config
+        request = ProjectGenerationRequest(
+            name="deploy",
+            template="deploy",
+            options=config,
         )
-        
-        # Ejecutar con el deploy agent
-        response = await orchestrator.mcp.send_request(
-            sender_id="cli",
-            target_id="deploy_agent",
-            action="deploy",
-            data=config
-        )
-        
-        if response.success:
-            return {"success": True, "result": response.result}
+        result = await orchestrator.execute_project_generation(request)
+        if result.success:
+            return {"success": True, "result": result.data}
         else:
-            return {"success": False, "error": response.error_message}
+            return {"success": False, "error": result.data.get("error")}
             
     except Exception as e:
         logger.error(f"Error en deploy async: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
     finally:
-        try:
-            await orchestrator.shutdown()
-        except Exception as e:
-            logger.warning(f"Error cerrando orquestador: {e}")
+        pass
 
 @app.command("generate")
 def generate(
@@ -587,43 +571,26 @@ def generate(
 
 async def _generate_async(config: Dict[str, Any]) -> Dict[str, Any]:
     """Ejecutar generación de forma asíncrona"""
-    orchestrator = GenesisOrchestrator()
+    orchestrator = CoreOrchestrator()
     
     try:
-        await orchestrator.initialize()
-        
-        # Determinar agente apropiado
-        agent_map = {
-            "model": "backend_agent",
-            "endpoint": "backend_agent", 
-            "page": "frontend_agent",
-            "component": "frontend_agent",
-            "test": "backend_agent"
-        }
-        
-        target_agent = config.get("agent") or agent_map.get(config["component"], "backend_agent")
-        
-        # Ejecutar generación
-        response = await orchestrator.mcp.send_request(
-            sender_id="cli",
-            target_id=target_agent,
-            action="generate_component",
-            data=config
+        request = ProjectGenerationRequest(
+            name="generate_component",
+            template=config.get("component", "component"),
+            options=config,
         )
-        
-        if response.success:
-            return {"success": True, "result": response.result}
+        result = await orchestrator.execute_project_generation(request)
+
+        if result.success:
+            return {"success": True, "result": result.data}
         else:
-            return {"success": False, "error": response.error_message}
+            return {"success": False, "error": result.data.get("error")}
             
     except Exception as e:
         logger.error(f"Error en generate async: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
     finally:
-        try:
-            await orchestrator.shutdown()
-        except Exception as e:
-            logger.warning(f"Error cerrando orquestador: {e}")
+        pass
 
 @app.command("status")
 def status(ctx: typer.Context):

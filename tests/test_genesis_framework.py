@@ -113,7 +113,7 @@ class GenesisFrameworkTester:
             ("genesis_engine.agents.architect", "ArchitectAgent"),
             ("genesis_engine.agents.backend", "BackendAgent"),
             ("genesis_engine.agents.frontend", "FrontendAgent"),
-            ("genesis_engine.core.orchestrator", "Orchestrator"),
+            ("genesis_core.orchestrator.core_orchestrator", "CoreOrchestrator"),
             ("genesis_engine.core.config", "setup_logging"),
             ("genesis_engine.core.project_manager", "ProjectManager"),
         ]
@@ -286,51 +286,18 @@ class GenesisFrameworkTester:
         """Test del orquestador"""
         
         try:
-            from genesis_engine.core.orchestrator import Orchestrator
-            
-            # Crear orquestador
-            orchestrator = Orchestrator()
-            
-            # Test de inicialización
+            from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
+
+            orchestrator = CoreOrchestrator()
+            request = ProjectGenerationRequest(name="demo", template="saas-basic")
+            result = await orchestrator.execute_project_generation(request)
+
             self.add_result(TestResult(
-                name="Orchestrator Initialization",
-                success=orchestrator is not None,
-                details="Orquestador creado"
+                name="Orchestrator Execution",
+                success=result.success,
+                details=result.data
             ))
-            
-            # Test de workflows disponibles
-            templates = orchestrator.get_available_templates()
-            has_templates = len(templates) > 0
-            
-            self.add_result(TestResult(
-                name="Orchestrator Templates",
-                success=has_templates,
-                details=f"Templates disponibles: {templates}"
-            ))
-            
-            # Test de inicialización completa
-            try:
-                await orchestrator.start()
-                
-                # Verificar agentes registrados
-                status = orchestrator.get_status()
-                agents_registered = status["agents_registered"] > 0
-                
-                self.add_result(TestResult(
-                    name="Orchestrator Agent Registration",
-                    success=agents_registered,
-                    details=f"Agentes registrados: {status['agents_registered']}"
-                ))
-                
-                await orchestrator.stop()
-                
-            except Exception as e:
-                self.add_result(TestResult(
-                    name="Orchestrator Full Start",
-                    success=False,
-                    error=str(e)
-                ))
-            
+
         except Exception as e:
             self.add_result(TestResult(
                 name="Orchestrator Test",
@@ -381,89 +348,25 @@ class GenesisFrameworkTester:
     
     async def _test_end_to_end(self):
         """Test de integración end-to-end"""
-        
+
         try:
-            from genesis_engine.core.orchestrator import Orchestrator
-            
-            # Configuración de proyecto de prueba
-            test_config = {
-                "name": "test_project_e2e",
-                "description": "Proyecto de prueba end-to-end",
-                "template": "saas_basic",
-                "features": ["authentication", "api", "frontend"],
-                "output_path": "./test_output_e2e"
-            }
-            
-            # Crear orquestador
-            orchestrator = Orchestrator()
-            
-            try:
-                await orchestrator.start()
-                
-                # Test crítico: paso de "Analizar Requisitos"
-                # Este es el paso que estaba fallando originalmente
-                architect_agent = orchestrator.protocol.agents.get("architect_agent")
-                
-                if architect_agent:
-                    # Simular task.execute que estaba fallando
-                    from genesis_engine.mcp.protocol import MCPMessage
-                    
-                    test_message = MCPMessage(
-                        sender="test",
-                        recipient="architect_agent",
-                        action="task.execute",
-                        data={
-                            "name": "analyze_requirements",
-                            "params": {
-                                "description": test_config["description"],
-                                "features": test_config["features"]
-                            }
-                        }
-                    )
-                    
-                    # Este es el test más crítico: el que estaba fallando antes
-                    response = await architect_agent.handle_request(test_message)
-                    
-                    analyze_success = response.get("success", False)
-                    
-                    self.add_result(TestResult(
-                        name="CRITICAL: task.execute Handler",
-                        success=analyze_success,
-                        error=response.get("error") if not analyze_success else None,
-                        details=f"Architect agent response: {response}"
-                    ))
-                    
-                    if analyze_success:
-                        # Si el test crítico pasa, intentar workflow completo
-                        # (pero en modo limitado para no crear archivos reales)
-                        self.add_result(TestResult(
-                            name="End-to-End Workflow Ready",
-                            success=True,
-                            details="Workflow completo estaría listo para ejecutarse"
-                        ))
-                    
-                else:
-                    self.add_result(TestResult(
-                        name="End-to-End Test",
-                        success=False,
-                        error="ArchitectAgent no encontrado en protocolo"
-                    ))
-                
-                await orchestrator.stop()
-                
-            except Exception as e:
-                self.add_result(TestResult(
-                    name="End-to-End Execution",
-                    success=False,
-                    error=str(e)
-                ))
-                
-                # Asegurar cleanup
-                try:
-                    await orchestrator.stop()
-                except:
-                    pass
-            
+            from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
+
+            request = ProjectGenerationRequest(
+                name="test_project_e2e",
+                template="saas_basic",
+                features=["authentication", "api", "frontend"],
+            )
+
+            orchestrator = CoreOrchestrator()
+            result = await orchestrator.execute_project_generation(request)
+
+            self.add_result(TestResult(
+                name="End-to-End Workflow",
+                success=result.success,
+                details=result.data,
+            ))
+
         except Exception as e:
             self.add_result(TestResult(
                 name="End-to-End Test",

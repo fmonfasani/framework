@@ -13,7 +13,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from genesis_engine.core.orchestrator import GenesisOrchestrator
+from genesis_core.orchestrator.core_orchestrator import CoreOrchestrator, ProjectGenerationRequest
 from genesis_engine.core.config import GenesisConfig, Features
 
 try:
@@ -138,10 +138,14 @@ def create_project(
 
 async def _create_project_async(config):
     """Crear proyecto de manera asíncrona"""
-    orchestrator = GenesisOrchestrator()
-    await orchestrator.initialize()
-    
-    return await orchestrator.create_project(config)
+    orchestrator = CoreOrchestrator()
+    request = ProjectGenerationRequest(
+        name=config.get("name", "project"),
+        template=config.get("template", "default"),
+        features=config.get("features", []),
+        options=config,
+    )
+    return await orchestrator.execute_project_generation(request)
 
 def _interactive_feature_selection(current_features: List[str]) -> List[str]:
     """Selección interactiva de características"""
